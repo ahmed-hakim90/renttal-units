@@ -83,8 +83,8 @@ export function PaymentsTable({ payments, locale }: { payments: Payment[]; local
   const paginatedPayments = filteredPayments.slice((page - 1) * pageSize, page * pageSize);
 
   async function exportExcel() {
-    const XLSX = await import('xlsx');
-    const rows = filteredPayments.map((payment) => ({
+    const { default: ExcelJS } = await import('exceljs');
+    const rows: Array<Record<string, string | number>> = filteredPayments.map((payment) => ({
       [t('invoice')]: getInvoiceNumber(payment),
       [t('unit')]: getUnitNumber(payment),
       [t('location')]: getLocationName(payment, locale),
@@ -95,10 +95,28 @@ export function PaymentsTable({ payments, locale }: { payments: Payment[]; local
       [t('notes')]: payment.notes ?? '',
     }));
 
-    const worksheet = XLSX.utils.json_to_sheet(rows);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Payments');
-    XLSX.writeFile(workbook, `payments-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Payments');
+    const headers = Object.keys(rows[0] ?? {});
+
+    worksheet.addRow(headers);
+    rows.forEach((row) => worksheet.addRow(headers.map((header) => row[header])));
+    headers.forEach((header, index) => {
+      worksheet.getColumn(index + 1).width = Math.max(14, header.length + 4);
+    });
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `payments-${new Date().toISOString().slice(0, 10)}.xlsx`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
   }
 
   function resetFilters() {

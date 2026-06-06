@@ -14,10 +14,127 @@ import { validationService } from '@/lib/services/validation-service';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
 import type { UserRole, PaymentCycle, UnitStatus } from '@/types/database';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
+import { Readable } from 'node:stream';
+
+const MAX_IMPORT_FILE_SIZE_BYTES = 2 * 1024 * 1024;
+const MAX_IMPORT_ROWS = 1000;
+const ALLOWED_IMPORT_EXTENSIONS = new Set(['.xlsx', '.csv']);
+const ALLOWED_IMPORT_MIME_TYPES = new Set([
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'text/csv',
+  'application/csv',
+  'text/plain',
+  'application/octet-stream',
+]);
 
 async function getCtx() {
   return { correlation_id: await getCorrelationId() };
+}
+
+function getFileExtension(fileName: string) {
+  const dotIndex = fileName.lastIndexOf('.');
+  return dotIndex === -1 ? '' : fileName.slice(dotIndex).toLowerCase();
+}
+
+function validateImportFile(file: File) {
+  const extension = getFileExtension(file.name);
+
+  if (!ALLOWED_IMPORT_EXTENSIONS.has(extension)) {
+    return 'Only .xlsx and .csv files are supported';
+  }
+
+  if (file.type && !ALLOWED_IMPORT_MIME_TYPES.has(file.type)) {
+    return 'Unsupported file type';
+  }
+
+  if (file.size > MAX_IMPORT_FILE_SIZE_BYTES) {
+    return 'Import file must be 2MB or smaller';
+  }
+
+  return null;
+}
+
+function normalizeCellValue(value: unknown): unknown {
+  if (value == null) return undefined;
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed || undefined;
+  }
+  if (typeof value === 'number' || typeof value === 'boolean') return value;
+
+  if (typeof value === 'object') {
+    const cellObject = value as {
+      result?: unknown;
+      text?: unknown;
+      hyperlink?: unknown;
+      richText?: Array<{ text?: string }>;
+    };
+
+    if ('result' in cellObject) return normalizeCellValue(cellObject.result);
+    if (Array.isArray(cellObject.richText)) {
+      return normalizeCellValue(cellObject.richText.map((part) => part.text ?? '').join(''));
+    }
+    if ('text' in cellObject) return normalizeCellValue(cellObject.text);
+    if ('hyperlink' in cellObject) return normalizeCellValue(cellObject.hyperlink);
+  }
+
+  return String(value).trim() || undefined;
+}
+
+async function readImportRows(file: File): Promise<Array<Record<string, unknown>>> {
+  const extension = getFileExtension(file.name);
+  const arrayBuffer = await file.arrayBuffer();
+  const workbook = new ExcelJS.Workbook();
+
+  if (extension === '.csv') {
+    await workbook.csv.read(Readable.from([Buffer.from(arrayBuffer)]));
+  } else {
+    await workbook.xlsx.load(arrayBuffer);
+  }
+
+  const sheet = workbook.worksheets[0];
+  if (!sheet) {
+    throw new Error('Import file must contain at least one worksheet');
+  }
+
+  const headerRow = sheet.getRow(1);
+  const headers: string[] = [];
+
+  for (let index = 1; index <= headerRow.cellCount; index++) {
+    const header = normalizeCellValue(headerRow.getCell(index).value);
+    headers.push(typeof header === 'string' ? header : '');
+  }
+
+  if (!headers.some(Boolean)) {
+    throw new Error('Import file must contain a header row');
+  }
+
+  const rows: Array<Record<string, unknown>> = [];
+
+  for (let rowNumber = 2; rowNumber <= sheet.rowCount; rowNumber++) {
+    if (rows.length >= MAX_IMPORT_ROWS) {
+      throw new Error(`Import file cannot contain more than ${MAX_IMPORT_ROWS} data rows`);
+    }
+
+    const row = sheet.getRow(rowNumber);
+    const data: Record<string, unknown> = {};
+    let hasValue = false;
+
+    headers.forEach((header, index) => {
+      if (!header) return;
+      const value = normalizeCellValue(row.getCell(index + 1).value);
+      if (value !== undefined) {
+        data[header] = value;
+        hasValue = true;
+      }
+    });
+
+    if (hasValue) rows.push(data);
+  }
+
+  return rows;
 }
 
 export async function getDebtAgingReport(locale: string, filters?: { locationId?: string }) {
@@ -149,11 +266,15 @@ export async function previewImport(locale: string, formData: FormData) {
   const auth = await requireAdminEditor(locale, await getCtx());
   const file = formData.get('file') as File;
   if (!file) return { success: false, error: 'No file provided' };
+  const fileError = validateImportFile(file);
+  if (fileError) return { success: false, error: fileError };
 
-  const buffer = await file.arrayBuffer();
-  const workbook = XLSX.read(buffer, { type: 'array' });
-  const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet);
+  let rows: Array<Record<string, unknown>>;
+  try {
+    rows = await readImportRows(file);
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : 'Failed to read import file' };
+  }
 
   const locations = await locationsRepository.findAll({ ...await getCtx(), user_id: auth.userId, role: auth.role });
   const locationMap = new Map(locations.map((l) => [l.name_en.toLowerCase(), l.id]));

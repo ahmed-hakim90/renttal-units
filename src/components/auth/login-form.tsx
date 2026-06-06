@@ -2,12 +2,12 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { createClient } from '@/lib/supabase/client';
+import { signIn } from '@/lib/actions/auth';
 import { useRouter } from '@/lib/i18n/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
-export function LoginForm({ locale: _locale }: { locale: string }) {
+export function LoginForm({ locale }: { locale: string }) {
   const t = useTranslations('common');
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -19,14 +19,11 @@ export function LoginForm({ locale: _locale }: { locale: string }) {
     setError(null);
 
     const fd = new FormData(e.currentTarget);
-    const email = fd.get('email') as string;
-    const password = fd.get('password') as string;
+    fd.set('locale', locale);
+    const result = await signIn(fd);
 
-    const supabase = createClient();
-    const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
-
-    if (authError) {
-      setError(authError.message);
+    if (!result.success) {
+      setError(result.error ?? t('error'));
       setLoading(false);
       return;
     }

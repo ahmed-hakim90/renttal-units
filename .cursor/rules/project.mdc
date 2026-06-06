@@ -1,0 +1,12 @@
+## Current Security State (Updated June 2026)
+- ✅ npm audit: 0 vulnerabilities
+- ✅ Rate limiting: Supabase migration 20250606000005_auth_rate_limits.sql
+- ✅ Login: server action only, generic error messages
+- ✅ Security headers: enforced in next.config.ts
+- ⏳ CSP: Report-Only — upgrade to enforced after monitoring violations
+- ⏳ Middleware: has deprecation warning — address on next Next.js upgrade
+
+## File Import Rules
+- Allowed: .xlsx and .csv only
+- Max size + max rows validated before parsing
+- Uses exceljs (not xlsx) — do NOT revert to xlsx package

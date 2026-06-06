@@ -1,12 +1,12 @@
-import type { WorkSheet } from 'xlsx';
 import {
-  AGING_BUCKET_KEYS,
   type AgingBucketKey,
   type AgingRow,
   type BucketSummary,
   type UnitAgingSummary,
   type AgingBucketAmounts,
 } from '@/lib/rental/aging';
+
+type ExcelWorksheet = import('exceljs').Worksheet;
 
 export interface DebtAgingExportLabels {
   reportTitle: string;
@@ -206,8 +206,24 @@ function buildDetailSheet(
   return rows;
 }
 
-function setColumnWidths(sheet: WorkSheet, widths: number[]) {
-  sheet['!cols'] = widths.map((wch) => ({ wch }));
+function setColumnWidths(sheet: ExcelWorksheet, widths: number[]) {
+  widths.forEach((width, index) => {
+    sheet.getColumn(index + 1).width = width;
+  });
+}
+
+function downloadWorkbook(buffer: BlobPart, fileName: string) {
+  const blob = new Blob([buffer], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = fileName;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
 }
 
 export async function exportDebtAgingExcel(input: {
@@ -225,7 +241,7 @@ export async function exportDebtAgingExcel(input: {
   getPaymentCycleLabel: (cycle: string | null | undefined) => string;
   getStatusLabel: (status: string) => string;
 }) {
-  const XLSX = await import('xlsx');
+  const { default: ExcelJS } = await import('exceljs');
 
   const summaryRows = buildSummarySheet(
     input.labels,
@@ -249,14 +265,16 @@ export async function exportDebtAgingExcel(input: {
     input.getStatusLabel,
   );
 
-  const summarySheet = XLSX.utils.aoa_to_sheet(summaryRows);
-  const detailSheet = XLSX.utils.aoa_to_sheet(detailRows);
+  const workbook = new ExcelJS.Workbook();
+  const summarySheet = workbook.addWorksheet(input.labels.summarySheet);
+  const detailSheet = workbook.addWorksheet(input.labels.detailSheet);
+
+  summarySheet.addRows(summaryRows);
+  detailSheet.addRows(detailRows);
 
   setColumnWidths(summarySheet, [22, 18, 14, 14, 14, 14, 14, 14, 16, 12]);
   setColumnWidths(detailSheet, [16, 22, 12, 16, 14, 24, 14, 12, 14, 14, 16, 14]);
 
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, summarySheet, input.labels.summarySheet);
-  XLSX.utils.book_append_sheet(workbook, detailSheet, input.labels.detailSheet);
-  XLSX.writeFile(workbook, `debt-aging-${input.asOfIso}.xlsx`);
+  const buffer = await workbook.xlsx.writeBuffer();
+  downloadWorkbook(buffer, `debt-aging-${input.asOfIso}.xlsx`);
 }

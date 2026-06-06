@@ -74,7 +74,7 @@ export function ImportUnitsClient({ locale, canEdit }: { locale: string; canEdit
         </p>
         <form onSubmit={handlePreview} className="flex items-end gap-4">
           <div className="flex-1">
-            <input type="file" name="file" accept=".xlsx,.xls,.csv" required className="block w-full text-sm" />
+            <input type="file" name="file" accept=".xlsx,.csv" required className="block w-full text-sm" />
           </div>
           <Button type="submit" disabled={loading}>
             <Upload className="h-4 w-4" /> Preview
