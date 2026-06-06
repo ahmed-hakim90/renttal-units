@@ -40,5 +40,11 @@
   "summaryByUnitDesc": "جدول الذمم المدينة — يُظهر توزيع المستحقات على فئات التقادم لكل وحدة",
   "invoiceDetails": "تفاصيل الفواتير",
   "invoiceDetailsDesc": "قائمة تفصيلية مجمّعة حسب فئة التقادم مع المجاميع الفرعية",
-  "noData": "لا توجد ذمم مدينة مستحقة"
+  "noData": "لا توجد ذمم مدينة مستحقة",
+  "percentage": "النسبة %",
+  "subtotal": "مجموع فرعي",
+  "exportSummarySheet": "ملخص",
+  "exportDetailSheet": "تفاصيل",
+  "exportBucketSummary": "ملخص فئات التقادم",
+  "exportUnitMatrix": "ملخص التقادم حسب الوحدة"
 }

@@ -14,6 +14,7 @@ import {
   buildUnitAgingSummary,
   sumBucketAmounts,
 } from '@/lib/rental/aging';
+import { exportDebtAgingExcel } from '@/lib/reports/debt-aging-export';
 import type { Invoice, Location } from '@/types/database';
 import type { Locale } from '@/lib/i18n/routing';
 
@@ -82,59 +83,57 @@ export function DebtAgingReport({
   }, [rows]);
 
   async function exportExcel() {
-    const XLSX = await import('xlsx');
-    const asOf = asOfDate.toISOString().slice(0, 10);
-
-    const summaryData = unitSummary.map((unit) => ({
-      [t('unit')]: unit.unitNumber,
-      [t('tenant')]: unit.tenantName,
-      [t('location')]: unit.locationName,
-      [t('paymentCycle')]: unit.paymentCycle ? tc(`paymentCycle.${unit.paymentCycle}`) : '—',
-      [t('current')]: unit.buckets.current || '',
-      [t('days1to30')]: unit.buckets.days1to30 || '',
-      [t('days31to60')]: unit.buckets.days31to60 || '',
-      [t('days61to90')]: unit.buckets.days61to90 || '',
-      [t('over90')]: unit.buckets.over90 || '',
-      [t('total')]: unit.total,
-      [t('invoiceCount')]: unit.invoiceCount,
-    }));
-
-    summaryData.push({
-      [t('unit')]: t('grandTotal'),
-      [t('tenant')]: '',
-      [t('location')]: '',
-      [t('paymentCycle')]: '',
-      [t('current')]: bucketTotals.current || '',
-      [t('days1to30')]: bucketTotals.days1to30 || '',
-      [t('days31to60')]: bucketTotals.days31to60 || '',
-      [t('days61to90')]: bucketTotals.days61to90 || '',
-      [t('over90')]: bucketTotals.over90 || '',
-      [t('total')]: totalAmount,
-      [t('invoiceCount')]: totalInvoices,
+    await exportDebtAgingExcel({
+      labels: {
+        reportTitle: t('debtAging'),
+        asOfDate: t('asOfDate'),
+        totalOutstanding: t('totalOutstanding'),
+        totalInvoices: t('totalInvoices'),
+        totalUnits: t('totalUnits'),
+        bucketSummarySection: t('exportBucketSummary'),
+        unitSummarySection: t('exportUnitMatrix'),
+        detailSheetTitle: t('invoiceDetails'),
+        summarySheet: t('exportSummarySheet'),
+        detailSheet: t('exportDetailSheet'),
+        bucket: t('bucket'),
+        count: t('count'),
+        totalAmount: t('totalAmount'),
+        percentage: t('percentage'),
+        unit: t('unit'),
+        tenant: t('tenant'),
+        location: t('location'),
+        paymentCycle: t('paymentCycle'),
+        period: t('period'),
+        dueDate: t('dueDate'),
+        daysOverdue: t('daysOverdue'),
+        amount: t('amount'),
+        paidAmount: t('paidAmount'),
+        remainingAmount: t('remainingAmount'),
+        status: t('status'),
+        total: t('total'),
+        grandTotal: t('grandTotal'),
+        invoiceCount: t('invoiceCount'),
+        subtotal: t('subtotal'),
+        current: t('current'),
+        days1to30: t('days1to30'),
+        days31to60: t('days31to60'),
+        days61to90: t('days61to90'),
+        over90: t('over90'),
+        invoiceNumber: t('invoiceNumber'),
+      },
+      asOfFormatted: formatDate(asOfDate, loc),
+      asOfIso: asOfDate.toISOString().slice(0, 10),
+      bucketSummary,
+      unitSummary,
+      bucketTotals,
+      groupedRows,
+      totalAmount,
+      totalInvoices,
+      totalUnits,
+      getLocationName: (row) => getLocationName(row.invoice, locale),
+      getPaymentCycleLabel: (cycle) => (cycle ? tc(`paymentCycle.${cycle}`) : '—'),
+      getStatusLabel: (status) => ts(status),
     });
-
-    const detailData = rows.map((row) => ({
-      [t('bucket')]: t(row.bucket),
-      [t('invoiceNumber')]: row.invoice.invoice_number,
-      [t('unit')]: row.invoice.unit?.unit_number ?? '',
-      [t('tenant')]: row.invoice.tenant?.full_name ?? row.invoice.unit?.tenant?.full_name ?? '',
-      [t('location')]: getLocationName(row.invoice, locale),
-      [t('paymentCycle')]: row.invoice.unit?.payment_cycle
-        ? tc(`paymentCycle.${row.invoice.unit.payment_cycle}`)
-        : '',
-      [t('period')]: `${row.invoice.period_start} – ${row.invoice.period_end}`,
-      [t('dueDate')]: row.invoice.due_date,
-      [t('daysOverdue')]: row.daysOverdue,
-      [t('amount')]: Number(row.invoice.amount),
-      [t('paidAmount')]: Number(row.invoice.paid_amount),
-      [t('remainingAmount')]: row.remaining,
-      [t('status')]: ts(row.invoice.status),
-    }));
-
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(summaryData), t('summaryByUnit'));
-    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(detailData), t('invoiceDetails'));
-    XLSX.writeFile(workbook, `debt-aging-${asOf}.xlsx`);
   }
 
   return (

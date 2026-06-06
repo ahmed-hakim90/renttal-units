@@ -89,7 +89,6 @@ export interface UnitAgingSummary {
   unitId: string;
   unitNumber: string;
   locationName: string;
-  tenantName: string;
   paymentCycle: PaymentCycle | null;
   buckets: AgingBucketAmounts;
   total: number;
@@ -112,7 +111,6 @@ export function buildUnitAgingSummary(
         unitId,
         unitNumber: unit?.unit_number ?? '—',
         locationName: getLocationName(row.invoice),
-        tenantName: row.invoice.tenant?.full_name ?? row.invoice.unit?.tenant?.full_name ?? '—',
         paymentCycle: unit?.payment_cycle ?? null,
         buckets: createEmptyBucketAmounts(),
         total: 0,

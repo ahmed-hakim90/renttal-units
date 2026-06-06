@@ -40,5 +40,11 @@
   "summaryByUnitDesc": "AR aging matrix — outstanding balance distribution per unit across aging buckets",
   "invoiceDetails": "Invoice Details",
   "invoiceDetailsDesc": "Detailed listing grouped by aging bucket with subtotals",
-  "noData": "No outstanding receivables found"
+  "noData": "No outstanding receivables found",
+  "percentage": "Percentage %",
+  "subtotal": "Subtotal",
+  "exportSummarySheet": "Summary",
+  "exportDetailSheet": "Details",
+  "exportBucketSummary": "Aging Bucket Summary",
+  "exportUnitMatrix": "Aging Summary by Unit"
 }
