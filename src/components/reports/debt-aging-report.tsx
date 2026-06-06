@@ -100,7 +100,6 @@ export function DebtAgingReport({
         totalAmount: t('totalAmount'),
         percentage: t('percentage'),
         unit: t('unit'),
-        tenant: t('tenant'),
         location: t('location'),
         paymentCycle: t('paymentCycle'),
         period: t('period'),
@@ -221,11 +220,10 @@ export function DebtAgingReport({
               <CardDescription className="mt-1">{t('summaryByUnitDesc')}</CardDescription>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[960px] text-sm">
+              <table className="w-full min-w-[880px] text-sm">
                 <thead className="bg-muted/50">
                   <tr>
                     <th className="px-4 py-3 text-start">{t('unit')}</th>
-                    <th className="px-4 py-3 text-start">{t('tenant')}</th>
                     <th className="px-4 py-3 text-start">{t('location')}</th>
                     <th className="px-4 py-3 text-start">{t('paymentCycle')}</th>
                     {AGING_BUCKET_KEYS.map((bucket) => (
@@ -238,7 +236,6 @@ export function DebtAgingReport({
                   {unitSummary.map((unit) => (
                     <tr key={unit.unitId} className="border-t border-border">
                       <td className="px-4 py-3 font-medium">{unit.unitNumber}</td>
-                      <td className="px-4 py-3">{unit.tenantName}</td>
                       <td className="px-4 py-3">{unit.locationName}</td>
                       <td className="px-4 py-3">
                         {unit.paymentCycle ? tc(`paymentCycle.${unit.paymentCycle}`) : '—'}
@@ -250,7 +247,7 @@ export function DebtAgingReport({
                     </tr>
                   ))}
                   <tr className="border-t-2 border-border bg-muted/30 font-semibold">
-                    <td className="px-4 py-3" colSpan={4}>{t('grandTotal')}</td>
+                    <td className="px-4 py-3" colSpan={3}>{t('grandTotal')}</td>
                     {AGING_BUCKET_KEYS.map((bucket) => (
                       <AmountCell key={bucket} value={bucketTotals[bucket]} locale={loc} bold />
                     ))}
@@ -282,7 +279,7 @@ export function DebtAgingReport({
                         <div className="min-w-0">
                           <p className="truncate font-semibold">{row.invoice.invoice_number}</p>
                           <p className="text-sm text-muted-foreground">
-                            {row.invoice.unit?.unit_number ?? '—'} · {row.invoice.tenant?.full_name ?? '—'}
+                            {row.invoice.unit?.unit_number ?? '—'}
                           </p>
                         </div>
                         <p className="shrink-0 font-semibold">{formatCurrency(row.remaining, loc)}</p>
@@ -312,12 +309,11 @@ export function DebtAgingReport({
             </div>
 
             <div className="hidden overflow-x-auto md:block">
-              <table className="w-full min-w-[1180px] text-sm">
+              <table className="w-full min-w-[1080px] text-sm">
                 <thead className="bg-muted/50">
                   <tr>
                     <th className="px-4 py-3 text-start">{t('invoiceNumber')}</th>
                     <th className="px-4 py-3 text-start">{t('unit')}</th>
-                    <th className="px-4 py-3 text-start">{t('tenant')}</th>
                     <th className="px-4 py-3 text-start">{t('location')}</th>
                     <th className="px-4 py-3 text-start">{t('period')}</th>
                     <th className="px-4 py-3 text-start">{t('dueDate')}</th>
@@ -340,7 +336,7 @@ export function DebtAgingReport({
                     />
                   ))}
                   <tr className="border-t-2 border-border bg-muted/30 font-semibold">
-                    <td className="px-4 py-3" colSpan={7}>{t('grandTotal')}</td>
+                    <td className="px-4 py-3" colSpan={6}>{t('grandTotal')}</td>
                     <td className="px-4 py-3 text-end tabular-nums" colSpan={3}>
                       {formatCurrency(totalAmount, loc)}
                     </td>
@@ -374,7 +370,7 @@ function BucketDetailGroup({
   return (
     <>
       <tr className="bg-muted/40">
-        <td className="px-4 py-2.5 font-semibold" colSpan={11}>
+        <td className="px-4 py-2.5 font-semibold" colSpan={10}>
           {t(bucket)} · {rows.length} {t('invoicesLabel')} · {formatCurrency(subtotal, locale)}
         </td>
       </tr>
@@ -382,7 +378,6 @@ function BucketDetailGroup({
         <tr key={row.invoice.id} className="border-t border-border">
           <td className="px-4 py-3">{row.invoice.invoice_number}</td>
           <td className="px-4 py-3">{row.invoice.unit?.unit_number ?? '—'}</td>
-          <td className="px-4 py-3">{row.invoice.tenant?.full_name ?? row.invoice.unit?.tenant?.full_name ?? '—'}</td>
           <td className="px-4 py-3">
             {row.invoice.unit?.location
               ? locale === 'ar'
