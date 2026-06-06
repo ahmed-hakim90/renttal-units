@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -83,7 +83,8 @@ export function LocationsPageClient({
                       <Button variant="ghost" size="sm" onClick={async () => {
                         if (!confirm(t('deleteConfirm'))) return;
                         const result = await deleteLocation(locale, loc.id);
-                        result.success ? toast.success(tc('success')) : toast.error('error' in result ? result.error : tc('error'));
+                        if (result.success) toast.success(tc('success'));
+                        else toast.error('error' in result ? result.error : tc('error'));
                       }}>
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>

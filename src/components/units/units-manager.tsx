@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
@@ -25,8 +26,21 @@ export function UnitsManager({
   const t = useTranslations('units');
   const tc = useTranslations('common');
   const loc = locale as Locale;
+  const searchParams = useSearchParams();
+  const search = searchParams.get('search')?.trim().toLowerCase() ?? '';
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Unit | null>(null);
+
+  const visibleUnits = useMemo(() => {
+    if (!search) return units;
+    return units.filter((unit) => [
+      unit.unit_number,
+      unit.location?.name_en,
+      unit.location?.name_ar,
+      unit.tenant?.full_name,
+      unit.status,
+    ].join(' ').toLowerCase().includes(search));
+  }, [search, units]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -64,10 +78,62 @@ export function UnitsManager({
         </Button>
       )}
 
-      {units.length === 0 ? (
+      {visibleUnits.length === 0 ? (
         <p className="text-muted-foreground">{t('empty')}</p>
       ) : (
-        <div className="rounded-2xl border border-border overflow-x-auto">
+        <>
+        <div className="grid gap-3 md:hidden">
+          {visibleUnits.map((unit) => {
+            const dueDate = calculateUnitDueDate(unit);
+            return (
+              <div key={unit.id} className="rounded-2xl border border-border bg-card p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold">{unit.unit_number}</p>
+                    <p className="text-sm text-muted-foreground">{unit.location?.name_en ?? '—'}</p>
+                  </div>
+                  <Badge status={unit.status} label={tc(`status.${unit.status}`)} />
+                </div>
+                <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <p className="text-xs text-muted-foreground">{t('monthlyRent')}</p>
+                    <p>{formatCurrency(Number(unit.monthly_rent), loc)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">{t('paymentCycle')}</p>
+                    <p>{tc(`paymentCycle.${unit.payment_cycle}`)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">{t('dueDate')}</p>
+                    <p>{dueDate ? formatDate(dueDate, loc) : '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">{t('rentPeriod')}</p>
+                    <p>{unit.rent_start_date && unit.rent_end_date ? `${unit.rent_start_date} - ${unit.rent_end_date}` : '—'}</p>
+                  </div>
+                </div>
+                {canEdit && (
+                  <div className="mt-4 flex gap-2">
+                    <Button className="flex-1" variant="outline" size="sm" onClick={() => { setEditing(unit); setOpen(true); }}>
+                      <Pencil className="h-4 w-4" />
+                      {tc('edit')}
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={async () => {
+                      if (!confirm(t('deleteConfirm'))) return;
+                      const r = await deleteUnit(locale, unit.id);
+                      if (r.success) toast.success(tc('success'));
+                      else toast.error(tc('error'));
+                    }}>
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="hidden rounded-2xl border border-border overflow-x-auto md:block">
           <table className="w-full text-sm">
             <thead className="bg-muted/50">
               <tr>
@@ -82,40 +148,43 @@ export function UnitsManager({
               </tr>
             </thead>
             <tbody>
-              {units.map((unit) => (
-                <tr key={unit.id} className="border-t border-border">
-                  <td className="px-4 py-3 font-medium">{unit.unit_number}</td>
-                  <td className="px-4 py-3">{unit.location?.name_en ?? '—'}</td>
-                  <td className="px-4 py-3">{formatCurrency(Number(unit.monthly_rent), loc)}</td>
-                  <td className="px-4 py-3">{tc(`paymentCycle.${unit.payment_cycle}`)}</td>
-                  <td className="px-4 py-3">
-                    {calculateUnitDueDate(unit) ? formatDate(calculateUnitDueDate(unit)!, loc) : '—'}
-                  </td>
-                  <td className="px-4 py-3 text-xs">
-                    {unit.rent_start_date && unit.rent_end_date
-                      ? `${unit.rent_start_date} - ${unit.rent_end_date}`
-                      : '—'}
-                  </td>
-                  <td className="px-4 py-3"><Badge status={unit.status} label={tc(`status.${unit.status}`)} /></td>
-                  {canEdit && (
-                    <td className="px-4 py-3 text-end space-x-2">
-                      <Button variant="ghost" size="sm" onClick={() => { setEditing(unit); setOpen(true); }}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={async () => {
-                        if (!confirm(t('deleteConfirm'))) return;
-                        const r = await deleteUnit(locale, unit.id);
-                        r.success ? toast.success(tc('success')) : toast.error(tc('error'));
-                      }}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
+              {visibleUnits.map((unit) => {
+                const dueDate = calculateUnitDueDate(unit);
+                return (
+                  <tr key={unit.id} className="border-t border-border">
+                    <td className="px-4 py-3 font-medium">{unit.unit_number}</td>
+                    <td className="px-4 py-3">{unit.location?.name_en ?? '—'}</td>
+                    <td className="px-4 py-3">{formatCurrency(Number(unit.monthly_rent), loc)}</td>
+                    <td className="px-4 py-3">{tc(`paymentCycle.${unit.payment_cycle}`)}</td>
+                    <td className="px-4 py-3">{dueDate ? formatDate(dueDate, loc) : '—'}</td>
+                    <td className="px-4 py-3 text-xs">
+                      {unit.rent_start_date && unit.rent_end_date
+                        ? `${unit.rent_start_date} - ${unit.rent_end_date}`
+                        : '—'}
                     </td>
-                  )}
-                </tr>
-              ))}
+                    <td className="px-4 py-3"><Badge status={unit.status} label={tc(`status.${unit.status}`)} /></td>
+                    {canEdit && (
+                      <td className="px-4 py-3 text-end space-x-2">
+                        <Button variant="ghost" size="sm" onClick={() => { setEditing(unit); setOpen(true); }}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={async () => {
+                          if (!confirm(t('deleteConfirm'))) return;
+                          const r = await deleteUnit(locale, unit.id);
+                          if (r.success) toast.success(tc('success'));
+                          else toast.error(tc('error'));
+                        }}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </td>
+                    )}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
+        </>
       )}
 
       <Modal open={open} onClose={() => setOpen(false)} title={editing ? t('edit') : t('create')}>

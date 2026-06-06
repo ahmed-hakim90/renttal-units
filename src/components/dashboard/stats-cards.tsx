@@ -13,7 +13,7 @@ const cards = [
   { key: 'fullyPaid' as const, href: '/fully-paid', icon: CheckCircle, color: 'text-green-600 bg-green-50' },
 ];
 
-export function DashboardStatsCards({ stats, locale }: { stats: DashboardStats; locale: string }) {
+export function DashboardStatsCards({ stats }: { stats: DashboardStats; locale: string }) {
   const t = useTranslations('dashboard');
   const statValues = {
     dueThisMonth: stats.dueThisMonth,

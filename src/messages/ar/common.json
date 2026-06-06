@@ -7,6 +7,8 @@
   "edit": "تعديل",
   "create": "إنشاء",
   "search": "بحث...",
+  "globalSearchPlaceholder": "بحث عن وحدة أو فاتورة...",
+  "noSearchResults": "لا توجد وحدات أو فواتير مطابقة",
   "filter": "تصفية",
   "actions": "إجراءات",
   "confirm": "تأكيد",

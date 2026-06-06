@@ -23,6 +23,7 @@
   "invoiceCount": "Invoices",
   "latestPayment": "Latest Payment",
   "noResults": "No payments match the current filters",
+  "pageSummary": "Showing {from}-{to} of {total}",
   "selectInvoice": "Select invoice",
   "fullPayment": "Full Payment",
   "partialPayment": "Partial Payment",

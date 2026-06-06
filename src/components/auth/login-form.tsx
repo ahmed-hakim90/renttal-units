@@ -7,7 +7,7 @@ import { useRouter } from '@/lib/i18n/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
-export function LoginForm({ locale }: { locale: string }) {
+export function LoginForm({ locale: _locale }: { locale: string }) {
   const t = useTranslations('common');
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);

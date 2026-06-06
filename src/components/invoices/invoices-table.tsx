@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
@@ -25,10 +26,23 @@ export function InvoicesTable({
   const tc = useTranslations('common.status');
   const tCommon = useTranslations('common');
   const loc = locale as Locale;
+  const searchParams = useSearchParams();
+  const search = searchParams.get('search')?.trim().toLowerCase() ?? '';
   const [issueInvoiceOpen, setIssueInvoiceOpen] = useState(false);
   const [payOpen, setPayOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [paymentMode, setPaymentMode] = useState<'full' | 'partial'>('full');
+
+  const visibleInvoices = useMemo(() => {
+    if (!search) return invoices;
+    return invoices.filter((inv) => [
+      inv.invoice_number,
+      inv.unit?.unit_number,
+      inv.unit?.location?.name_en,
+      inv.unit?.location?.name_ar,
+      inv.tenant?.full_name,
+    ].join(' ').toLowerCase().includes(search));
+  }, [invoices, search]);
 
   async function handleIssueDueInvoice(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -63,10 +77,59 @@ export function InvoicesTable({
 
   return (
     <>
-      {invoices.length === 0 ? (
+      {visibleInvoices.length === 0 ? (
         <p className="text-muted-foreground">{t('empty')}</p>
       ) : (
-        <div className="rounded-2xl border border-border overflow-x-auto">
+        <>
+        <div className="grid gap-3 md:hidden">
+          {visibleInvoices.map((inv) => (
+            <div key={inv.id} className="rounded-2xl border border-border bg-card p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate font-semibold">{inv.invoice_number}</p>
+                  <p className="text-sm text-muted-foreground">{inv.unit?.unit_number ?? '—'}</p>
+                </div>
+                <Badge status={inv.status} label={tc(inv.status as InvoiceStatus)} />
+              </div>
+              <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <p className="text-xs text-muted-foreground">{t('amount')}</p>
+                  <p>{formatCurrency(Number(inv.amount), loc)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">{t('paidAmount')}</p>
+                  <p>{formatCurrency(Number(inv.paid_amount), loc)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">{t('dueDate')}</p>
+                  <p>{formatDate(inv.due_date, loc)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">{t('period')}</p>
+                  <p>{formatDate(inv.period_start, loc)} - {formatDate(inv.period_end, loc)}</p>
+                </div>
+              </div>
+              {canEdit && (
+                <div className="mt-4">
+                  {inv.status === 'due' && (
+                    <Button className="w-full" variant="outline" size="sm" onClick={() => { setSelectedInvoice(inv); setIssueInvoiceOpen(true); }}>
+                      <FileText className="h-4 w-4" />
+                      {t('issueInvoice')}
+                    </Button>
+                  )}
+                  {(inv.status === 'invoice_issued' || inv.status === 'partially_paid') && (
+                    <Button className="w-full" variant="outline" size="sm" onClick={() => { setSelectedInvoice(inv); setPaymentMode('full'); setPayOpen(true); }}>
+                      <CreditCard className="h-4 w-4" />
+                      {t('recordPayment')}
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        <div className="hidden rounded-2xl border border-border overflow-x-auto md:block">
           <table className="w-full text-sm">
             <thead className="bg-muted/50">
               <tr>
@@ -81,7 +144,7 @@ export function InvoicesTable({
               </tr>
             </thead>
             <tbody>
-              {invoices.map((inv) => (
+              {visibleInvoices.map((inv) => (
                 <tr key={inv.id} className="border-t border-border">
                   <td className="px-4 py-3 font-medium">{inv.invoice_number}</td>
                   <td className="px-4 py-3">{inv.unit?.unit_number ?? '—'}</td>
@@ -111,6 +174,7 @@ export function InvoicesTable({
             </tbody>
           </table>
         </div>
+        </>
       )}
 
       <Modal open={issueInvoiceOpen} onClose={() => setIssueInvoiceOpen(false)} title={t('issueInvoice')}>

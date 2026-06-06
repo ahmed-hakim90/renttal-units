@@ -3,7 +3,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { getAuthContext } from '@/lib/auth/session';
 import { getCorrelationId } from '@/lib/observability/correlation-id';
-import { revalidatePath } from 'next/cache';
 import { redirect } from '@/lib/i18n/navigation';
 
 export async function signIn(formData: FormData) {

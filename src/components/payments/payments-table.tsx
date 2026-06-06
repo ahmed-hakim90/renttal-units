@@ -10,6 +10,7 @@ import type { Payment, PaymentMethod } from '@/types/database';
 import type { Locale } from '@/lib/i18n/routing';
 
 const paymentMethods: PaymentMethod[] = ['cash', 'bank_transfer', 'check', 'other'];
+const pageSize = 10;
 
 function toDateInputValue(date: string) {
   return new Date(date).toISOString().slice(0, 10);
@@ -39,6 +40,7 @@ export function PaymentsTable({ payments, locale }: { payments: Payment[]; local
   const [method, setMethod] = useState('');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
+  const [page, setPage] = useState(1);
 
   const filteredPayments = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
@@ -77,6 +79,9 @@ export function PaymentsTable({ payments, locale }: { payments: Payment[]; local
     };
   }, [filteredPayments]);
 
+  const totalPages = Math.max(1, Math.ceil(filteredPayments.length / pageSize));
+  const paginatedPayments = filteredPayments.slice((page - 1) * pageSize, page * pageSize);
+
   async function exportExcel() {
     const XLSX = await import('xlsx');
     const rows = filteredPayments.map((payment) => ({
@@ -101,6 +106,7 @@ export function PaymentsTable({ payments, locale }: { payments: Payment[]; local
     setMethod('');
     setFromDate('');
     setToDate('');
+    setPage(1);
   }
 
   return (
@@ -146,7 +152,10 @@ export function PaymentsTable({ payments, locale }: { payments: Payment[]; local
               <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <input
                 value={search}
-                onChange={(event) => setSearch(event.target.value)}
+                onChange={(event) => {
+                  setSearch(event.target.value);
+                  setPage(1);
+                }}
                 placeholder={t('searchPlaceholder')}
                 className="h-10 w-full rounded-xl border border-border bg-background px-9 text-sm"
               />
@@ -157,7 +166,10 @@ export function PaymentsTable({ payments, locale }: { payments: Payment[]; local
             <label className="text-sm font-medium">{t('paymentMethod')}</label>
             <select
               value={method}
-              onChange={(event) => setMethod(event.target.value)}
+              onChange={(event) => {
+                setMethod(event.target.value);
+                setPage(1);
+              }}
               className="mt-1.5 h-10 w-full rounded-xl border border-border bg-background px-3 text-sm"
             >
               <option value="">{t('allMethods')}</option>
@@ -174,7 +186,10 @@ export function PaymentsTable({ payments, locale }: { payments: Payment[]; local
             <input
               type="date"
               value={fromDate}
-              onChange={(event) => setFromDate(event.target.value)}
+              onChange={(event) => {
+                setFromDate(event.target.value);
+                setPage(1);
+              }}
               className="mt-1.5 h-10 w-full rounded-xl border border-border bg-background px-3 text-sm"
             />
           </div>
@@ -184,7 +199,10 @@ export function PaymentsTable({ payments, locale }: { payments: Payment[]; local
             <input
               type="date"
               value={toDate}
-              onChange={(event) => setToDate(event.target.value)}
+              onChange={(event) => {
+                setToDate(event.target.value);
+                setPage(1);
+              }}
               className="mt-1.5 h-10 w-full rounded-xl border border-border bg-background px-3 text-sm"
             />
           </div>
@@ -206,40 +224,109 @@ export function PaymentsTable({ payments, locale }: { payments: Payment[]; local
           <p className="text-muted-foreground">{payments.length === 0 ? t('empty') : t('noResults')}</p>
         </Card>
       ) : (
-        <div className="overflow-x-auto rounded-2xl border border-border">
-          <table className="w-full min-w-[1020px] text-sm">
-            <thead className="bg-muted/50">
-              <tr>
-                <th className="px-4 py-3 text-start">{t('invoice')}</th>
-                <th className="px-4 py-3 text-start">{t('unit')}</th>
-                <th className="px-4 py-3 text-start">{t('location')}</th>
-                <th className="px-4 py-3 text-start">{t('amount')}</th>
-                <th className="px-4 py-3 text-start">{t('paymentDate')}</th>
-                <th className="px-4 py-3 text-start">{t('paymentMethod')}</th>
-                <th className="px-4 py-3 text-start">{t('referenceNumber')}</th>
-                <th className="px-4 py-3 text-start">{t('notes')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredPayments.map((payment) => (
-                <tr key={payment.id} className="border-t border-border">
-                  <td className="px-4 py-3 font-medium">{getInvoiceNumber(payment)}</td>
-                  <td className="px-4 py-3">{getUnitNumber(payment) || '-'}</td>
-                  <td className="px-4 py-3">{getLocationName(payment, locale) || '-'}</td>
-                  <td className="px-4 py-3 font-medium text-emerald-600">
+        <>
+          <div className="grid gap-3 md:hidden">
+            {paginatedPayments.map((payment) => (
+              <Card key={payment.id} className="p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold">{getInvoiceNumber(payment)}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {getUnitNumber(payment) || '-'} · {getLocationName(payment, locale) || '-'}
+                    </p>
+                  </div>
+                  <p className="shrink-0 font-semibold text-emerald-600">
                     {formatCurrency(Number(payment.amount), loc)}
-                  </td>
-                  <td className="px-4 py-3">{formatDate(payment.payment_date, loc)}</td>
-                  <td className="px-4 py-3">{tc(`paymentMethod.${payment.payment_method}`)}</td>
-                  <td className="px-4 py-3">{payment.reference_number ?? '-'}</td>
-                  <td className="max-w-[240px] truncate px-4 py-3 text-muted-foreground">
-                    {payment.notes ?? '-'}
-                  </td>
+                  </p>
+                </div>
+                <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <p className="text-xs text-muted-foreground">{t('paymentDate')}</p>
+                    <p>{formatDate(payment.payment_date, loc)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">{t('paymentMethod')}</p>
+                    <p>{tc(`paymentMethod.${payment.payment_method}`)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">{t('referenceNumber')}</p>
+                    <p>{payment.reference_number ?? '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">{t('notes')}</p>
+                    <p className="truncate">{payment.notes ?? '-'}</p>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+
+          <div className="hidden overflow-x-auto rounded-2xl border border-border md:block">
+            <table className="w-full min-w-[1020px] text-sm">
+              <thead className="bg-muted/50">
+                <tr>
+                  <th className="px-4 py-3 text-start">{t('invoice')}</th>
+                  <th className="px-4 py-3 text-start">{t('unit')}</th>
+                  <th className="px-4 py-3 text-start">{t('location')}</th>
+                  <th className="px-4 py-3 text-start">{t('amount')}</th>
+                  <th className="px-4 py-3 text-start">{t('paymentDate')}</th>
+                  <th className="px-4 py-3 text-start">{t('paymentMethod')}</th>
+                  <th className="px-4 py-3 text-start">{t('referenceNumber')}</th>
+                  <th className="px-4 py-3 text-start">{t('notes')}</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {paginatedPayments.map((payment) => (
+                  <tr key={payment.id} className="border-t border-border">
+                    <td className="px-4 py-3 font-medium">{getInvoiceNumber(payment)}</td>
+                    <td className="px-4 py-3">{getUnitNumber(payment) || '-'}</td>
+                    <td className="px-4 py-3">{getLocationName(payment, locale) || '-'}</td>
+                    <td className="px-4 py-3 font-medium text-emerald-600">
+                      {formatCurrency(Number(payment.amount), loc)}
+                    </td>
+                    <td className="px-4 py-3">{formatDate(payment.payment_date, loc)}</td>
+                    <td className="px-4 py-3">{tc(`paymentMethod.${payment.payment_method}`)}</td>
+                    <td className="px-4 py-3">{payment.reference_number ?? '-'}</td>
+                    <td className="max-w-[240px] truncate px-4 py-3 text-muted-foreground">
+                      {payment.notes ?? '-'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-muted-foreground">
+              {t('pageSummary', {
+                from: (page - 1) * pageSize + 1,
+                to: Math.min(page * pageSize, filteredPayments.length),
+                total: filteredPayments.length,
+              })}
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={page === 1}
+                onClick={() => setPage((current) => Math.max(1, current - 1))}
+              >
+                {tc('previous')}
+              </Button>
+              <span className="text-sm font-medium">{page} / {totalPages}</span>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={page === totalPages}
+                onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+              >
+                {tc('next')}
+              </Button>
+            </div>
+          </div>
+        </>
       )}
     </div>
   );

@@ -158,7 +158,46 @@ export function DebtAgingReport({
       {rows.length === 0 ? (
         <p className="text-muted-foreground">{t('noData')}</p>
       ) : (
-        <div className="rounded-2xl border border-border overflow-x-auto">
+        <>
+        <div className="grid gap-3 md:hidden">
+          {rows.map((row) => (
+            <Card key={row.invoice.id} className="p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate font-semibold">{row.invoice.invoice_number}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {row.invoice.unit?.unit_number ?? '-'} · {t(row.bucket)}
+                  </p>
+                </div>
+                <p className="shrink-0 font-semibold">{formatCurrency(row.remaining, loc)}</p>
+              </div>
+              <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <p className="text-xs text-muted-foreground">{t('location')}</p>
+                  <p className="truncate">
+                    {locale === 'ar'
+                      ? row.invoice.unit?.location?.name_ar ?? row.invoice.unit?.location?.name_en ?? '-'
+                      : row.invoice.unit?.location?.name_en ?? row.invoice.unit?.location?.name_ar ?? '-'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">{t('dueDate')}</p>
+                  <p>{formatDate(row.invoice.due_date, loc)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">{t('daysOverdue')}</p>
+                  <p>{row.daysOverdue}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">{t('status')}</p>
+                  <p>{tc(row.invoice.status)}</p>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+
+        <div className="hidden rounded-2xl border border-border overflow-x-auto md:block">
           <table className="w-full min-w-[980px] text-sm">
             <thead className="bg-muted/50">
               <tr>
@@ -196,6 +235,7 @@ export function DebtAgingReport({
             </tbody>
           </table>
         </div>
+        </>
       )}
     </div>
   );

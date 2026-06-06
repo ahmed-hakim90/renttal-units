@@ -23,6 +23,7 @@
   "invoiceCount": "عدد الفواتير",
   "latestPayment": "آخر دفعة",
   "noResults": "لا توجد مدفوعات مطابقة للفلاتر الحالية",
+  "pageSummary": "عرض {from}-{to} من {total}",
   "selectInvoice": "اختر الفاتورة",
   "fullPayment": "دفع كامل",
   "partialPayment": "دفع جزئي",
