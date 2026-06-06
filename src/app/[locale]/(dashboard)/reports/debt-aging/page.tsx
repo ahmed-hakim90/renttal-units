@@ -8,7 +8,7 @@ export default async function DebtAgingPage({ params }: { params: Promise<{ loca
   const { locale } = await params;
   setRequestLocale(locale);
   const t = await getTranslations('reports');
-  const [buckets, locations] = await Promise.all([
+  const [invoices, locations] = await Promise.all([
     getDebtAgingReport(locale),
     getLocations(locale),
   ]);
@@ -16,7 +16,7 @@ export default async function DebtAgingPage({ params }: { params: Promise<{ loca
   return (
     <div>
       <PageHeader title={t('debtAging')} subtitle={t('debtAgingSubtitle')} />
-      <DebtAgingReport buckets={buckets} locations={locations} locale={locale} />
+      <DebtAgingReport invoices={invoices} locations={locations} locale={locale} />
     </div>
   );
 }

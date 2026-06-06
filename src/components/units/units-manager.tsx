@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { createUnit, updateUnit, deleteUnit } from '@/lib/actions/units';
 import { formatCurrency, formatDate } from '@/lib/i18n/hooks';
 import { calculateUnitDueDate } from '@/lib/rental/calculations';
+import { RentPeriodDisplay } from '@/components/units/rent-period-display';
 import { toast } from 'sonner';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 import type { Unit, Location, PaymentCycle, UnitStatus } from '@/types/database';
@@ -73,7 +74,7 @@ export function UnitsManager({
   return (
     <>
       {canEdit && (
-        <Button onClick={() => { setEditing(null); setOpen(true); }}>
+        <Button className="mb-4 w-full sm:w-auto" onClick={() => { setEditing(null); setOpen(true); }}>
           <Plus className="h-4 w-4" />{t('create')}
         </Button>
       )}
@@ -107,9 +108,17 @@ export function UnitsManager({
                     <p className="text-xs text-muted-foreground">{t('dueDate')}</p>
                     <p>{dueDate ? formatDate(dueDate, loc) : '—'}</p>
                   </div>
-                  <div>
+                  <div className="col-span-2">
                     <p className="text-xs text-muted-foreground">{t('rentPeriod')}</p>
-                    <p>{unit.rent_start_date && unit.rent_end_date ? `${unit.rent_start_date} - ${unit.rent_end_date}` : '—'}</p>
+                    {unit.rent_start_date && unit.rent_end_date ? (
+                      <RentPeriodDisplay
+                        startDate={unit.rent_start_date}
+                        endDate={unit.rent_end_date}
+                        locale={loc}
+                      />
+                    ) : (
+                      <p>—</p>
+                    )}
                   </div>
                 </div>
                 {canEdit && (
@@ -158,9 +167,13 @@ export function UnitsManager({
                     <td className="px-4 py-3">{tc(`paymentCycle.${unit.payment_cycle}`)}</td>
                     <td className="px-4 py-3">{dueDate ? formatDate(dueDate, loc) : '—'}</td>
                     <td className="px-4 py-3 text-xs">
-                      {unit.rent_start_date && unit.rent_end_date
-                        ? `${unit.rent_start_date} - ${unit.rent_end_date}`
-                        : '—'}
+                      {unit.rent_start_date && unit.rent_end_date ? (
+                        <RentPeriodDisplay
+                          startDate={unit.rent_start_date}
+                          endDate={unit.rent_end_date}
+                          locale={loc}
+                        />
+                      ) : '—'}
                     </td>
                     <td className="px-4 py-3"><Badge status={unit.status} label={tc(`status.${unit.status}`)} /></td>
                     {canEdit && (

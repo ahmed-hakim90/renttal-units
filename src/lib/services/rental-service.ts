@@ -3,6 +3,7 @@ import { unitsRepository } from '@/lib/repositories/units';
 import { invoicesRepository } from '@/lib/repositories/invoices';
 import { withSpan, type LogContext } from '@/lib/observability';
 import {
+  calculateAllUnitRentPeriods,
   calculatePeriodAmount,
   calculateRentPeriod,
   calculateUnitDueDate,
@@ -19,31 +20,31 @@ export const rentalService = {
       let created = 0;
 
       for (const unit of units) {
-        const period = calculateUnitRentPeriod(unit);
-        if (!period) continue;
+        const periods = calculateAllUnitRentPeriods(unit);
+        if (periods.length === 0) continue;
 
-        const { periodStart, periodEnd } = period;
-        const existing = await invoicesRepository.findByUnitAndPeriod(unit.id, periodStart, periodEnd, ctx);
-        if (existing) continue;
+        for (const { periodStart, periodEnd } of periods) {
+          const existing = await invoicesRepository.findByUnitAndPeriod(unit.id, periodStart, periodEnd, ctx);
+          if (existing) continue;
 
-        const amount = calculatePeriodAmount(Number(unit.monthly_rent), unit.payment_cycle);
-        const dueDate = calculateUnitDueDate(unit) ?? periodStart;
-        const invoiceNumber = `DUE-${unit.unit_number}-${unit.id.slice(0, 8)}-${periodStart}`;
+          const amount = calculatePeriodAmount(Number(unit.monthly_rent), unit.payment_cycle);
+          const invoiceNumber = `DUE-${unit.unit_number}-${unit.id.slice(0, 8)}-${periodStart}`;
 
-        await invoicesRepository.create({
-          invoice_number: invoiceNumber,
-          unit_id: unit.id,
-          tenant_id: unit.tenant_id,
-          period_start: periodStart,
-          period_end: periodEnd,
-          amount,
-          paid_amount: 0,
-          status: 'due',
-          due_date: dueDate,
-          issued_at: null,
-          notes: null,
-        }, ctx);
-        created++;
+          await invoicesRepository.create({
+            invoice_number: invoiceNumber,
+            unit_id: unit.id,
+            tenant_id: unit.tenant_id,
+            period_start: periodStart,
+            period_end: periodEnd,
+            amount,
+            paid_amount: 0,
+            status: 'due',
+            due_date: periodStart,
+            issued_at: null,
+            notes: null,
+          }, ctx);
+          created++;
+        }
       }
 
       return { success: true, data: { created } };
@@ -57,6 +58,7 @@ export const rentalService = {
   calculatePeriodAmount,
   getCycleMonths,
   calculateRentPeriod,
+  calculateAllUnitRentPeriods,
   calculateUnitDueDate,
   calculateUnitRentPeriod,
 };

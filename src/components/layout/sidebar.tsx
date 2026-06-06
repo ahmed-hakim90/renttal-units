@@ -5,11 +5,14 @@ import { Link, usePathname } from '@/lib/i18n/navigation';
 import {
   LayoutDashboard, MapPin, Building2, Calendar, FileText,
   CreditCard, CheckCircle, History, BarChart3, Upload, Users, Settings,
-  PanelLeftClose, PanelLeftOpen, X,
+  PanelLeftClose, PanelLeftOpen, X, LogOut,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Logo, LogoMark } from '@/components/brand/logo';
+import { LanguageSwitcher } from './language-switcher';
+import { signOut } from '@/lib/actions/auth';
+import { useCurrentLocale } from '@/lib/i18n/hooks';
 
 const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, labelKey: 'dashboard' as const },
@@ -37,8 +40,10 @@ export function Sidebar({
   onCloseMobile: () => void;
   onToggleCollapsed: () => void;
 }) {
-  const t = useTranslations('common.nav');
+  const tNav = useTranslations('common.nav');
+  const t = useTranslations('common');
   const pathname = usePathname();
+  const locale = useCurrentLocale();
 
   return (
     <>
@@ -79,7 +84,7 @@ export function Sidebar({
             <Link
               key={href}
               href={href}
-              title={t(labelKey)}
+              title={tNav(labelKey)}
               onClick={onCloseMobile}
               className={cn(
                 'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors',
@@ -90,11 +95,34 @@ export function Sidebar({
               )}
             >
               <Icon className="h-4 w-4 shrink-0" />
-              <span className={cn(collapsed && 'lg:hidden')}>{t(labelKey)}</span>
+              <span className={cn(collapsed && 'lg:hidden')}>{tNav(labelKey)}</span>
             </Link>
           );
         })}
       </nav>
+      <div
+        className={cn(
+          'space-y-3 border-t border-border p-4',
+          collapsed && 'lg:flex lg:flex-col lg:items-center lg:space-y-2 lg:p-2'
+        )}
+      >
+        <LanguageSwitcher collapsed={collapsed} />
+        <form action={signOut.bind(null, locale)} className={cn(collapsed && 'lg:w-full')}>
+          <Button
+            variant="ghost"
+            size="sm"
+            type="submit"
+            title={t('logout')}
+            className={cn(
+              'w-full justify-start gap-3 text-muted-foreground hover:text-foreground',
+              collapsed && 'lg:justify-center lg:px-2'
+            )}
+          >
+            <LogOut className="h-4 w-4 shrink-0" />
+            <span className={cn(collapsed && 'lg:hidden')}>{t('logout')}</span>
+          </Button>
+        </form>
+      </div>
     </aside>
     </>
   );

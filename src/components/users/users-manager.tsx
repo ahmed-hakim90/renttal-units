@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
 import { createUser, updateUserRole } from '@/lib/actions/admin';
+import { formatDate } from '@/lib/i18n/hooks';
+import { type Locale } from '@/lib/i18n/routing';
 import { toast } from 'sonner';
 import { Plus } from 'lucide-react';
 import type { Profile, UserRole } from '@/types/database';
@@ -45,7 +47,7 @@ export function UsersManager({ users, locale, canEdit }: { users: Profile[]; loc
   return (
     <>
       {canEdit && (
-        <Button onClick={() => setOpen(true)}>
+        <Button className="mb-4 w-full sm:w-auto" onClick={() => setOpen(true)}>
           <Plus className="h-4 w-4" />
           {t('create')}
         </Button>
@@ -71,7 +73,7 @@ export function UsersManager({ users, locale, canEdit }: { users: Profile[]; loc
                   <td className="px-4 py-3">{user.email}</td>
                   <td className="px-4 py-3">{user.full_name ?? '—'}</td>
                   <td className="px-4 py-3">{tc(`role.${user.role}`)}</td>
-                  <td className="px-4 py-3">{new Date(user.created_at).toLocaleDateString()}</td>
+                  <td className="px-4 py-3">{formatDate(user.created_at, locale as Locale)}</td>
                   {canEdit && (
                     <td className="px-4 py-3 text-end">
                       <select

@@ -37,6 +37,7 @@ export function formatCurrency(amount: number, locale: Locale): string {
 export function formatDate(date: string | Date, locale: Locale): string {
   const d = typeof date === 'string' ? new Date(date) : date;
   return new Intl.DateTimeFormat(locale === 'ar' ? 'ar-SA' : 'en-SA', {
+    calendar: 'gregory',
     year: 'numeric',
     month: 'short',
     day: 'numeric',

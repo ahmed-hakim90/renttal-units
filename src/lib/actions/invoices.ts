@@ -57,6 +57,7 @@ export async function syncDueInvoices(locale: string) {
     revalidatePath(`/${locale}/due-this-month`);
     revalidatePath(`/${locale}/dashboard`);
     revalidatePath(`/${locale}/invoices`);
+    revalidatePath(`/${locale}/reports/debt-aging`);
   }
   return result;
 }

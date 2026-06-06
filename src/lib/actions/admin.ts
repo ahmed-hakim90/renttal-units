@@ -3,6 +3,7 @@
 import { requireAuth, requireAdminEditor } from '@/lib/auth/session';
 import { getCorrelationId } from '@/lib/observability/correlation-id';
 import { reportingService } from '@/lib/services/reporting-service';
+import { rentalService } from '@/lib/services/rental-service';
 import { usersRepository } from '@/lib/repositories/users';
 import { settingsRepository } from '@/lib/repositories/settings';
 import { auditService } from '@/lib/services/audit-service';
@@ -21,7 +22,11 @@ async function getCtx() {
 
 export async function getDebtAgingReport(locale: string, filters?: { locationId?: string }) {
   const auth = await requireAuth(locale, await getCtx());
-  return reportingService.getDebtAgingReport(auth, { ...await getCtx(), user_id: auth.userId, role: auth.role }, filters);
+  const ctx = { ...await getCtx(), user_id: auth.userId, role: auth.role };
+  if (auth.isAdminEditor) {
+    await rentalService.generateDueInvoices(auth, ctx);
+  }
+  return reportingService.getDebtAgingInvoices(auth, ctx, filters);
 }
 
 export async function getPortfolioSummary(locale: string) {
