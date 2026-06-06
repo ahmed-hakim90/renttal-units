@@ -22,6 +22,13 @@ function formatDurationBreakdown(
   return parts.join(locale === 'ar' ? ' و ' : ', ');
 }
 
+function getRemainingProgressPercent(info: ReturnType<typeof getRentPeriodInfo>) {
+  if (info.totalDays <= 0 || info.status === 'expired') return 0;
+  if (info.status === 'not_started') return 100;
+
+  return Math.round((info.remainingDays / info.totalDays) * 100);
+}
+
 export function RentPeriodDisplay({
   startDate,
   endDate,
@@ -34,6 +41,7 @@ export function RentPeriodDisplay({
   const t = useTranslations('units');
   const info = getRentPeriodInfo(startDate, endDate);
   const durationLabel = formatDurationBreakdown(info.totalDays, t, locale);
+  const remainingProgress = getRemainingProgressPercent(info);
 
   let remainingLabel: string;
   if (info.status === 'expired') {
@@ -53,6 +61,19 @@ export function RentPeriodDisplay({
       <p>{formatDate(startDate, locale)} - {formatDate(endDate, locale)}</p>
       <p className="mt-1 text-muted-foreground">{t('periodDuration', { duration: durationLabel })}</p>
       <p className="text-muted-foreground">{remainingLabel}</p>
+      <div
+        aria-label={remainingLabel}
+        aria-valuemax={100}
+        aria-valuemin={0}
+        aria-valuenow={remainingProgress}
+        className="mt-2 h-1.5 w-full min-w-28 overflow-hidden rounded-full bg-muted"
+        role="progressbar"
+      >
+        <div
+          className="h-full rounded-full bg-primary transition-[width] duration-300"
+          style={{ width: `${remainingProgress}%` }}
+        />
+      </div>
     </div>
   );
 }
