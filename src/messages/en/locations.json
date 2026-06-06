@@ -1,0 +1,15 @@
+{
+  "title": "Locations",
+  "subtitle": "Manage property locations",
+  "create": "Add Location",
+  "edit": "Edit Location",
+  "nameEn": "Name (English)",
+  "nameAr": "Name (Arabic)",
+  "address": "Address",
+  "city": "City",
+  "region": "Region",
+  "unitCount": "Units",
+  "deleteConfirm": "Delete this location?",
+  "deleteWarning": "Locations with units cannot be deleted.",
+  "empty": "No locations yet. Add your first location to get started."
+}

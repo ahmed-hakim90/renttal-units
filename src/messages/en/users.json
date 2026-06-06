@@ -1,0 +1,16 @@
+{
+  "title": "Users & Roles",
+  "subtitle": "Manage user access and permissions",
+  "email": "Email",
+  "fullName": "Full Name",
+  "role": "Role",
+  "createdAt": "Created",
+  "create": "Create User",
+  "created": "User created successfully",
+  "temporaryPassword": "Temporary Password",
+  "updateRole": "Update Role",
+  "adminEditorDesc": "Full access to create, edit, and delete",
+  "viewerDesc": "Read-only access to all data",
+  "empty": "No users found",
+  "roleUpdated": "User role updated successfully"
+}

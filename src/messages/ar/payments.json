@@ -1,0 +1,20 @@
+{
+  "title": "المدفوعات",
+  "subtitle": "سجل المدفوعات والسجلات",
+  "create": "تسجيل دفعة",
+  "amount": "المبلغ",
+  "paymentDate": "تاريخ الدفع",
+  "paymentMethod": "طريقة الدفع",
+  "paymentType": "نوع السداد",
+  "referenceNumber": "رقم المرجع",
+  "notes": "ملاحظات",
+  "invoice": "الفاتورة",
+  "selectInvoice": "اختر الفاتورة",
+  "fullPayment": "دفع كامل",
+  "partialPayment": "دفع جزئي",
+  "remainingBalance": "الرصيد المتبقي",
+  "cannotPayFullyPaid": "هذه الفاتورة مدفوعة بالكامل ولا يمكن قبول المزيد من المدفوعات",
+  "exceedsBalance": "مبلغ الدفع يتجاوز الرصيد المتبقي",
+  "empty": "لا توجد مدفوعات مسجلة",
+  "recordedBy": "سجل بواسطة"
+}

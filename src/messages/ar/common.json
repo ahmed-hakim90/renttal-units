@@ -1,0 +1,77 @@
+{
+  "appName": "وحدات الإيجار",
+  "loading": "جاري التحميل...",
+  "save": "حفظ",
+  "cancel": "إلغاء",
+  "delete": "حذف",
+  "edit": "تعديل",
+  "create": "إنشاء",
+  "search": "بحث...",
+  "filter": "تصفية",
+  "actions": "إجراءات",
+  "confirm": "تأكيد",
+  "back": "رجوع",
+  "next": "التالي",
+  "previous": "السابق",
+  "noResults": "لا توجد نتائج",
+  "error": "حدث خطأ",
+  "success": "تمت العملية بنجاح",
+  "required": "هذا الحقل مطلوب",
+  "logout": "تسجيل الخروج",
+  "login": "تسجيل الدخول",
+  "email": "البريد الإلكتروني",
+  "password": "كلمة المرور",
+  "viewOnly": "عرض فقط",
+  "pwa": {
+    "install": "تثبيت التطبيق",
+    "installed": "تم تثبيت التطبيق",
+    "installHint": "أضف إلى الشاشة الرئيسية للوصول السريع"
+  },
+  "confirmDelete": "هل أنت متأكد من حذف هذا العنصر؟",
+  "confirmDeleteDescription": "لا يمكن التراجع عن هذا الإجراء.",
+  "status": {
+    "due": "مستحق",
+    "invoice_issued": "تم إصدار الفاتورة",
+    "partially_paid": "مدفوع جزئياً",
+    "fully_paid": "مدفوع بالكامل",
+    "overdue": "متأخر",
+    "occupied": "مشغول",
+    "vacant": "شاغر",
+    "maintenance": "صيانة"
+  },
+  "paymentCycle": {
+    "monthly": "شهري",
+    "quarterly": "ربع سنوي (3 أشهر)",
+    "semi_annual": "نصف سنوي (6 أشهر)",
+    "yearly": "سنوي"
+  },
+  "paymentMethod": {
+    "cash": "نقدي",
+    "bank_transfer": "تحويل بنكي",
+    "check": "شيك",
+    "other": "أخرى"
+  },
+  "role": {
+    "admin_editor": "مدير / محرر",
+    "viewer": "مشاهد"
+  },
+  "nav": {
+    "dashboard": "لوحة التحكم",
+    "locations": "المواقع",
+    "units": "الوحدات",
+    "dueThisMonth": "مستحق هذا الشهر",
+    "invoices": "في انتظار الدفع",
+    "partialPayments": "مدفوعات جزئية",
+    "fullyPaid": "مدفوع بالكامل",
+    "payments": "سجل المدفوعات",
+    "reports": "التقارير",
+    "debtAging": "تقادم الديون",
+    "import": "استيراد الوحدات",
+    "users": "المستخدمون والصلاحيات",
+    "settings": "الإعدادات"
+  },
+  "language": {
+    "en": "English",
+    "ar": "العربية"
+  }
+}

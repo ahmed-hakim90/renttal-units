@@ -1,0 +1,18 @@
+{
+  "title": "Dashboard",
+  "subtitle": "Overview of your rental portfolio",
+  "dueThisMonth": "Due This Month",
+  "awaitingPayment": "Awaiting Payment",
+  "partialPayments": "Partial Payments",
+  "fullyPaid": "Fully Paid",
+  "dueThisMonthDesc": "Units with rent due this month",
+  "awaitingPaymentDesc": "Invoices issued, awaiting payment",
+  "partialPaymentsDesc": "Invoices with partial payments",
+  "fullyPaidDesc": "Fully paid invoices",
+  "recentInvoices": "Recent Invoices",
+  "recentPayments": "Recent Payments",
+  "totalUnits": "Total Units",
+  "totalLocations": "Total Locations",
+  "occupancyRate": "Occupancy Rate",
+  "monthlyRevenue": "Expected Monthly Revenue"
+}

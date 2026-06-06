@@ -1,0 +1,22 @@
+{
+  "title": "Units",
+  "subtitle": "Manage rental units",
+  "create": "Add Unit",
+  "edit": "Edit Unit",
+  "unitNumber": "Unit Number",
+  "floor": "Floor",
+  "areaSqm": "Area (sqm)",
+  "monthlyRent": "Monthly Rent",
+  "paymentCycle": "Payment Cycle",
+  "dueDate": "Due Date",
+  "rentStartDate": "Rent Start Date",
+  "rentEndDate": "Rent End Date",
+  "rentPeriod": "Rent Period",
+  "status": "Status",
+  "location": "Location",
+  "tenant": "Tenant",
+  "selectLocation": "Select location",
+  "selectTenant": "Select tenant",
+  "empty": "No units yet. Add units or import from Excel.",
+  "deleteConfirm": "Delete this unit?"
+}

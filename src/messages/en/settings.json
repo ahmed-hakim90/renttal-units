@@ -1,0 +1,12 @@
+{
+  "title": "Settings",
+  "subtitle": "Application configuration",
+  "companyName": "Company Name",
+  "companyNameEn": "Company Name (English)",
+  "companyNameAr": "Company Name (Arabic)",
+  "defaultPaymentTerms": "Default Payment Terms (days)",
+  "currency": "Currency",
+  "overdueGraceDays": "Overdue Grace Period (days)",
+  "saved": "Settings saved successfully",
+  "adminOnly": "Only administrators can modify settings"
+}

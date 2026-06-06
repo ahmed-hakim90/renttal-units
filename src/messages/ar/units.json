@@ -1,0 +1,22 @@
+{
+  "title": "الوحدات",
+  "subtitle": "إدارة وحدات الإيجار",
+  "create": "إضافة وحدة",
+  "edit": "تعديل الوحدة",
+  "unitNumber": "رقم الوحدة",
+  "floor": "الطابق",
+  "areaSqm": "المساحة (م²)",
+  "monthlyRent": "الإيجار الشهري",
+  "paymentCycle": "دورة الدفع",
+  "dueDate": "تاريخ الاستحقاق",
+  "rentStartDate": "تاريخ بداية الإيجار",
+  "rentEndDate": "تاريخ نهاية الإيجار",
+  "rentPeriod": "فترة الإيجار",
+  "status": "الحالة",
+  "location": "الموقع",
+  "tenant": "المستأجر",
+  "selectLocation": "اختر الموقع",
+  "selectTenant": "اختر المستأجر",
+  "empty": "لا توجد وحدات بعد. أضف وحدات أو استورد من Excel.",
+  "deleteConfirm": "حذف هذه الوحدة؟"
+}

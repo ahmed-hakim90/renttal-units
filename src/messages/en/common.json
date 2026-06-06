@@ -1,0 +1,77 @@
+{
+  "appName": "Rental Units",
+  "loading": "Loading...",
+  "save": "Save",
+  "cancel": "Cancel",
+  "delete": "Delete",
+  "edit": "Edit",
+  "create": "Create",
+  "search": "Search...",
+  "filter": "Filter",
+  "actions": "Actions",
+  "confirm": "Confirm",
+  "back": "Back",
+  "next": "Next",
+  "previous": "Previous",
+  "noResults": "No results found",
+  "error": "An error occurred",
+  "success": "Operation completed successfully",
+  "required": "This field is required",
+  "logout": "Log out",
+  "login": "Log in",
+  "email": "Email",
+  "password": "Password",
+  "viewOnly": "View only",
+  "pwa": {
+    "install": "Install app",
+    "installed": "App installed",
+    "installHint": "Add to home screen for quick access"
+  },
+  "confirmDelete": "Are you sure you want to delete this item?",
+  "confirmDeleteDescription": "This action cannot be undone.",
+  "status": {
+    "due": "Due",
+    "invoice_issued": "Invoice Issued",
+    "partially_paid": "Partially Paid",
+    "fully_paid": "Fully Paid",
+    "overdue": "Overdue",
+    "occupied": "Occupied",
+    "vacant": "Vacant",
+    "maintenance": "Maintenance"
+  },
+  "paymentCycle": {
+    "monthly": "Monthly",
+    "quarterly": "Quarterly (3 months)",
+    "semi_annual": "Semi-Annual (6 months)",
+    "yearly": "Yearly"
+  },
+  "paymentMethod": {
+    "cash": "Cash",
+    "bank_transfer": "Bank Transfer",
+    "check": "Check",
+    "other": "Other"
+  },
+  "role": {
+    "admin_editor": "Admin / Editor",
+    "viewer": "Viewer"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "locations": "Locations",
+    "units": "Units",
+    "dueThisMonth": "Due This Month",
+    "invoices": "Awaiting Payment",
+    "partialPayments": "Partial Payments",
+    "fullyPaid": "Fully Paid",
+    "payments": "Payment History",
+    "reports": "Reports",
+    "debtAging": "Debt Aging",
+    "import": "Import Units",
+    "users": "Users & Roles",
+    "settings": "Settings"
+  },
+  "language": {
+    "en": "English",
+    "ar": "العربية"
+  }
+}

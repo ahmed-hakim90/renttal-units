@@ -1,0 +1,20 @@
+{
+  "title": "Payments",
+  "subtitle": "Payment history and records",
+  "create": "Record Payment",
+  "amount": "Amount",
+  "paymentDate": "Payment Date",
+  "paymentMethod": "Payment Method",
+  "paymentType": "Payment Type",
+  "referenceNumber": "Reference Number",
+  "notes": "Notes",
+  "invoice": "Invoice",
+  "selectInvoice": "Select invoice",
+  "fullPayment": "Full Payment",
+  "partialPayment": "Partial Payment",
+  "remainingBalance": "Remaining Balance",
+  "cannotPayFullyPaid": "This invoice is fully paid and cannot accept more payments",
+  "exceedsBalance": "Payment amount exceeds remaining balance",
+  "empty": "No payments recorded yet",
+  "recordedBy": "Recorded By"
+}
