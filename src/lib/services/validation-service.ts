@@ -8,30 +8,54 @@ const locationSchema = z.object({
   region: z.string().optional(),
 });
 
+function isValidDateInput(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
 const unitSchema = z.object({
   location_id: z.string().uuid(),
   unit_number: z.string().min(1),
   floor: z.string().optional(),
   area_sqm: z.number().positive().optional(),
-  monthly_rent: z.number().positive(),
-  payment_cycle: z.enum(['monthly', 'quarterly', 'semi_annual', 'yearly']),
+  monthly_rent: z.number().positive().nullable().optional(),
+  payment_cycle: z.enum(['monthly', 'quarterly', 'semi_annual', 'yearly']).optional(),
   rent_start_date: z.string().nullable().optional(),
   rent_end_date: z.string().nullable().optional(),
   status: z.enum(['occupied', 'vacant', 'maintenance']),
   tenant_id: z.string().uuid().nullable().optional(),
 }).superRefine((unit, ctx) => {
-  if (unit.status === 'occupied') {
-    if (!unit.rent_start_date) {
-      ctx.addIssue({ code: 'custom', path: ['rent_start_date'], message: 'rent_start_date is required for occupied units' });
-    }
-    if (!unit.rent_end_date) {
-      ctx.addIssue({ code: 'custom', path: ['rent_end_date'], message: 'rent_end_date is required for occupied units' });
-    }
+  if (unit.rent_start_date && !isValidDateInput(unit.rent_start_date)) {
+    ctx.addIssue({ code: 'custom', path: ['rent_start_date'], message: 'rent_start_date must be a valid date' });
+  }
+
+  if (unit.rent_end_date && !isValidDateInput(unit.rent_end_date)) {
+    ctx.addIssue({ code: 'custom', path: ['rent_end_date'], message: 'rent_end_date must be a valid date' });
   }
 
   if (unit.rent_start_date && unit.rent_end_date && unit.rent_end_date < unit.rent_start_date) {
     ctx.addIssue({ code: 'custom', path: ['rent_end_date'], message: 'rent_end_date must be after rent_start_date' });
   }
+});
+
+const contractSchema = z.object({
+  unit_id: z.string().uuid(),
+  contract_number: z.string().nullable().optional(),
+  start_date: z.string().refine(isValidDateInput, 'start_date must be a valid date'),
+  end_date: z.string().refine(isValidDateInput, 'end_date must be a valid date'),
+  total_amount: z.number().positive(),
+  payment_cycle: z.enum(['monthly', 'quarterly', 'semi_annual', 'yearly']),
+  notes: z.string().nullable().optional(),
+}).superRefine((contract, ctx) => {
+  if (contract.end_date < contract.start_date) {
+    ctx.addIssue({ code: 'custom', path: ['end_date'], message: 'end_date must be after start_date' });
+  }
+});
+
+const cancelContractSchema = z.object({
+  cancellation_date: z.string().refine(isValidDateInput, 'cancellation_date must be a valid date'),
+  cancellation_handling: z.enum(['keep_current_full', 'prorate_current']),
 });
 
 const invoiceSchema = z.object({
@@ -67,6 +91,16 @@ export const validationService = {
     return result.success ? { valid: true as const, errors: [] } : { valid: false as const, errors: formatErrors(result.error) };
   },
 
+  validateContract(data: unknown) {
+    const result = contractSchema.safeParse(data);
+    return result.success ? { valid: true as const, errors: [] } : { valid: false as const, errors: formatErrors(result.error) };
+  },
+
+  validateCancelContract(data: unknown) {
+    const result = cancelContractSchema.safeParse(data);
+    return result.success ? { valid: true as const, errors: [] } : { valid: false as const, errors: formatErrors(result.error) };
+  },
+
   validateInvoice(data: unknown) {
     const result = invoiceSchema.safeParse(data);
     return result.success ? { valid: true as const, errors: [] } : { valid: false as const, errors: formatErrors(result.error) };
@@ -81,11 +115,8 @@ export const validationService = {
     const errors: string[] = [];
     if (!row.unit_number) errors.push(`Row ${rowIndex}: unit_number is required`);
     if (!row.location_id && !row.location_name) errors.push(`Row ${rowIndex}: location is required`);
-    if (!row.monthly_rent || Number(row.monthly_rent) <= 0) errors.push(`Row ${rowIndex}: valid monthly_rent is required`);
-    if (row.status === 'occupied' && !row.rent_start_date) errors.push(`Row ${rowIndex}: rent_start_date is required for occupied units`);
-    if (row.status === 'occupied' && !row.rent_end_date) errors.push(`Row ${rowIndex}: rent_end_date is required for occupied units`);
-    if (row.rent_start_date && row.rent_end_date && String(row.rent_end_date) < String(row.rent_start_date)) {
-      errors.push(`Row ${rowIndex}: rent_end_date must be after rent_start_date`);
+    if (row.status && !['occupied', 'vacant', 'maintenance'].includes(String(row.status))) {
+      errors.push(`Row ${rowIndex}: invalid status`);
     }
     return errors;
   },

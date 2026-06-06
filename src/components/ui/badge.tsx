@@ -10,6 +10,9 @@ const statusColors: Record<string, string> = {
   occupied: 'bg-green-50 text-green-700',
   vacant: 'bg-zinc-100 text-zinc-600',
   maintenance: 'bg-orange-50 text-orange-700',
+  active: 'bg-green-50 text-green-700',
+  cancelled: 'bg-red-50 text-red-700',
+  completed: 'bg-blue-50 text-blue-700',
 };
 
 export function Badge({ status, label, className }: { status: InvoiceStatus | UnitStatus | string; label: string; className?: string }) {

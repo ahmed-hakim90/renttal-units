@@ -83,10 +83,15 @@ export const invoiceService = {
         return { success: false, error: 'periodAfterRentEnd', errorCode: 'VALIDATION' };
       }
 
+      if (unit.monthly_rent == null) {
+        return { success: false, error: 'unitHasNoLegacyRent', errorCode: 'VALIDATION' };
+      }
+
       const amount = rentalService.calculatePeriodAmount(Number(unit.monthly_rent), unit.payment_cycle);
 
       const invoice = await invoicesRepository.create({
         invoice_number: input.invoice_number,
+        contract_id: null,
         unit_id: input.unit_id,
         tenant_id: unit.tenant_id,
         period_start: input.period_start,
@@ -153,12 +158,25 @@ export const invoiceService = {
   },
 
   async getDashboardCounts(auth: AuthContext, ctx: LogContext) {
-    const [dueThisMonth, awaitingPayment, partialPayments, fullyPaid] = await Promise.all([
-      invoicesRepository.findDueThisMonth(ctx).then((r) => r.length),
+    const [dueInvoices, awaitingPayment, partialPayments, fullyPaid, upcoming] = await Promise.all([
+      invoicesRepository.findDueThisMonth(ctx),
       invoicesRepository.countByStatus('invoice_issued', ctx),
       invoicesRepository.countByStatus('partially_paid', ctx),
       invoicesRepository.countByStatus('fully_paid', ctx),
+      invoicesRepository.findUpcomingStats(30, ctx),
     ]);
-    return { dueThisMonth, awaitingPayment, partialPayments, fullyPaid };
+    const dueThisMonthAmount = dueInvoices.reduce(
+      (sum, invoice) => sum + Number(invoice.amount) - Number(invoice.paid_amount),
+      0
+    );
+    return {
+      dueThisMonth: dueInvoices.length,
+      dueThisMonthAmount,
+      awaitingPayment,
+      partialPayments,
+      fullyPaid,
+      upcomingPayments: upcoming.count,
+      upcomingPaymentsAmount: upcoming.amount,
+    };
   },
 };

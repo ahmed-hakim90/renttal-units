@@ -1,9 +1,13 @@
 import { addDays, addMonths, differenceInDays, format, intervalToDuration, parseISO, subDays } from 'date-fns';
-import type { PaymentCycle, Unit } from '@/types/database';
+import type { Contract, PaymentCycle, Unit } from '@/types/database';
 
 export interface UnitRentPeriod {
   periodStart: string;
   periodEnd: string;
+}
+
+export interface ContractPaymentPeriod extends UnitRentPeriod {
+  amount: number;
 }
 
 export function getCycleMonths(cycle: PaymentCycle): number {
@@ -17,6 +21,10 @@ export function getCycleMonths(cycle: PaymentCycle): number {
 
 export function calculatePeriodAmount(monthlyRent: number, cycle: PaymentCycle): number {
   return monthlyRent * getCycleMonths(cycle);
+}
+
+function roundMoney(value: number): number {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
 }
 
 export function calculateRentPeriod(cycle: PaymentCycle, referenceDate: Date = new Date()) {
@@ -55,6 +63,40 @@ export function calculateAllUnitRentPeriods(unit: Unit, upToDate: Date = new Dat
   }
 
   return periods;
+}
+
+export function calculateContractPaymentSchedule(
+  contract: Pick<Contract, 'start_date' | 'end_date' | 'payment_cycle' | 'total_amount'>
+): ContractPaymentPeriod[] {
+  const contractStart = parseISO(contract.start_date);
+  const contractEnd = parseISO(contract.end_date);
+  const cycleMonths = getCycleMonths(contract.payment_cycle);
+  const periods: UnitRentPeriod[] = [];
+  let periodStart = contractStart;
+
+  while (periodStart <= contractEnd) {
+    const naturalPeriodEnd = subDays(addMonths(periodStart, cycleMonths), 1);
+    const periodEnd = naturalPeriodEnd > contractEnd ? contractEnd : naturalPeriodEnd;
+
+    periods.push({
+      periodStart: format(periodStart, 'yyyy-MM-dd'),
+      periodEnd: format(periodEnd, 'yyyy-MM-dd'),
+    });
+
+    periodStart = addMonths(periodStart, cycleMonths);
+  }
+
+  if (periods.length === 0) return [];
+
+  const baseAmount = roundMoney(Number(contract.total_amount) / periods.length);
+  let assigned = 0;
+
+  return periods.map((period, index) => {
+    const isLast = index === periods.length - 1;
+    const amount = isLast ? roundMoney(Number(contract.total_amount) - assigned) : baseAmount;
+    assigned = roundMoney(assigned + amount);
+    return { ...period, amount };
+  });
 }
 
 export function calculateUnitRentPeriod(unit: Unit, referenceDate: Date = new Date()): UnitRentPeriod | null {

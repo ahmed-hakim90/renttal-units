@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Card, CardDescription, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { formatCurrency, formatDate, formatNumber } from '@/lib/i18n/hooks';
+import { formatCurrency, formatDate, formatNumber } from '@/lib/i18n/format';
 import { Download } from 'lucide-react';
 import {
   AGING_BUCKET_KEYS,

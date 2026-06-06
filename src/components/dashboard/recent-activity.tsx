@@ -8,7 +8,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
 import { issueDueInvoice, recordPayment } from '@/lib/actions/invoices';
-import { formatCurrency, formatDate } from '@/lib/i18n/hooks';
+import { formatCurrency, formatDate, formatNumber } from '@/lib/i18n/format';
+import {
+  getInvoiceDaysOverdue,
+  getInvoiceRowHighlight,
+  getOverdueBadgeClass,
+  isOldOutstandingDue,
+} from '@/lib/rental/invoice-display';
+import { cn } from '@/lib/utils';
 import { CreditCard, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Invoice, PaymentMethod } from '@/types/database';
@@ -96,21 +103,35 @@ export function RecentActivity({
               {section.invoices.length === 0 ? (
                 <p className="text-sm text-muted-foreground">—</p>
               ) : (
-                section.invoices.slice(0, 4).map((inv) => (
-                  <div key={inv.id} className="rounded-lg border border-border p-3">
+                section.invoices.slice(0, 4).map((inv) => {
+                  const daysOverdue = getInvoiceDaysOverdue(inv.due_date);
+                  const isOldDue = isOldOutstandingDue(inv.due_date, inv.status);
+
+                  return (
+                  <div key={inv.id} className={cn('rounded-lg border border-border p-3', getInvoiceRowHighlight(inv.due_date, inv.status))}>
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <p className="text-sm font-medium">{inv.unit?.unit_number ?? inv.invoice_number}</p>
                         <p className="text-xs text-muted-foreground">{formatDate(inv.due_date, loc)}</p>
+                        {isOldDue && (
+                          <p className="mt-1 text-xs font-medium text-amber-800">{ti('oldOutstanding')}</p>
+                        )}
                       </div>
-                      <Badge status={inv.status} label={tc(inv.status)} />
+                      <div className="flex flex-col items-end gap-1">
+                        <Badge status={inv.status} label={tc(inv.status)} />
+                        {daysOverdue > 0 && (
+                          <span className={cn('rounded-full px-2 py-0.5 text-[10px] font-medium', getOverdueBadgeClass(daysOverdue))}>
+                            {ti('daysOverdueLabel', { days: formatNumber(daysOverdue, loc) })}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <p className="mt-2 text-sm font-medium">{formatCurrency(Number(inv.amount) - Number(inv.paid_amount), loc)}</p>
                     {canEdit && section.action === 'issue' && inv.status === 'due' && (
                       <Button
                         className="mt-3 w-full"
                         size="sm"
-                        variant="outline"
+                        variant="issue"
                         onClick={() => { setSelectedInvoice(inv); setIssueOpen(true); }}
                       >
                         <FileText className="h-4 w-4" />
@@ -121,7 +142,7 @@ export function RecentActivity({
                       <Button
                         className="mt-3 w-full"
                         size="sm"
-                        variant="outline"
+                        variant="payment"
                         onClick={() => { setSelectedInvoice(inv); setPaymentMode('full'); setPayOpen(true); }}
                       >
                         <CreditCard className="h-4 w-4" />
@@ -129,7 +150,8 @@ export function RecentActivity({
                       </Button>
                     )}
                   </div>
-                ))
+                  );
+                })
               )}
             </div>
           </Card>
@@ -141,7 +163,7 @@ export function RecentActivity({
           <Input name="invoice_number" label={ti('invoiceNumber')} required />
           <div className="flex justify-end gap-3">
             <Button variant="outline" type="button" onClick={() => setIssueOpen(false)}>{tCommon('cancel')}</Button>
-            <Button type="submit">{ti('issueInvoice')}</Button>
+            <Button variant="issue" type="submit">{ti('issueInvoice')}</Button>
           </div>
         </form>
       </Modal>
@@ -155,10 +177,10 @@ export function RecentActivity({
             <div>
               <label className="text-sm font-medium">{tp('paymentType')}</label>
               <div className="mt-1.5 grid grid-cols-2 gap-2">
-                <Button type="button" variant={paymentMode === 'full' ? 'primary' : 'outline'} onClick={() => setPaymentMode('full')}>
+                <Button type="button" variant={paymentMode === 'full' ? 'payment' : 'outline'} onClick={() => setPaymentMode('full')}>
                   {tp('fullPayment')}
                 </Button>
-                <Button type="button" variant={paymentMode === 'partial' ? 'primary' : 'outline'} onClick={() => setPaymentMode('partial')}>
+                <Button type="button" variant={paymentMode === 'partial' ? 'payment' : 'outline'} onClick={() => setPaymentMode('partial')}>
                   {tp('partialPayment')}
                 </Button>
               </div>
@@ -178,7 +200,7 @@ export function RecentActivity({
             <Input name="reference_number" label={tp('referenceNumber')} />
             <div className="flex justify-end gap-3">
               <Button variant="outline" type="button" onClick={() => setPayOpen(false)}>{tCommon('cancel')}</Button>
-              <Button type="submit">{tp('create')}</Button>
+              <Button variant="payment" type="submit">{tp('create')}</Button>
             </div>
           </form>
         )}

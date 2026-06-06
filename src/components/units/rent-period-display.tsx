@@ -1,7 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { formatDate } from '@/lib/i18n/hooks';
+import { formatDate } from '@/lib/i18n/format';
 import { breakdownDaysToDuration, getRentPeriodInfo } from '@/lib/rental/calculations';
 import type { Locale } from '@/lib/i18n/routing';
 

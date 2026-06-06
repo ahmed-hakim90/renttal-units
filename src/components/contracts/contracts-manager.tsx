@@ -1,0 +1,344 @@
+'use client';
+
+import { useMemo, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
+import { useSearchParams } from 'next/navigation';
+import { CalendarX, Plus } from 'lucide-react';
+import { createContract, cancelContract } from '@/lib/actions/contracts';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Modal } from '@/components/ui/modal';
+import { Badge } from '@/components/ui/badge';
+import { formatCurrency, formatDate } from '@/lib/i18n/format';
+import { toast } from 'sonner';
+import type {
+  Contract,
+  ContractCancellationHandling,
+  ContractStatus,
+  PaymentCycle,
+  Unit,
+} from '@/types/database';
+import type { Locale } from '@/lib/i18n/routing';
+
+function sortInvoices(contract: Contract) {
+  return [...(contract.invoices ?? [])].sort((a, b) => a.due_date.localeCompare(b.due_date));
+}
+
+export function ContractsManager({
+  contracts,
+  units,
+  locale,
+  canEdit,
+}: {
+  contracts: Contract[];
+  units: Unit[];
+  locale: string;
+  canEdit: boolean;
+}) {
+  const t = useTranslations('contracts');
+  const tc = useTranslations('common');
+  const ts = useTranslations('common.status');
+  const loc = locale as Locale;
+  const searchParams = useSearchParams();
+  const search = searchParams.get('search')?.trim().toLowerCase() ?? '';
+  const [createOpen, setCreateOpen] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const isSavingRef = useRef(false);
+
+  const availableUnits = useMemo(
+    () => units.filter((unit) => !unit.active_contract),
+    [units]
+  );
+
+  const visibleContracts = useMemo(() => {
+    if (!search) return contracts;
+    return contracts.filter((contract) => [
+      contract.contract_number,
+      contract.unit?.unit_number,
+      contract.unit?.location?.name_en,
+      contract.unit?.location?.name_ar,
+      contract.tenant?.full_name,
+      contract.status,
+    ].join(' ').toLowerCase().includes(search));
+  }, [contracts, search]);
+
+  function getActionErrorMessage(error: string) {
+    if (error === 'activeContractExists') return t('activeContractExists');
+    if (error === 'contractNotActive') return t('contractNotActive');
+    if (error === 'cancellationDateOutOfRange') return t('cancellationDateOutOfRange');
+    if (error === 'duplicateContractNumber') return t('duplicateContractNumber');
+    return error;
+  }
+
+  async function handleCreate(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (isSavingRef.current) return;
+
+    const fd = new FormData(e.currentTarget);
+    const data = {
+      unit_id: fd.get('unit_id') as string,
+      contract_number: (fd.get('contract_number') as string) || null,
+      start_date: fd.get('start_date') as string,
+      end_date: fd.get('end_date') as string,
+      total_amount: Number(fd.get('total_amount')),
+      payment_cycle: fd.get('payment_cycle') as PaymentCycle,
+      notes: (fd.get('notes') as string) || null,
+      tenant_name: (fd.get('tenant_name') as string) || null,
+      tenant_phone: (fd.get('tenant_phone') as string) || null,
+      tenant_email: (fd.get('tenant_email') as string) || null,
+    };
+
+    isSavingRef.current = true;
+    setIsSaving(true);
+    try {
+      const result = await createContract(locale, data);
+      if (result.success) {
+        toast.success(tc('success'));
+        setCreateOpen(false);
+      } else {
+        toast.error(result.error ? getActionErrorMessage(result.error) : tc('error'));
+      }
+    } finally {
+      isSavingRef.current = false;
+      setIsSaving(false);
+    }
+  }
+
+  async function handleCancel(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!selectedContract || isSavingRef.current) return;
+
+    const fd = new FormData(e.currentTarget);
+    const data = {
+      cancellation_date: fd.get('cancellation_date') as string,
+      cancellation_handling: fd.get('cancellation_handling') as ContractCancellationHandling,
+    };
+
+    isSavingRef.current = true;
+    setIsSaving(true);
+    try {
+      const result = await cancelContract(locale, selectedContract.id, data);
+      if (result.success) {
+        toast.success(tc('success'));
+        setCancelOpen(false);
+        setSelectedContract(null);
+      } else {
+        toast.error(result.error ? getActionErrorMessage(result.error) : tc('error'));
+      }
+    } finally {
+      isSavingRef.current = false;
+      setIsSaving(false);
+    }
+  }
+
+  return (
+    <>
+      {canEdit && (
+        <Button className="mb-4 w-full sm:w-auto" onClick={() => setCreateOpen(true)}>
+          <Plus className="h-4 w-4" />
+          {t('create')}
+        </Button>
+      )}
+
+      {visibleContracts.length === 0 ? (
+        <p className="text-muted-foreground">{t('empty')}</p>
+      ) : (
+        <>
+          <div className="grid gap-3 md:hidden">
+            {visibleContracts.map((contract) => {
+              const invoices = sortInvoices(contract);
+              return (
+                <div key={contract.id} className="rounded-2xl border border-border bg-card p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold">
+                        {contract.contract_number
+                          ? `${contract.contract_number} — ${contract.unit?.unit_number ?? '—'}`
+                          : (contract.unit?.unit_number ?? '—')}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {formatDate(contract.start_date, loc)} - {formatDate(contract.end_date, loc)}
+                      </p>
+                    </div>
+                    <Badge status={contract.status} label={t(contract.status as ContractStatus)} />
+                  </div>
+                  <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <p className="text-xs text-muted-foreground">{t('tenant')}</p>
+                      <p>{contract.tenant?.full_name ?? t('noTenant')}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">{t('totalAmount')}</p>
+                      <p>{formatCurrency(Number(contract.total_amount), loc)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">{t('paymentCycle')}</p>
+                      <p>{tc(`paymentCycle.${contract.payment_cycle}`)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">{t('invoices')}</p>
+                      <p>{t('invoiceCount', { count: invoices.length })}</p>
+                    </div>
+                  </div>
+                  {canEdit && contract.status === 'active' && (
+                    <Button
+                      className="mt-4 w-full"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedContract(contract);
+                        setCancelOpen(true);
+                      }}
+                    >
+                      <CalendarX className="h-4 w-4" />
+                      {t('cancel')}
+                    </Button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="hidden rounded-2xl border border-border overflow-x-auto md:block">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/50">
+                <tr>
+                  <th className="px-4 py-3 text-start">{t('contractNumber')}</th>
+                  <th className="px-4 py-3 text-start">{t('unit')}</th>
+                  <th className="px-4 py-3 text-start">{t('tenant')}</th>
+                  <th className="px-4 py-3 text-start">{t('period')}</th>
+                  <th className="px-4 py-3 text-start">{t('totalAmount')}</th>
+                  <th className="px-4 py-3 text-start">{t('paymentCycle')}</th>
+                  <th className="px-4 py-3 text-start">{t('invoices')}</th>
+                  <th className="px-4 py-3 text-start">{t('status')}</th>
+                  {canEdit && <th className="px-4 py-3 text-end">{tc('actions')}</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {visibleContracts.map((contract) => {
+                  const invoices = sortInvoices(contract);
+                  return (
+                    <tr key={contract.id} className="border-t border-border align-top">
+                      <td className="px-4 py-3 font-medium">{contract.contract_number ?? '—'}</td>
+                      <td className="px-4 py-3 font-medium">{contract.unit?.unit_number ?? '—'}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{contract.tenant?.full_name ?? '—'}</td>
+                      <td className="px-4 py-3 text-xs">
+                        {formatDate(contract.start_date, loc)} - {formatDate(contract.end_date, loc)}
+                      </td>
+                      <td className="px-4 py-3">{formatCurrency(Number(contract.total_amount), loc)}</td>
+                      <td className="px-4 py-3">{tc(`paymentCycle.${contract.payment_cycle}`)}</td>
+                      <td className="px-4 py-3">
+                        <details>
+                          <summary className="cursor-pointer text-primary">{t('invoiceCount', { count: invoices.length })}</summary>
+                          <div className="mt-2 space-y-1 text-xs text-muted-foreground">
+                            {invoices.map((invoice) => (
+                              <div key={invoice.id} className="flex justify-between gap-4">
+                                <span>{formatDate(invoice.due_date, loc)}</span>
+                                <span>{formatCurrency(Number(invoice.amount), loc)}</span>
+                                <span>{ts(invoice.status)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </details>
+                      </td>
+                      <td className="px-4 py-3">
+                        <Badge status={contract.status} label={t(contract.status as ContractStatus)} />
+                      </td>
+                      {canEdit && (
+                        <td className="px-4 py-3 text-end">
+                          {contract.status === 'active' && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedContract(contract);
+                                setCancelOpen(true);
+                              }}
+                            >
+                              <CalendarX className="h-4 w-4" />
+                              {t('cancel')}
+                            </Button>
+                          )}
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      <Modal open={createOpen} onClose={() => !isSaving && setCreateOpen(false)} title={t('create')}>
+        <form onSubmit={handleCreate} className="space-y-4">
+          <Input name="contract_number" label={t('contractNumber')} />
+          <div>
+            <label className="text-sm font-medium">{t('unit')}</label>
+            <select name="unit_id" required className="mt-1.5 flex h-10 w-full rounded-xl border border-border bg-card px-3 text-sm">
+              <option value="">{t('selectUnit')}</option>
+              {availableUnits.map((unit) => (
+                <option key={unit.id} value={unit.id}>
+                  {unit.unit_number} - {unit.location?.name_en ?? ''}
+                </option>
+              ))}
+            </select>
+          </div>
+          <Input name="start_date" label={t('startDate')} type="date" required />
+          <Input name="end_date" label={t('endDate')} type="date" required />
+          <Input name="total_amount" label={t('totalAmount')} type="number" step="0.01" required />
+          <div>
+            <label className="text-sm font-medium">{t('paymentCycle')}</label>
+            <select name="payment_cycle" defaultValue="monthly" className="mt-1.5 flex h-10 w-full rounded-xl border border-border bg-card px-3 text-sm">
+              {(['monthly', 'quarterly', 'semi_annual', 'yearly'] as const).map((cycle) => (
+                <option key={cycle} value={cycle}>{tc(`paymentCycle.${cycle}`)}</option>
+              ))}
+            </select>
+          </div>
+          <Input name="notes" label={t('notes')} />
+          <div className="rounded-xl border border-border p-4 space-y-3">
+            <p className="text-sm font-medium text-muted-foreground">{t('tenantSection')}</p>
+            <Input name="tenant_name" label={t('tenantName')} />
+            <Input name="tenant_phone" label={t('tenantPhone')} type="tel" />
+            <Input name="tenant_email" label={t('tenantEmail')} type="email" />
+          </div>
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" type="button" disabled={isSaving} onClick={() => setCreateOpen(false)}>
+              {tc('cancel')}
+            </Button>
+            <Button type="submit" disabled={isSaving}>{isSaving ? tc('loading') : t('create')}</Button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal open={cancelOpen} onClose={() => !isSaving && setCancelOpen(false)} title={t('cancel')}>
+        {selectedContract && (
+          <form onSubmit={handleCancel} className="space-y-4">
+            <Input
+              name="cancellation_date"
+              label={t('cancellationDate')}
+              type="date"
+              required
+              defaultValue={new Date().toISOString().split('T')[0]}
+            />
+            <div>
+              <label className="text-sm font-medium">{t('cancellationHandling')}</label>
+              <select name="cancellation_handling" defaultValue="keep_current_full" className="mt-1.5 flex h-10 w-full rounded-xl border border-border bg-card px-3 text-sm">
+                <option value="keep_current_full">{t('keepCurrentFull')}</option>
+                <option value="prorate_current">{t('prorateCurrent')}</option>
+              </select>
+            </div>
+            <div className="flex justify-end gap-3">
+              <Button variant="outline" type="button" disabled={isSaving} onClick={() => setCancelOpen(false)}>
+                {tc('cancel')}
+              </Button>
+              <Button type="submit" disabled={isSaving}>{isSaving ? tc('loading') : t('cancel')}</Button>
+            </div>
+          </form>
+        )}
+      </Modal>
+    </>
+  );
+}

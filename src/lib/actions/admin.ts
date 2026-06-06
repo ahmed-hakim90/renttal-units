@@ -11,9 +11,11 @@ import { unitsRepository } from '@/lib/repositories/units';
 import { locationsRepository } from '@/lib/repositories/locations';
 import { importLogsRepository } from '@/lib/repositories/settings';
 import { validationService } from '@/lib/services/validation-service';
+import { contractService } from '@/lib/services/contract-service';
+import { tenantsRepository } from '@/lib/repositories/tenants';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
-import type { UserRole, PaymentCycle, UnitStatus } from '@/types/database';
+import type { UserRole, UnitStatus, PaymentCycle } from '@/types/database';
 import ExcelJS from 'exceljs';
 import { Readable } from 'node:stream';
 
@@ -297,10 +299,6 @@ export async function executeImport(locale: string, rows: Array<{
   unit_number: string;
   floor?: string;
   area_sqm?: number;
-  monthly_rent: number;
-  payment_cycle: PaymentCycle;
-  rent_start_date?: string | null;
-  rent_end_date?: string | null;
   status: UnitStatus;
 }>) {
   const auth = await requireAdminEditor(locale, await getCtx());
@@ -322,12 +320,7 @@ export async function executeImport(locale: string, rows: Array<{
         unit_number: row.unit_number,
         floor: row.floor ?? null,
         area_sqm: row.area_sqm ?? null,
-        monthly_rent: row.monthly_rent,
-        payment_cycle: row.payment_cycle,
-        rent_start_date: row.rent_start_date ?? null,
-        rent_end_date: row.rent_end_date ?? null,
         status: row.status,
-        tenant_id: null,
       }, ctx);
       successCount++;
     } catch (e) {
@@ -345,6 +338,214 @@ export async function executeImport(locale: string, rows: Array<{
   }, ctx);
 
   revalidatePath(`/${locale}/units`);
+  revalidatePath(`/${locale}/import`);
+  return { success: true, successCount, errorCount: errors.length, errors };
+}
+
+// ─── Arabic header aliases ───────────────────────────────────────────────────
+
+/** Strip all whitespace, parentheses, dashes, and ريال suffix for fuzzy matching */
+function normalizeHeaderKey(raw: string): string {
+  return raw
+    .trim()
+    .replace(/\s+/g, ' ')            // collapse multiple spaces
+    .replace(/[()（）\-–—]/g, '')    // remove parens and dashes
+    .replace(/ريال/g, '')            // remove ريال
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// Keys are already normalized via normalizeHeaderKey
+const CONTRACT_HEADER_MAP: Array<[string, string]> = [
+  ['رقم العقد', 'contract_number'],
+  ['اسم المستأجر', 'tenant_name'],
+  ['رقم الوحدة', 'unit_number'],
+  ['تاريخ الإبرام', 'signed_date'],
+  ['تاريخ بداية الإيجار', 'start_date'],
+  ['تاريخ نهاية الإيجار', 'end_date'],
+  ['إجمالي قيمة العقد', 'total_amount'],
+  ['قيمة الدفعة الدورية', 'periodic_amount'],
+  ['عدد الدفعات', 'payment_count'],
+];
+
+const CONTRACT_NORMALIZED_MAP = new Map(
+  CONTRACT_HEADER_MAP.map(([ar, field]) => [normalizeHeaderKey(ar), field])
+);
+
+function resolveContractHeader(raw: string): string {
+  const normalized = normalizeHeaderKey(raw);
+  return CONTRACT_NORMALIZED_MAP.get(normalized) ?? normalized;
+}
+
+/** Parse a number that may come as string "28,500.00" or number 28500 */
+function parseNumber(value: unknown): number | null {
+  if (value === null || value === undefined || value === '') return null;
+  if (typeof value === 'number') return isFinite(value) ? value : null;
+  const cleaned = String(value).replace(/,/g, '').trim();
+  const n = Number(cleaned);
+  return isNaN(n) ? null : n;
+}
+
+function normalizeContractRow(raw: Record<string, unknown>): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(raw)) {
+    const field = resolveContractHeader(key);
+    // Parse numeric fields immediately
+    if (field === 'total_amount' || field === 'periodic_amount' || field === 'payment_count') {
+      result[field] = parseNumber(value);
+    } else {
+      result[field] = value;
+    }
+  }
+  return result;
+}
+
+function inferPaymentCycle(total: number, periodic: number): PaymentCycle {
+  if (!periodic || periodic <= 0) return 'yearly';
+  const ratio = Math.round(total / periodic);
+  if (ratio <= 1) return 'yearly';
+  if (ratio <= 2) return 'semi_annual';
+  if (ratio <= 4) return 'quarterly';
+  return 'monthly';
+}
+
+function validateContractImportRow(row: Record<string, unknown>, rowIndex: number): string[] {
+  const errors: string[] = [];
+  if (!row.unit_number && row.unit_number !== 0) errors.push(`Row ${rowIndex}: رقم الوحدة مطلوب`);
+  if (!row.start_date) errors.push(`Row ${rowIndex}: تاريخ بداية الإيجار مطلوب`);
+  if (!row.end_date) errors.push(`Row ${rowIndex}: تاريخ نهاية الإيجار مطلوب`);
+  const total = row.total_amount as number | null;
+  if (total === null || total === undefined || total <= 0) {
+    errors.push(`Row ${rowIndex}: إجمالي قيمة العقد يجب أن يكون رقمًا موجبًا`);
+  }
+  const periodic = row.periodic_amount as number | null;
+  if (periodic === null || periodic === undefined || periodic <= 0) {
+    errors.push(`Row ${rowIndex}: قيمة الدفعة الدورية يجب أن تكون رقمًا موجبًا`);
+  }
+  if (row.start_date && row.end_date && String(row.end_date) < String(row.start_date)) {
+    errors.push(`Row ${rowIndex}: تاريخ النهاية يجب أن يكون بعد تاريخ البداية`);
+  }
+  return errors;
+}
+
+export async function previewContractImport(locale: string, formData: FormData) {
+  const auth = await requireAdminEditor(locale, await getCtx());
+  const file = formData.get('file') as File;
+  if (!file) return { success: false, error: 'No file provided' };
+  const fileError = validateImportFile(file);
+  if (fileError) return { success: false, error: fileError };
+
+  let rawRows: Array<Record<string, unknown>>;
+  try {
+    rawRows = await readImportRows(file);
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : 'Failed to read import file' };
+  }
+
+  const ctx = { ...await getCtx(), user_id: auth.userId, role: auth.role };
+  const units = await unitsRepository.findAll(ctx);
+  const unitMap = new Map(units.map((u) => [String(u.unit_number).trim(), u]));
+
+  const preview = await Promise.all(rawRows.map(async (raw, index) => {
+    const row = normalizeContractRow(raw);
+    const rowIndex = index + 2;
+    const errors = validateContractImportRow(row, rowIndex);
+
+    // unit_number may come as number (e.g. 1) or string ("1") from Excel
+    const unitNumber = row.unit_number != null ? String(row.unit_number).trim() : '';
+    // Try exact match first, then integer match (e.g. "1.0" → "1")
+    const unit = unitMap.get(unitNumber)
+      ?? unitMap.get(String(parseInt(unitNumber, 10)));
+
+    if (unitNumber && !unit) {
+      errors.push(`Row ${rowIndex}: الوحدة رقم "${unitNumber}" غير موجودة`);
+    } else if (unit?.active_contract) {
+      errors.push(`Row ${rowIndex}: الوحدة "${unitNumber}" لديها عقد نشط بالفعل`);
+    }
+
+    const total = Number(row.total_amount);
+    const periodic = Number(row.periodic_amount);
+    const payment_cycle = errors.length === 0 ? inferPaymentCycle(total, periodic) : null;
+
+    return {
+      row: rowIndex,
+      data: {
+        contract_number: row.contract_number ? String(row.contract_number).trim() : null,
+        tenant_name: row.tenant_name ? String(row.tenant_name).trim() : null,
+        unit_id: unit?.id ?? null,
+        unit_number: unitNumber,
+        start_date: row.start_date ? String(row.start_date) : '',
+        end_date: row.end_date ? String(row.end_date) : '',
+        total_amount: total,
+        payment_cycle,
+      },
+      errors,
+      valid: errors.length === 0,
+    };
+  }));
+
+  return { success: true, data: preview, totalRows: rawRows.length };
+}
+
+export async function executeContractImport(locale: string, rows: Array<{
+  contract_number: string | null;
+  tenant_name: string | null;
+  unit_id: string;
+  start_date: string;
+  end_date: string;
+  total_amount: number;
+  payment_cycle: PaymentCycle;
+}>) {
+  const auth = await requireAdminEditor(locale, await getCtx());
+  const ctx = { ...await getCtx(), user_id: auth.userId, role: auth.role };
+
+  const errors: Array<{ row: number; message: string }> = [];
+  let successCount = 0;
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    try {
+      let tenantName: string | null = null;
+      let tenantPhone: string | null = null;
+      let tenantEmail: string | null = null;
+      if (row.tenant_name?.trim()) {
+        tenantName = row.tenant_name.trim();
+      }
+
+      const result = await contractService.create(auth, {
+        unit_id: row.unit_id,
+        contract_number: row.contract_number || null,
+        start_date: row.start_date,
+        end_date: row.end_date,
+        total_amount: row.total_amount,
+        payment_cycle: row.payment_cycle,
+        tenant_name: tenantName,
+        tenant_phone: tenantPhone,
+        tenant_email: tenantEmail,
+      }, ctx);
+
+      if (result.success) {
+        successCount++;
+      } else {
+        errors.push({ row: i + 1, message: result.error ?? 'Unknown error' });
+      }
+    } catch (e) {
+      errors.push({ row: i + 1, message: String(e) });
+    }
+  }
+
+  await importLogsRepository.create({
+    file_name: 'contracts-import.xlsx',
+    total_rows: rows.length,
+    success_count: successCount,
+    error_count: errors.length,
+    errors,
+    imported_by: auth.userId,
+  }, ctx);
+
+  revalidatePath(`/${locale}/contracts`);
+  revalidatePath(`/${locale}/units`);
+  revalidatePath(`/${locale}/dashboard`);
   revalidatePath(`/${locale}/import`);
   return { success: true, successCount, errorCount: errors.length, errors };
 }

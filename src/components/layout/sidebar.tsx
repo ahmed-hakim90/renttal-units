@@ -5,7 +5,7 @@ import { Link, usePathname } from '@/lib/i18n/navigation';
 import {
   LayoutDashboard, MapPin, Building2, Calendar, FileText,
   CreditCard, CheckCircle, History, BarChart3, Upload, Users, Settings,
-  PanelLeftClose, PanelLeftOpen, X, LogOut,
+  PanelLeftClose, PanelLeftOpen, X, LogOut, ScrollText,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -13,11 +13,13 @@ import { Logo, LogoMark } from '@/components/brand/logo';
 import { LanguageSwitcher } from './language-switcher';
 import { signOut } from '@/lib/actions/auth';
 import { useCurrentLocale } from '@/lib/i18n/hooks';
+import type { AuthContext } from '@/types/database';
 
 const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, labelKey: 'dashboard' as const },
   { href: '/locations', icon: MapPin, labelKey: 'locations' as const },
   { href: '/units', icon: Building2, labelKey: 'units' as const },
+  { href: '/contracts', icon: ScrollText, labelKey: 'contracts' as const },
   { href: '/due-this-month', icon: Calendar, labelKey: 'dueThisMonth' as const },
   { href: '/invoices', icon: FileText, labelKey: 'invoices' as const },
   { href: '/partial-payments', icon: CreditCard, labelKey: 'partialPayments' as const },
@@ -30,11 +32,13 @@ const navItems = [
 ];
 
 export function Sidebar({
+  auth,
   collapsed,
   mobileOpen,
   onCloseMobile,
   onToggleCollapsed,
 }: {
+  auth: AuthContext;
   collapsed: boolean;
   mobileOpen: boolean;
   onCloseMobile: () => void;
@@ -44,6 +48,7 @@ export function Sidebar({
   const t = useTranslations('common');
   const pathname = usePathname();
   const locale = useCurrentLocale();
+  const visibleNavItems = auth.isAdminEditor ? navItems : navItems.filter((item) => item.href === '/dashboard');
 
   return (
     <>
@@ -78,7 +83,7 @@ export function Sidebar({
         </div>
       </div>
       <nav className="flex-1 overflow-y-auto p-4 space-y-1">
-        {navItems.map(({ href, icon: Icon, labelKey }) => {
+        {visibleNavItems.map(({ href, icon: Icon, labelKey }) => {
           const isActive = pathname === href || pathname.startsWith(href + '/');
           return (
             <Link

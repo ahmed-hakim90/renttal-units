@@ -24,6 +24,19 @@
   "tenant": "المستأجر",
   "selectLocation": "اختر الموقع",
   "selectTenant": "اختر المستأجر",
+  "contractStatus": "العقد",
+  "hasActiveContract": "يوجد عقد نشط",
+  "noActiveContract": "لا يوجد عقد نشط",
   "empty": "لا توجد وحدات بعد. أضف وحدات أو استورد من Excel.",
-  "deleteConfirm": "حذف هذه الوحدة؟"
+  "deleteConfirm": "حذف هذه الوحدة؟",
+  "rentStartRequired": "تاريخ بداية الإيجار مطلوب للوحدات المشغولة",
+  "rentEndRequired": "تاريخ نهاية الإيجار مطلوب للوحدات المشغولة",
+  "invalidRentDate": "أدخل تاريخاً صحيحاً",
+  "rentEndBeforeStart": "تاريخ نهاية الإيجار يجب أن يكون بعد تاريخ البداية",
+  "duplicateUnit": "توجد وحدة بنفس الرقم في هذا الموقع",
+  "unitHasFinancialRecords": "لا يمكن حذف هذه الوحدة لأنها مرتبطة بفواتير صادرة أو مدفوعات",
+  "importContracts": "استيراد العقود",
+  "importContractsDesc": "ارفع ملف Excel يحتوي على بيانات العقود. يدعم الرؤوس العربية.",
+  "importContractsSuccess": "تم استيراد {success} عقد، {errors} أخطاء",
+  "downloadTemplate": "تحميل النموذج"
 }

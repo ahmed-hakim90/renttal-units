@@ -1,11 +1,11 @@
 {
   "title": "لوحة التحكم",
   "subtitle": "نظرة عامة على محفظة الإيجارات",
-  "dueThisMonth": "مستحق هذا الشهر",
+  "dueThisMonth": "مستحق الآن",
   "awaitingPayment": "في انتظار الدفع",
   "partialPayments": "مدفوعات جزئية",
   "fullyPaid": "مدفوع بالكامل",
-  "dueThisMonthDesc": "وحدات بإيجار مستحق هذا الشهر",
+  "dueThisMonthDesc": "مستحقات قديمة وهذا الشهر لم يتم إصدارها بعد",
   "awaitingPaymentDesc": "فواتير صادرة في انتظار الدفع",
   "partialPaymentsDesc": "فواتير بمدفوعات جزئية",
   "fullyPaidDesc": "فواتير مدفوعة بالكامل",
@@ -14,5 +14,10 @@
   "totalUnits": "إجمالي الوحدات",
   "totalLocations": "إجمالي المواقع",
   "occupancyRate": "معدل الإشغال",
-  "monthlyRevenue": "الإيرادات الشهرية المتوقعة"
+  "monthlyRevenue": "الإيرادات الشهرية المتوقعة",
+  "totalContracts": "إجمالي العقود",
+  "totalContractsValue": "إجمالي قيمة العقود",
+  "activeContracts": "{count} عقد نشط",
+  "upcomingPayments": "مستحق خلال 30 يوم",
+  "upcomingPaymentsDesc": "فواتير صادرة تستحق خلال الـ 30 يوم القادمة"
 }

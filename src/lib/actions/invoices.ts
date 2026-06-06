@@ -19,9 +19,6 @@ export async function getInvoices(locale: string, filters?: { status?: InvoiceSt
 
 export async function getDashboardStats(locale: string) {
   const auth = await requireAuth(locale, await getCtx());
-  if (auth.isAdminEditor) {
-    await rentalService.generateDueInvoices(auth, { ...await getCtx(), user_id: auth.userId, role: auth.role });
-  }
   return invoiceService.getDashboardCounts(auth, { ...await getCtx(), user_id: auth.userId, role: auth.role });
 }
 

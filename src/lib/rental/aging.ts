@@ -111,7 +111,7 @@ export function buildUnitAgingSummary(
         unitId,
         unitNumber: unit?.unit_number ?? '—',
         locationName: getLocationName(row.invoice),
-        paymentCycle: unit?.payment_cycle ?? null,
+        paymentCycle: row.invoice.contract?.payment_cycle ?? unit?.payment_cycle ?? null,
         buckets: createEmptyBucketAmounts(),
         total: 0,
         invoiceCount: 0,

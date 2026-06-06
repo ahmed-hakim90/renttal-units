@@ -2,7 +2,7 @@ import type { ButtonHTMLAttributes } from 'react';
 import { cn } from '@/lib/utils';
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'destructive' | 'ghost' | 'outline';
+  variant?: 'primary' | 'secondary' | 'destructive' | 'ghost' | 'outline' | 'issue' | 'payment';
   size?: 'sm' | 'md' | 'lg';
 }
 
@@ -12,6 +12,8 @@ const variants = {
   destructive: 'bg-destructive text-white hover:bg-destructive/90',
   ghost: 'hover:bg-accent hover:text-accent-foreground',
   outline: 'border border-border bg-card hover:bg-accent',
+  issue: 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm',
+  payment: 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm',
 };
 
 const sizes = {

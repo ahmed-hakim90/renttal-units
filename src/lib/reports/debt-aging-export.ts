@@ -187,7 +187,7 @@ function buildDetailSheet(
         row.invoice.invoice_number,
         row.invoice.unit?.unit_number ?? '',
         getLocationName(row),
-        getPaymentCycleLabel(row.invoice.unit?.payment_cycle),
+        getPaymentCycleLabel(row.invoice.contract?.payment_cycle ?? row.invoice.unit?.payment_cycle),
         `${row.invoice.period_start} – ${row.invoice.period_end}`,
         row.invoice.due_date,
         row.daysOverdue,

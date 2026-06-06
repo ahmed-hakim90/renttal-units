@@ -19,6 +19,7 @@ export function DashboardShell({
   return (
     <div className="min-h-screen bg-background">
       <Sidebar
+        auth={auth}
         collapsed={collapsed}
         mobileOpen={mobileOpen}
         onCloseMobile={() => setMobileOpen(false)}

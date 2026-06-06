@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
 import { createUser, updateUserRole } from '@/lib/actions/admin';
-import { formatDate } from '@/lib/i18n/hooks';
+import { formatDate } from '@/lib/i18n/format';
 import { type Locale } from '@/lib/i18n/routing';
 import { toast } from 'sonner';
 import { Plus } from 'lucide-react';

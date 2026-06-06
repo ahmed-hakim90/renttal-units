@@ -24,6 +24,19 @@
   "tenant": "Tenant",
   "selectLocation": "Select location",
   "selectTenant": "Select tenant",
+  "contractStatus": "Contract",
+  "hasActiveContract": "Active contract",
+  "noActiveContract": "No active contract",
   "empty": "No units yet. Add units or import from Excel.",
-  "deleteConfirm": "Delete this unit?"
+  "deleteConfirm": "Delete this unit?",
+  "rentStartRequired": "Rent start date is required for occupied units",
+  "rentEndRequired": "Rent end date is required for occupied units",
+  "invalidRentDate": "Enter a valid date",
+  "rentEndBeforeStart": "Rent end date must be after rent start date",
+  "duplicateUnit": "A unit with this number already exists in this location",
+  "unitHasFinancialRecords": "Cannot delete this unit because it has issued invoices or payment records",
+  "importContracts": "Import Contracts",
+  "importContractsDesc": "Upload an Excel file (.xlsx) with the contract data. Arabic headers are supported.",
+  "importContractsSuccess": "{success} contracts imported, {errors} errors",
+  "downloadTemplate": "Download Template"
 }

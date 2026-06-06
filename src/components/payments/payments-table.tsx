@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { CalendarDays, Download, FileText, Landmark, Receipt, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardTitle } from '@/components/ui/card';
-import { formatCurrency, formatDate } from '@/lib/i18n/hooks';
+import { formatCurrency, formatDate } from '@/lib/i18n/format';
 import type { Payment, PaymentMethod } from '@/types/database';
 import type { Locale } from '@/lib/i18n/routing';
 

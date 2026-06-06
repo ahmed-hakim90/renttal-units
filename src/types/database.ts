@@ -3,6 +3,8 @@ export type PaymentCycle = 'monthly' | 'quarterly' | 'semi_annual' | 'yearly';
 export type UnitStatus = 'occupied' | 'vacant' | 'maintenance';
 export type InvoiceStatus = 'due' | 'invoice_issued' | 'partially_paid' | 'fully_paid' | 'overdue';
 export type PaymentMethod = 'cash' | 'bank_transfer' | 'check' | 'other';
+export type ContractStatus = 'active' | 'cancelled' | 'completed';
+export type ContractCancellationHandling = 'keep_current_full' | 'prorate_current';
 
 export interface Profile {
   id: string;
@@ -40,7 +42,7 @@ export interface Unit {
   unit_number: string;
   floor: string | null;
   area_sqm: number | null;
-  monthly_rent: number;
+  monthly_rent: number | null;
   payment_cycle: PaymentCycle;
   rent_start_date: string | null;
   rent_end_date: string | null;
@@ -50,11 +52,13 @@ export interface Unit {
   updated_at: string;
   location?: Location;
   tenant?: Tenant;
+  active_contract?: Contract | null;
 }
 
 export interface Invoice {
   id: string;
   invoice_number: string;
+  contract_id: string | null;
   unit_id: string;
   tenant_id: string | null;
   period_start: string;
@@ -67,9 +71,31 @@ export interface Invoice {
   notes: string | null;
   created_at: string;
   updated_at: string;
+  contract?: Contract;
   unit?: Unit;
   tenant?: Tenant;
   payments?: Payment[];
+}
+
+export interface Contract {
+  id: string;
+  unit_id: string;
+  contract_number: string | null;
+  tenant_id: string | null;
+  start_date: string;
+  end_date: string;
+  total_amount: number;
+  payment_cycle: PaymentCycle;
+  status: ContractStatus;
+  cancelled_at: string | null;
+  cancellation_date: string | null;
+  cancellation_handling: ContractCancellationHandling | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+  unit?: Unit;
+  tenant?: Tenant;
+  invoices?: Invoice[];
 }
 
 export interface Payment {
@@ -123,9 +149,12 @@ export interface Setting {
 
 export interface DashboardStats {
   dueThisMonth: number;
+  dueThisMonthAmount: number;
   awaitingPayment: number;
   partialPayments: number;
   fullyPaid: number;
+  upcomingPayments: number;
+  upcomingPaymentsAmount: number;
 }
 
 export interface DebtAgingBucket {

@@ -1,6 +1,7 @@
 {
   "title": "Invoices",
-  "dueThisMonth": "Due This Month",
+  "dueThisMonth": "Due Now",
+  "dueNowSubtitle": "Includes older unissued dues through the end of this month",
   "awaitingPayment": "Awaiting Payment",
   "partialPayments": "Partial Payments",
   "fullyPaid": "Fully Paid",
@@ -31,5 +32,7 @@
   "recordPayment": "Record Payment",
   "statusTransition": "Status",
   "action": "Action",
-  "period": "Period"
+  "period": "Period",
+  "daysOverdueLabel": "{days} days overdue",
+  "oldOutstanding": "Old outstanding"
 }

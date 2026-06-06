@@ -31,5 +31,6 @@
   "cannotPayFullyPaid": "This invoice is fully paid and cannot accept more payments",
   "exceedsBalance": "Payment amount exceeds remaining balance",
   "empty": "No payments recorded yet",
-  "recordedBy": "Recorded By"
+  "recordedBy": "Recorded By",
+  "paymentRecorded": "Payment recorded successfully"
 }
