@@ -35,7 +35,7 @@ async function generate() {
 
   await copyFile(sourceSvg, path.join(appDir, 'icon.svg'));
   await sharp(svg).resize(180, 180).png().toFile(path.join(appDir, 'apple-icon.png'));
-  await sharp(svg).resize(32, 32).png().toFile(path.join(root, 'public/favicon.ico'));
+  await sharp(svg).resize(32, 32).png().toFile(path.join(appDir, 'favicon.ico'));
 
   console.log('Generated PWA icons in public/icons/');
 }
