@@ -12,17 +12,10 @@ import { unitsRepository } from '@/lib/repositories/units';
 import { tenantsRepository } from '@/lib/repositories/tenants';
 import { auditService } from '@/lib/services/audit-service';
 import { validationService } from '@/lib/services/validation-service';
+import { isUniqueViolation } from '@/lib/db/postgres-errors';
 import { calculateContractPaymentSchedule } from '@/lib/rental/calculations';
+import { buildDueInvoiceNumber } from '@/lib/rental/due-invoice-number';
 import { withSpan, type LogContext } from '@/lib/observability';
-
-function isUniqueViolation(error: unknown) {
-  return Boolean(
-    error &&
-      typeof error === 'object' &&
-      'code' in error &&
-      (error as { code?: string }).code === '23505'
-  );
-}
 
 function roundMoney(value: number) {
   return Math.round((value + Number.EPSILON) * 100) / 100;
@@ -53,7 +46,7 @@ async function createContractInvoices(contract: Contract, ctx: LogContext) {
 
     try {
       await invoicesRepository.create({
-        invoice_number: `DUE-${contract.id.slice(0, 8)}-${period.periodStart}`,
+        invoice_number: buildDueInvoiceNumber(contract.id, period.periodStart),
         contract_id: contract.id,
         unit_id: contract.unit_id,
         tenant_id: null,
@@ -68,19 +61,68 @@ async function createContractInvoices(contract: Contract, ctx: LogContext) {
       }, ctx);
       created++;
     } catch (error) {
-      if (!isUniqueViolation(error)) throw error;
-      const duplicate = await invoicesRepository.findByUnitAndPeriod(
-        contract.unit_id,
-        period.periodStart,
-        period.periodEnd,
-        ctx,
-        contract.id
-      );
-      if (!duplicate) throw error;
+      if (isUniqueViolation(error)) continue;
+      throw error;
     }
   }
 
   return created;
+}
+
+function hasFinancialActivity(invoices: Awaited<ReturnType<typeof invoicesRepository.findByContractId>>) {
+  return invoices.some(
+    (invoice) => Number(invoice.paid_amount) > 0 || invoice.status !== 'due'
+  );
+}
+
+function scheduleChanged(
+  contract: Contract,
+  input: {
+    start_date: string;
+    end_date: string;
+    total_amount: number;
+    payment_cycle: PaymentCycle;
+  }
+) {
+  return (
+    input.start_date !== contract.start_date
+    || input.end_date !== contract.end_date
+    || input.payment_cycle !== contract.payment_cycle
+    || input.total_amount !== Number(contract.total_amount)
+  );
+}
+
+async function syncContractTenant(
+  contract: Contract,
+  tenantName: string | null | undefined,
+  tenantPhone: string | null | undefined,
+  tenantEmail: string | null | undefined,
+  ctx: LogContext
+): Promise<string | null> {
+  const name = tenantName?.trim() ?? '';
+
+  if (!name) {
+    await unitsRepository.update(contract.unit_id, { tenant_id: null }, ctx);
+    return null;
+  }
+
+  if (contract.tenant_id) {
+    await tenantsRepository.update(contract.tenant_id, {
+      full_name: name,
+      phone: tenantPhone?.trim() || null,
+      email: tenantEmail?.trim() || null,
+    }, ctx);
+    await unitsRepository.update(contract.unit_id, { tenant_id: contract.tenant_id }, ctx);
+    return contract.tenant_id;
+  }
+
+  const tenant = await tenantsRepository.create({
+    full_name: name,
+    phone: tenantPhone?.trim() || null,
+    email: tenantEmail?.trim() || null,
+  }, ctx);
+  await unitsRepository.update(contract.unit_id, { tenant_id: tenant.id }, ctx);
+  return tenant.id;
 }
 
 export const contractService = {
@@ -144,11 +186,72 @@ export const contractService = {
       }
 
       await createContractInvoices(contract, ctx);
-      await unitsRepository.update(input.unit_id, { status: 'occupied' }, ctx);
       await auditService.log(auth, 'create', 'contract', contract.id, null, contract, ctx);
 
       const hydrated = await contractsRepository.findById(contract.id, ctx);
       return { success: true, data: hydrated ?? contract };
+    });
+  },
+
+  async update(
+    auth: AuthContext,
+    id: string,
+    input: {
+      contract_number?: string | null;
+      start_date: string;
+      end_date: string;
+      total_amount: number;
+      payment_cycle: PaymentCycle;
+      notes?: string | null;
+      tenant_name?: string | null;
+      tenant_phone?: string | null;
+      tenant_email?: string | null;
+    },
+    ctx: LogContext
+  ): Promise<ServiceResult<Contract>> {
+    if (!auth.isAdminEditor) return { success: false, error: 'Unauthorized', errorCode: 'FORBIDDEN' };
+
+    return withSpan('contractService.update', { ...ctx, service: 'contract', user_id: auth.userId }, async () => {
+      const { tenant_name, tenant_phone, tenant_email, ...contractInput } = input;
+
+      const contract = await contractsRepository.findById(id, ctx);
+      if (!contract) return { success: false, error: 'contractNotFound', errorCode: 'NOT_FOUND' };
+      if (contract.status !== 'active') return { success: false, error: 'contractNotActive', errorCode: 'VALIDATION' };
+
+      const validation = validationService.validateContract({ ...contractInput, unit_id: contract.unit_id });
+      if (!validation.valid) return { success: false, error: validation.errors.join(', '), errorCode: 'VALIDATION' };
+
+      const invoices = await invoicesRepository.findByContractId(id, ctx);
+      const scheduleFieldsChanged = scheduleChanged(contract, contractInput);
+
+      if (scheduleFieldsChanged && hasFinancialActivity(invoices)) {
+        return { success: false, error: 'contractHasFinancialActivity', errorCode: 'VALIDATION' };
+      }
+
+      const tenantId = await syncContractTenant(contract, tenant_name, tenant_phone, tenant_email, ctx);
+
+      let updated: Contract;
+      try {
+        updated = await contractsRepository.update(id, {
+          ...contractInput,
+          tenant_id: tenantId,
+        }, ctx);
+      } catch (error) {
+        if (isUniqueViolation(error)) {
+          return { success: false, error: 'duplicateContractNumber', errorCode: 'DUPLICATE_CONTRACT_NUMBER' };
+        }
+        throw error;
+      }
+
+      if (scheduleFieldsChanged) {
+        await invoicesRepository.deleteAllDueByContractId(id, ctx);
+        await createContractInvoices(updated, ctx);
+      }
+
+      await auditService.log(auth, 'update', 'contract', id, contract, updated, ctx);
+
+      const hydrated = await contractsRepository.findById(id, ctx);
+      return { success: true, data: hydrated ?? updated };
     });
   },
 
@@ -190,7 +293,6 @@ export const contractService = {
 
       await invoicesRepository.deleteFutureDueByContractId(id, input.cancellation_date, ctx);
       const cancelled = await contractsRepository.cancel(id, input, ctx);
-      await unitsRepository.update(contract.unit_id, { status: 'vacant' }, ctx);
       await auditService.log(auth, 'cancel', 'contract', id, contract, cancelled, ctx);
 
       return { success: true, data: cancelled };

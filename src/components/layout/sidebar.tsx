@@ -26,6 +26,7 @@ const navItems = [
   { href: '/fully-paid', icon: CheckCircle, labelKey: 'fullyPaid' as const },
   { href: '/payments', icon: History, labelKey: 'payments' as const },
   { href: '/reports/debt-aging', icon: BarChart3, labelKey: 'debtAging' as const },
+  { href: '/reports/location-statement', icon: BarChart3, labelKey: 'locationStatement' as const },
   { href: '/import', icon: Upload, labelKey: 'import' as const },
   { href: '/users', icon: Users, labelKey: 'users' as const },
   { href: '/settings', icon: Settings, labelKey: 'settings' as const },

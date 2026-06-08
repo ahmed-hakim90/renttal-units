@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
 import { issueDueInvoice, recordPayment } from '@/lib/actions/invoices';
+import { useSingleSubmit } from '@/lib/hooks/use-single-submit';
 import { formatCurrency, formatDate, formatNumber } from '@/lib/i18n/format';
 import {
   getInvoiceDaysOverdue,
@@ -46,10 +47,12 @@ export function RecentActivity({
   const [issueOpen, setIssueOpen] = useState(false);
   const [payOpen, setPayOpen] = useState(false);
   const [paymentMode, setPaymentMode] = useState<'full' | 'partial'>('full');
+  const { isSubmitting, runOnce } = useSingleSubmit();
 
   async function handleIssue(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!selectedInvoice) return;
+    await runOnce(async () => {
     const fd = new FormData(e.currentTarget);
     const result = await issueDueInvoice(locale, selectedInvoice.id, fd.get('invoice_number') as string);
 
@@ -60,11 +63,13 @@ export function RecentActivity({
     } else {
       toast.error('error' in result ? String(result.error) : tCommon('error'));
     }
+    });
   }
 
   async function handlePayment(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!selectedInvoice) return;
+    await runOnce(async () => {
     const fd = new FormData(e.currentTarget);
     const remaining = Number(selectedInvoice.amount) - Number(selectedInvoice.paid_amount);
     const amount = paymentMode === 'full' ? remaining : Number(fd.get('amount'));
@@ -84,6 +89,7 @@ export function RecentActivity({
     } else {
       toast.error('error' in result ? String(result.error) : tCommon('error'));
     }
+    });
   }
 
   const sections = [
@@ -158,17 +164,17 @@ export function RecentActivity({
         ))}
       </div>
 
-      <Modal open={issueOpen} onClose={() => setIssueOpen(false)} title={ti('issueInvoice')}>
+      <Modal open={issueOpen} onClose={() => !isSubmitting && setIssueOpen(false)} title={ti('issueInvoice')}>
         <form onSubmit={handleIssue} className="space-y-4">
           <Input name="invoice_number" label={ti('invoiceNumber')} required />
           <div className="flex justify-end gap-3">
-            <Button variant="outline" type="button" onClick={() => setIssueOpen(false)}>{tCommon('cancel')}</Button>
-            <Button variant="issue" type="submit">{ti('issueInvoice')}</Button>
+            <Button variant="outline" type="button" disabled={isSubmitting} onClick={() => setIssueOpen(false)}>{tCommon('cancel')}</Button>
+            <Button variant="issue" type="submit" disabled={isSubmitting}>{isSubmitting ? tCommon('loading') : ti('issueInvoice')}</Button>
           </div>
         </form>
       </Modal>
 
-      <Modal open={payOpen} onClose={() => setPayOpen(false)} title={tp('create')}>
+      <Modal open={payOpen} onClose={() => !isSubmitting && setPayOpen(false)} title={tp('create')}>
         {selectedInvoice && (
           <form onSubmit={handlePayment} className="space-y-4">
             <p className="text-sm text-muted-foreground">
@@ -199,8 +205,8 @@ export function RecentActivity({
             </div>
             <Input name="reference_number" label={tp('referenceNumber')} />
             <div className="flex justify-end gap-3">
-              <Button variant="outline" type="button" onClick={() => setPayOpen(false)}>{tCommon('cancel')}</Button>
-              <Button variant="payment" type="submit">{tp('create')}</Button>
+              <Button variant="outline" type="button" disabled={isSubmitting} onClick={() => setPayOpen(false)}>{tCommon('cancel')}</Button>
+              <Button variant="payment" type="submit" disabled={isSubmitting}>{isSubmitting ? tCommon('loading') : tp('create')}</Button>
             </div>
           </form>
         )}

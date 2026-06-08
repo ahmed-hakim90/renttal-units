@@ -2,6 +2,7 @@ import type { AuthContext, ServiceResult } from '@/types/database';
 import { contractsRepository } from '@/lib/repositories/contracts';
 import { invoicesRepository } from '@/lib/repositories/invoices';
 import { withSpan, type LogContext } from '@/lib/observability';
+import { isUniqueViolation } from '@/lib/db/postgres-errors';
 import {
   calculateAllUnitRentPeriods,
   calculateContractPaymentSchedule,
@@ -11,15 +12,7 @@ import {
   calculateUnitRentPeriod,
   getCycleMonths,
 } from '@/lib/rental/calculations';
-
-function isUniqueViolation(error: unknown) {
-  return Boolean(
-    error &&
-      typeof error === 'object' &&
-      'code' in error &&
-      (error as { code?: string }).code === '23505'
-  );
-}
+import { buildDueInvoiceNumber } from '@/lib/rental/due-invoice-number';
 
 export const rentalService = {
   async generateDueInvoices(auth: AuthContext, ctx: LogContext): Promise<ServiceResult<{ created: number }>> {
@@ -36,14 +29,9 @@ export const rentalService = {
           const existing = await invoicesRepository.findByUnitAndPeriod(contract.unit_id, periodStart, periodEnd, ctx, contract.id);
           if (existing) continue;
 
-          const invoiceNumber = `DUE-${contract.id.slice(0, 8)}-${periodStart}`;
-
-          const existingNumber = await invoicesRepository.findByInvoiceNumber(invoiceNumber, ctx);
-          if (existingNumber) continue;
-
           try {
             await invoicesRepository.create({
-              invoice_number: invoiceNumber,
+              invoice_number: buildDueInvoiceNumber(contract.id, periodStart),
               contract_id: contract.id,
               unit_id: contract.unit_id,
               tenant_id: null,
@@ -57,19 +45,7 @@ export const rentalService = {
               notes: null,
             }, ctx);
           } catch (error) {
-            if (!isUniqueViolation(error)) throw error;
-
-            const duplicate = await invoicesRepository.findByInvoiceNumber(invoiceNumber, ctx);
-            if (duplicate) continue;
-
-            const concurrentInvoice = await invoicesRepository.findByUnitAndPeriod(
-              contract.unit_id,
-              periodStart,
-              periodEnd,
-              ctx,
-              contract.id
-            );
-            if (concurrentInvoice) continue;
+            if (isUniqueViolation(error)) continue;
             throw error;
           }
           created++;

@@ -157,6 +157,39 @@ export interface DashboardStats {
   upcomingPaymentsAmount: number;
 }
 
+export interface LocationStatementUnit {
+  unitId: string;
+  unitNumber: string;
+  status: UnitStatus;
+  tenantName: string | null;
+  activeContractNumber: string | null;
+  activeContractStartDate: string | null;
+  activeContractEndDate: string | null;
+  activeContractValue: number;
+  contractCount: number;
+  invoiceCount: number;
+  invoiceTotal: number;
+  paidTotal: number;
+  remainingTotal: number;
+}
+
+export interface LocationStatement {
+  location: Location | null;
+  units: LocationStatementUnit[];
+  totals: {
+    unitCount: number;
+    occupiedUnits: number;
+    vacantUnits: number;
+    maintenanceUnits: number;
+    activeContractCount: number;
+    contractCount: number;
+    contractValueTotal: number;
+    invoiceTotal: number;
+    paidTotal: number;
+    remainingTotal: number;
+  };
+}
+
 export interface DebtAgingBucket {
   label: string;
   minDays: number;

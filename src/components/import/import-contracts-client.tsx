@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { previewContractImport, executeContractImport } from '@/lib/actions/admin';
+import { useSingleSubmit } from '@/lib/hooks/use-single-submit';
 import { toast } from 'sonner';
 import { Upload, Download } from 'lucide-react';
 import { formatCurrency } from '@/lib/i18n/format';
@@ -32,6 +33,8 @@ export function ImportContractsClient({ locale, canEdit }: { locale: string; can
   const loc = locale as Locale;
   const [preview, setPreview] = useState<ContractPreviewRow[] | null>(null);
   const [loading, setLoading] = useState(false);
+  const { isSubmitting, runOnce } = useSingleSubmit();
+  const busy = loading || isSubmitting;
 
   if (!canEdit) {
     return <p className="text-muted-foreground">{tc('viewOnly')}</p>;
@@ -75,20 +78,27 @@ export function ImportContractsClient({ locale, canEdit }: { locale: string; can
 
   async function handlePreview(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    await runOnce(async () => {
     setLoading(true);
+    try {
     const fd = new FormData(e.currentTarget);
     const result = await previewContractImport(locale, fd);
-    setLoading(false);
     if (result.success && result.data) {
       setPreview(result.data as ContractPreviewRow[]);
     } else {
       toast.error('error' in result ? result.error : tc('error'));
     }
+    } finally {
+      setLoading(false);
+    }
+    });
   }
 
   async function handleImport() {
     if (!preview) return;
+    await runOnce(async () => {
     setLoading(true);
+    try {
 
     const validRows = preview
       .filter((r) => r.valid && r.data.unit_id && r.data.payment_cycle)
@@ -103,13 +113,16 @@ export function ImportContractsClient({ locale, canEdit }: { locale: string; can
       }));
 
     const result = await executeContractImport(locale, validRows);
-    setLoading(false);
     if (result.success) {
       toast.success(t('importContractsSuccess', { success: result.successCount, errors: result.errorCount }));
       setPreview(null);
     } else {
       toast.error(tc('error'));
     }
+    } finally {
+      setLoading(false);
+    }
+    });
   }
 
   const validCount = preview?.filter((r) => r.valid).length ?? 0;
@@ -130,7 +143,7 @@ export function ImportContractsClient({ locale, canEdit }: { locale: string; can
           <div className="flex-1">
             <input type="file" name="file" accept=".xlsx,.csv" required className="block w-full text-sm" />
           </div>
-          <Button type="submit" disabled={loading}>
+          <Button type="submit" disabled={busy}>
             <Upload className="h-4 w-4" />
             {tc('preview') ?? 'Preview'}
           </Button>
@@ -186,7 +199,7 @@ export function ImportContractsClient({ locale, canEdit }: { locale: string; can
           <div className="p-4 border-t border-border">
             <Button
               onClick={handleImport}
-              disabled={loading || validCount === 0}
+              disabled={busy || validCount === 0}
             >
               {tc('import') ?? 'Import'} {validCount} {tc('contracts') ?? 'contracts'}
             </Button>

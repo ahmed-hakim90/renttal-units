@@ -3,8 +3,8 @@
 import { useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
-import { CalendarX, Plus } from 'lucide-react';
-import { createContract, cancelContract } from '@/lib/actions/contracts';
+import { CalendarX, Pencil, Plus } from 'lucide-react';
+import { createContract, cancelContract, updateContract } from '@/lib/actions/contracts';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
@@ -42,6 +42,7 @@ export function ContractsManager({
   const searchParams = useSearchParams();
   const search = searchParams.get('search')?.trim().toLowerCase() ?? '';
   const [createOpen, setCreateOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -69,6 +70,7 @@ export function ContractsManager({
     if (error === 'contractNotActive') return t('contractNotActive');
     if (error === 'cancellationDateOutOfRange') return t('cancellationDateOutOfRange');
     if (error === 'duplicateContractNumber') return t('duplicateContractNumber');
+    if (error === 'contractHasFinancialActivity') return t('contractHasFinancialActivity');
     return error;
   }
 
@@ -97,6 +99,40 @@ export function ContractsManager({
       if (result.success) {
         toast.success(tc('success'));
         setCreateOpen(false);
+      } else {
+        toast.error(result.error ? getActionErrorMessage(result.error) : tc('error'));
+      }
+    } finally {
+      isSavingRef.current = false;
+      setIsSaving(false);
+    }
+  }
+
+  async function handleEdit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!selectedContract || isSavingRef.current) return;
+
+    const fd = new FormData(e.currentTarget);
+    const data = {
+      contract_number: (fd.get('contract_number') as string) || null,
+      start_date: fd.get('start_date') as string,
+      end_date: fd.get('end_date') as string,
+      total_amount: Number(fd.get('total_amount')),
+      payment_cycle: fd.get('payment_cycle') as PaymentCycle,
+      notes: (fd.get('notes') as string) || null,
+      tenant_name: (fd.get('tenant_name') as string) || null,
+      tenant_phone: (fd.get('tenant_phone') as string) || null,
+      tenant_email: (fd.get('tenant_email') as string) || null,
+    };
+
+    isSavingRef.current = true;
+    setIsSaving(true);
+    try {
+      const result = await updateContract(locale, selectedContract.id, data);
+      if (result.success) {
+        toast.success(tc('success'));
+        setEditOpen(false);
+        setSelectedContract(null);
       } else {
         toast.error(result.error ? getActionErrorMessage(result.error) : tc('error'));
       }
@@ -183,18 +219,32 @@ export function ContractsManager({
                     </div>
                   </div>
                   {canEdit && contract.status === 'active' && (
-                    <Button
-                      className="mt-4 w-full"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setSelectedContract(contract);
-                        setCancelOpen(true);
-                      }}
-                    >
-                      <CalendarX className="h-4 w-4" />
-                      {t('cancel')}
-                    </Button>
+                    <div className="mt-4 flex gap-2">
+                      <Button
+                        className="flex-1"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedContract(contract);
+                          setEditOpen(true);
+                        }}
+                      >
+                        <Pencil className="h-4 w-4" />
+                        {t('edit')}
+                      </Button>
+                      <Button
+                        className="flex-1"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedContract(contract);
+                          setCancelOpen(true);
+                        }}
+                      >
+                        <CalendarX className="h-4 w-4" />
+                        {t('cancel')}
+                      </Button>
+                    </div>
                   )}
                 </div>
               );
@@ -249,17 +299,30 @@ export function ContractsManager({
                       {canEdit && (
                         <td className="px-4 py-3 text-end">
                           {contract.status === 'active' && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedContract(contract);
-                                setCancelOpen(true);
-                              }}
-                            >
-                              <CalendarX className="h-4 w-4" />
-                              {t('cancel')}
-                            </Button>
+                            <div className="flex justify-end gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedContract(contract);
+                                  setEditOpen(true);
+                                }}
+                              >
+                                <Pencil className="h-4 w-4" />
+                                {t('edit')}
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedContract(contract);
+                                  setCancelOpen(true);
+                                }}
+                              >
+                                <CalendarX className="h-4 w-4" />
+                                {t('cancel')}
+                              </Button>
+                            </div>
                           )}
                         </td>
                       )}
@@ -311,6 +374,90 @@ export function ContractsManager({
             <Button type="submit" disabled={isSaving}>{isSaving ? tc('loading') : t('create')}</Button>
           </div>
         </form>
+      </Modal>
+
+      <Modal open={editOpen} onClose={() => !isSaving && setEditOpen(false)} title={t('edit')}>
+        {selectedContract && (
+          <form key={selectedContract.id} onSubmit={handleEdit} className="space-y-4">
+            <Input
+              name="contract_number"
+              label={t('contractNumber')}
+              defaultValue={selectedContract.contract_number ?? ''}
+            />
+            <div>
+              <label className="text-sm font-medium">{t('unit')}</label>
+              <p className="mt-1.5 flex h-10 items-center rounded-xl border border-border bg-muted/40 px-3 text-sm">
+                {selectedContract.unit?.unit_number ?? '—'}
+                {selectedContract.unit?.location?.name_en ? ` — ${selectedContract.unit.location.name_en}` : ''}
+              </p>
+            </div>
+            <Input
+              name="start_date"
+              label={t('startDate')}
+              type="date"
+              required
+              defaultValue={selectedContract.start_date}
+            />
+            <Input
+              name="end_date"
+              label={t('endDate')}
+              type="date"
+              required
+              defaultValue={selectedContract.end_date}
+            />
+            <Input
+              name="total_amount"
+              label={t('totalAmount')}
+              type="number"
+              step="0.01"
+              required
+              defaultValue={Number(selectedContract.total_amount)}
+            />
+            <div>
+              <label className="text-sm font-medium">{t('paymentCycle')}</label>
+              <select
+                name="payment_cycle"
+                defaultValue={selectedContract.payment_cycle}
+                className="mt-1.5 flex h-10 w-full rounded-xl border border-border bg-card px-3 text-sm"
+              >
+                {(['monthly', 'quarterly', 'semi_annual', 'yearly'] as const).map((cycle) => (
+                  <option key={cycle} value={cycle}>{tc(`paymentCycle.${cycle}`)}</option>
+                ))}
+              </select>
+            </div>
+            <Input
+              name="notes"
+              label={t('notes')}
+              defaultValue={selectedContract.notes ?? ''}
+            />
+            <div className="rounded-xl border border-border p-4 space-y-3">
+              <p className="text-sm font-medium text-muted-foreground">{t('tenantSection')}</p>
+              <Input
+                name="tenant_name"
+                label={t('tenantName')}
+                defaultValue={selectedContract.tenant?.full_name ?? ''}
+              />
+              <Input
+                name="tenant_phone"
+                label={t('tenantPhone')}
+                type="tel"
+                defaultValue={selectedContract.tenant?.phone ?? ''}
+              />
+              <Input
+                name="tenant_email"
+                label={t('tenantEmail')}
+                type="email"
+                defaultValue={selectedContract.tenant?.email ?? ''}
+              />
+            </div>
+            <div className="flex justify-end gap-3">
+              <Button variant="outline" type="button" disabled={isSaving} onClick={() => setEditOpen(false)}>
+                {tc('cancel')}
+              </Button>
+              <Button type="submit" disabled={isSaving}>{isSaving ? tc('loading') : tc('save')}</Button>
+            </div>
+          </form>
+        )}
       </Modal>
 
       <Modal open={cancelOpen} onClose={() => !isSaving && setCancelOpen(false)} title={t('cancel')}>

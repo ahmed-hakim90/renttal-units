@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { previewImport, executeImport } from '@/lib/actions/admin';
+import { useSingleSubmit } from '@/lib/hooks/use-single-submit';
 import { toast } from 'sonner';
 import { Upload } from 'lucide-react';
 import type { UnitStatus } from '@/types/database';
@@ -20,6 +21,8 @@ export function ImportUnitsClient({ locale, canEdit }: { locale: string; canEdit
   const tc = useTranslations('common');
   const [preview, setPreview] = useState<PreviewRow[] | null>(null);
   const [loading, setLoading] = useState(false);
+  const { isSubmitting, runOnce } = useSingleSubmit();
+  const busy = loading || isSubmitting;
 
   if (!canEdit) {
     return <p className="text-muted-foreground">{tc('viewOnly')}</p>;
@@ -27,20 +30,27 @@ export function ImportUnitsClient({ locale, canEdit }: { locale: string; canEdit
 
   async function handlePreview(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    await runOnce(async () => {
     setLoading(true);
+    try {
     const fd = new FormData(e.currentTarget);
     const result = await previewImport(locale, fd);
-    setLoading(false);
     if (result.success && result.data) {
       setPreview(result.data as PreviewRow[]);
     } else {
       toast.error('error' in result ? result.error : tc('error'));
     }
+    } finally {
+      setLoading(false);
+    }
+    });
   }
 
   async function handleImport() {
     if (!preview) return;
+    await runOnce(async () => {
     setLoading(true);
+    try {
     const validRows = preview
       .filter((r) => r.valid)
       .map((r) => ({
@@ -52,13 +62,16 @@ export function ImportUnitsClient({ locale, canEdit }: { locale: string; canEdit
       }));
 
     const result = await executeImport(locale, validRows);
-    setLoading(false);
     if (result.success) {
       toast.success(`${result.successCount} imported, ${result.errorCount} errors`);
       setPreview(null);
     } else {
       toast.error(tc('error'));
     }
+    } finally {
+      setLoading(false);
+    }
+    });
   }
 
   return (
@@ -72,7 +85,7 @@ export function ImportUnitsClient({ locale, canEdit }: { locale: string; canEdit
           <div className="flex-1">
             <input type="file" name="file" accept=".xlsx,.csv" required className="block w-full text-sm" />
           </div>
-          <Button type="submit" disabled={loading}>
+          <Button type="submit" disabled={busy}>
             <Upload className="h-4 w-4" /> Preview
           </Button>
         </form>
@@ -105,7 +118,7 @@ export function ImportUnitsClient({ locale, canEdit }: { locale: string; canEdit
             </tbody>
           </table>
           <div className="p-4 border-t border-border">
-            <Button onClick={handleImport} disabled={loading || !preview.some((r) => r.valid)}>
+            <Button onClick={handleImport} disabled={busy || !preview.some((r) => r.valid)}>
               Import {preview.filter((r) => r.valid).length} valid rows
             </Button>
           </div>

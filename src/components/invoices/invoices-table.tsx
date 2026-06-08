@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
 import { Badge } from '@/components/ui/badge';
 import { issueDueInvoice, recordPayment } from '@/lib/actions/invoices';
+import { useSingleSubmit } from '@/lib/hooks/use-single-submit';
 import { formatCurrency, formatDate, formatNumber } from '@/lib/i18n/format';
 import {
   getInvoiceDaysOverdue,
@@ -48,7 +49,7 @@ export function InvoicesTable({
   const [payOpen, setPayOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [paymentMode, setPaymentMode] = useState<'full' | 'partial'>('full');
-  const [isSaving, setIsSaving] = useState(false);
+  const { isSubmitting: isSaving, runOnce } = useSingleSubmit();
 
   const visibleInvoices = useMemo(() => {
     if (!search) return invoices;
@@ -64,9 +65,8 @@ export function InvoicesTable({
   async function handleIssueDueInvoice(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!selectedInvoice || isSaving) return;
+    await runOnce(async () => {
     const fd = new FormData(e.currentTarget);
-    setIsSaving(true);
-    try {
       const result = await issueDueInvoice(locale, selectedInvoice.id, fd.get('invoice_number') as string);
       if (result.success) {
         toast.success(t('invoiceIssued'));
@@ -75,19 +75,16 @@ export function InvoicesTable({
       } else {
         toast.error('error' in result ? String(result.error) : tCommon('error'));
       }
-    } finally {
-      setIsSaving(false);
-    }
+    });
   }
 
   async function handlePayment(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!selectedInvoice || isSaving) return;
+    await runOnce(async () => {
     const fd = new FormData(e.currentTarget);
     const remainingAmount = Number(selectedInvoice.amount) - Number(selectedInvoice.paid_amount);
     const amount = paymentMode === 'full' ? remainingAmount : Number(fd.get('amount'));
-    setIsSaving(true);
-    try {
       const result = await recordPayment(locale, {
         invoice_id: selectedInvoice.id,
         amount,
@@ -101,9 +98,7 @@ export function InvoicesTable({
       } else {
         toast.error('error' in result ? String(result.error) : tp('exceedsBalance'));
       }
-    } finally {
-      setIsSaving(false);
-    }
+    });
   }
 
   function renderStatus(inv: Invoice) {

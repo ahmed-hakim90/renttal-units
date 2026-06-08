@@ -12,7 +12,6 @@ import { locationsRepository } from '@/lib/repositories/locations';
 import { importLogsRepository } from '@/lib/repositories/settings';
 import { validationService } from '@/lib/services/validation-service';
 import { contractService } from '@/lib/services/contract-service';
-import { tenantsRepository } from '@/lib/repositories/tenants';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
 import type { UserRole, UnitStatus, PaymentCycle } from '@/types/database';
@@ -151,6 +150,12 @@ export async function getDebtAgingReport(locale: string, filters?: { locationId?
 export async function getPortfolioSummary(locale: string) {
   const auth = await requireAuth(locale, await getCtx());
   return reportingService.getPortfolioSummary(auth, { ...await getCtx(), user_id: auth.userId, role: auth.role });
+}
+
+export async function getLocationStatement(locale: string, locationId: string) {
+  const auth = await requireAdminEditor(locale, await getCtx());
+  const ctx = { ...await getCtx(), user_id: auth.userId, role: auth.role };
+  return reportingService.getLocationStatement(auth, ctx, locationId);
 }
 
 export async function getUsers(locale: string) {
@@ -386,6 +391,18 @@ function parseNumber(value: unknown): number | null {
   return isNaN(n) ? null : n;
 }
 
+function isStrictDateInput(value: unknown): value is string {
+  if (typeof value !== 'string') return false;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
+function normalizeDateInput(value: unknown): string {
+  if (value === null || value === undefined) return '';
+  return String(value).trim();
+}
+
 function normalizeContractRow(raw: Record<string, unknown>): Record<string, unknown> {
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(raw)) {
@@ -393,6 +410,8 @@ function normalizeContractRow(raw: Record<string, unknown>): Record<string, unkn
     // Parse numeric fields immediately
     if (field === 'total_amount' || field === 'periodic_amount' || field === 'payment_count') {
       result[field] = parseNumber(value);
+    } else if (field === 'start_date' || field === 'end_date' || field === 'signed_date') {
+      result[field] = normalizeDateInput(value);
     } else {
       result[field] = value;
     }
@@ -414,6 +433,12 @@ function validateContractImportRow(row: Record<string, unknown>, rowIndex: numbe
   if (!row.unit_number && row.unit_number !== 0) errors.push(`Row ${rowIndex}: رقم الوحدة مطلوب`);
   if (!row.start_date) errors.push(`Row ${rowIndex}: تاريخ بداية الإيجار مطلوب`);
   if (!row.end_date) errors.push(`Row ${rowIndex}: تاريخ نهاية الإيجار مطلوب`);
+  if (row.start_date && !isStrictDateInput(row.start_date)) {
+    errors.push(`Row ${rowIndex}: تاريخ بداية الإيجار يجب أن يكون بصيغة YYYY-MM-DD`);
+  }
+  if (row.end_date && !isStrictDateInput(row.end_date)) {
+    errors.push(`Row ${rowIndex}: تاريخ نهاية الإيجار يجب أن يكون بصيغة YYYY-MM-DD`);
+  }
   const total = row.total_amount as number | null;
   if (total === null || total === undefined || total <= 0) {
     errors.push(`Row ${rowIndex}: إجمالي قيمة العقد يجب أن يكون رقمًا موجبًا`);
@@ -422,7 +447,7 @@ function validateContractImportRow(row: Record<string, unknown>, rowIndex: numbe
   if (periodic === null || periodic === undefined || periodic <= 0) {
     errors.push(`Row ${rowIndex}: قيمة الدفعة الدورية يجب أن تكون رقمًا موجبًا`);
   }
-  if (row.start_date && row.end_date && String(row.end_date) < String(row.start_date)) {
+  if (isStrictDateInput(row.start_date) && isStrictDateInput(row.end_date) && row.end_date < row.start_date) {
     errors.push(`Row ${rowIndex}: تاريخ النهاية يجب أن يكون بعد تاريخ البداية`);
   }
   return errors;
@@ -506,8 +531,8 @@ export async function executeContractImport(locale: string, rows: Array<{
     const row = rows[i];
     try {
       let tenantName: string | null = null;
-      let tenantPhone: string | null = null;
-      let tenantEmail: string | null = null;
+      const tenantPhone: string | null = null;
+      const tenantEmail: string | null = null;
       if (row.tenant_name?.trim()) {
         tenantName = row.tenant_name.trim();
       }

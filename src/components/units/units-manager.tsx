@@ -12,6 +12,14 @@ import { toast } from 'sonner';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 import type { Unit, Location, UnitStatus } from '@/types/database';
 
+type ManualUnitStatus = Extract<UnitStatus, 'vacant' | 'maintenance'>;
+const MANUAL_UNIT_STATUSES: ManualUnitStatus[] = ['vacant', 'maintenance'];
+
+function getManualStatus(unit: Unit | null): ManualUnitStatus {
+  if (unit?.status === 'maintenance') return 'maintenance';
+  return 'vacant';
+}
+
 export function UnitsManager({
   units, locations, locale, canEdit,
 }: {
@@ -28,7 +36,7 @@ export function UnitsManager({
   const [editing, setEditing] = useState<Unit | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const isSavingRef = useRef(false);
-  const [selectedStatus, setSelectedStatus] = useState<UnitStatus>('vacant');
+  const [selectedStatus, setSelectedStatus] = useState<ManualUnitStatus>('vacant');
 
   const visibleUnits = useMemo(() => {
     if (!search) return units;
@@ -49,7 +57,7 @@ export function UnitsManager({
 
   function openEditModal(unit: Unit) {
     setEditing(unit);
-    setSelectedStatus(unit.status);
+    setSelectedStatus(getManualStatus(unit));
     setOpen(true);
   }
 
@@ -69,20 +77,26 @@ export function UnitsManager({
     if (isSavingRef.current) return;
 
     const fd = new FormData(e.currentTarget);
-    const data = {
+    const data: {
+      location_id: string;
+      unit_number: string;
+      floor?: string;
+      area_sqm?: number;
+      status?: ManualUnitStatus;
+    } = {
       location_id: fd.get('location_id') as string,
       unit_number: fd.get('unit_number') as string,
       floor: (fd.get('floor') as string) || undefined,
       area_sqm: fd.get('area_sqm') ? Number(fd.get('area_sqm')) : undefined,
-      status: fd.get('status') as UnitStatus,
     };
+    if (!editing?.active_contract) data.status = fd.get('status') as ManualUnitStatus;
 
     isSavingRef.current = true;
     setIsSaving(true);
     try {
       const result = editing
         ? await updateUnit(locale, editing.id, data)
-        : await createUnit(locale, data);
+        : await createUnit(locale, { ...data, status: selectedStatus });
 
       if (result.success) {
         toast.success(tc('success'));
@@ -210,19 +224,28 @@ export function UnitsManager({
           <Input name="unit_number" label={t('unitNumber')} defaultValue={editing?.unit_number} required />
           <Input name="floor" label={t('floor')} defaultValue={editing?.floor ?? ''} />
           <Input name="area_sqm" label={t('areaSqm')} type="number" step="0.01" defaultValue={editing?.area_sqm ?? ''} />
-          <div>
-            <label className="text-sm font-medium">{t('status')}</label>
-            <select
-              name="status"
-              value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value as UnitStatus)}
-              className="mt-1.5 flex h-10 w-full rounded-xl border border-border bg-card px-3 text-sm"
-            >
-              {(['occupied', 'vacant', 'maintenance'] as const).map((s) => (
-                <option key={s} value={s}>{tc(`status.${s}`)}</option>
-              ))}
-            </select>
-          </div>
+          {editing?.active_contract ? (
+            <div>
+              <p className="text-sm font-medium">{t('status')}</p>
+              <div className="mt-1.5 flex h-10 items-center rounded-xl border border-border bg-muted/40 px-3 text-sm">
+                {tc('status.occupied')}
+              </div>
+            </div>
+          ) : (
+            <div>
+              <label className="text-sm font-medium">{t('status')}</label>
+              <select
+                name="status"
+                value={selectedStatus}
+                onChange={(e) => setSelectedStatus(e.target.value as ManualUnitStatus)}
+                className="mt-1.5 flex h-10 w-full rounded-xl border border-border bg-card px-3 text-sm"
+              >
+                {MANUAL_UNIT_STATUSES.map((s) => (
+                  <option key={s} value={s}>{tc(`status.${s}`)}</option>
+                ))}
+              </select>
+            </div>
+          )}
           <div className="flex justify-end gap-3">
             <Button variant="outline" type="button" disabled={isSaving} onClick={closeModal}>{tc('cancel')}</Button>
             <Button type="submit" disabled={isSaving}>{isSaving ? tc('loading') : tc('save')}</Button>

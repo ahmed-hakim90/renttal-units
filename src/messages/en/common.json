@@ -69,6 +69,7 @@
     "payments": "Payment History",
     "reports": "Reports",
     "debtAging": "Debt Aging",
+    "locationStatement": "Location Statement",
     "import": "Import Units",
     "users": "Users & Roles",
     "settings": "Settings"

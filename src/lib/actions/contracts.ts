@@ -42,6 +42,23 @@ export async function createContract(locale: string, data: {
   return result;
 }
 
+export async function updateContract(locale: string, id: string, data: {
+  contract_number?: string | null;
+  start_date: string;
+  end_date: string;
+  total_amount: number;
+  payment_cycle: PaymentCycle;
+  notes?: string | null;
+  tenant_name?: string | null;
+  tenant_phone?: string | null;
+  tenant_email?: string | null;
+}) {
+  const auth = await requireAdminEditor(locale, await getCtx());
+  const result = await contractService.update(auth, id, data, { ...(await getCtx()), user_id: auth.userId, role: auth.role });
+  if (result.success) revalidateContractViews(locale);
+  return result;
+}
+
 export async function cancelContract(locale: string, id: string, data: {
   cancellation_date: string;
   cancellation_handling: ContractCancellationHandling;

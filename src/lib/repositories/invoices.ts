@@ -147,6 +147,27 @@ export const invoicesRepository = {
     return data ?? [];
   },
 
+  async findByContractId(contractId: string, ctx: LogContext): Promise<Invoice[]> {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from('invoices')
+      .select('*')
+      .eq('contract_id', contractId);
+    if (error) throw error;
+    return data ?? [];
+  },
+
+  async deleteAllDueByContractId(contractId: string, ctx: LogContext): Promise<void> {
+    const supabase = await createClient();
+    const { error } = await supabase
+      .from('invoices')
+      .delete()
+      .eq('contract_id', contractId)
+      .eq('status', 'due')
+      .eq('paid_amount', 0);
+    if (error) throw error;
+  },
+
   async deleteDueByUnitId(unitId: string, ctx: LogContext): Promise<void> {
     const supabase = await createClient();
     const { error } = await supabase

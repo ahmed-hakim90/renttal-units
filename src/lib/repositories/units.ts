@@ -7,11 +7,16 @@ const UNIT_SELECT = '*, location:locations(*), tenant:tenants(*), active_contrac
 type UnitRow = Unit & { active_contract?: Contract | Contract[] | null };
 
 function normalizeUnit(row: UnitRow): Unit {
+  const activeContract = Array.isArray(row.active_contract)
+    ? row.active_contract.find((contract: Contract) => contract.status === 'active') ?? null
+    : row.active_contract?.status === 'active'
+      ? row.active_contract
+      : null;
+
   return {
     ...row,
-    active_contract: Array.isArray(row.active_contract)
-      ? row.active_contract.find((contract: Contract) => contract.status === 'active') ?? null
-      : row.active_contract ?? null,
+    status: activeContract ? 'occupied' : row.status === 'maintenance' ? 'maintenance' : 'vacant',
+    active_contract: activeContract,
   };
 }
 
@@ -23,10 +28,11 @@ export const unitsRepository = {
       .select(UNIT_SELECT)
       .order('unit_number');
     if (filters?.locationId) query = query.eq('location_id', filters.locationId);
-    if (filters?.status) query = query.eq('status', filters.status);
     const { data, error } = await query;
     if (error) throw error;
-    return (data ?? []).map((unit) => normalizeUnit(unit as UnitRow));
+    const units = (data ?? []).map((unit) => normalizeUnit(unit as UnitRow));
+    if (filters?.status) return units.filter((unit) => unit.status === filters.status);
+    return units;
   },
 
   async findById(id: string, ctx: LogContext): Promise<Unit | null> {
@@ -77,14 +83,14 @@ export const unitsRepository = {
       tenant_id: input.tenant_id ?? null,
     }).select(UNIT_SELECT).single();
     if (error) throw error;
-    return data;
+    return normalizeUnit(data as UnitRow);
   },
 
   async update(id: string, input: Partial<Unit>, ctx: LogContext): Promise<Unit> {
     const supabase = await createClient();
     const { data, error } = await supabase.from('units').update(input).eq('id', id).select(UNIT_SELECT).single();
     if (error) throw error;
-    return data;
+    return normalizeUnit(data as UnitRow);
   },
 
   async delete(id: string, ctx: LogContext): Promise<void> {

@@ -61,16 +61,24 @@ const cancelContractSchema = z.object({
 const invoiceSchema = z.object({
   invoice_number: z.string().min(1),
   unit_id: z.string().uuid(),
-  period_start: z.string(),
-  period_end: z.string(),
-  due_date: z.string(),
+  period_start: z.string().refine(isValidDateInput, 'period_start must be a valid date'),
+  period_end: z.string().refine(isValidDateInput, 'period_end must be a valid date'),
+  due_date: z.string().refine(isValidDateInput, 'due_date must be a valid date'),
   notes: z.string().optional(),
+}).superRefine((invoice, ctx) => {
+  if (invoice.period_end < invoice.period_start) {
+    ctx.addIssue({ code: 'custom', path: ['period_end'], message: 'period_end must be after period_start' });
+  }
+
+  if (invoice.due_date < invoice.period_start || invoice.due_date > invoice.period_end) {
+    ctx.addIssue({ code: 'custom', path: ['due_date'], message: 'due_date must be within invoice period' });
+  }
 });
 
 const paymentSchema = z.object({
   invoice_id: z.string().uuid(),
   amount: z.number().positive(),
-  payment_date: z.string(),
+  payment_date: z.string().refine(isValidDateInput, 'payment_date must be a valid date'),
   payment_method: z.enum(['cash', 'bank_transfer', 'check', 'other']),
   reference_number: z.string().optional(),
   notes: z.string().optional(),

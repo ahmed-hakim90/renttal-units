@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
 import { createUser, updateUserRole } from '@/lib/actions/admin';
+import { useSingleSubmit } from '@/lib/hooks/use-single-submit';
 import { formatDate } from '@/lib/i18n/format';
 import { type Locale } from '@/lib/i18n/routing';
 import { toast } from 'sonner';
@@ -16,10 +17,12 @@ export function UsersManager({ users, locale, canEdit }: { users: Profile[]; loc
   const t = useTranslations('users');
   const tc = useTranslations('common');
   const [open, setOpen] = useState(false);
+  const { isSubmitting, runOnce } = useSingleSubmit();
 
   async function handleCreateUser(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!canEdit) return;
+    await runOnce(async () => {
 
     const fd = new FormData(e.currentTarget);
     const result = await createUser(locale, {
@@ -36,12 +39,15 @@ export function UsersManager({ users, locale, canEdit }: { users: Profile[]; loc
     } else {
       toast.error('error' in result ? result.error : tc('error'));
     }
+    });
   }
 
   async function handleRoleChange(userId: string, role: UserRole) {
+    await runOnce(async () => {
     const result = await updateUserRole(locale, userId, role);
     if (result.success) toast.success(t('roleUpdated'));
     else toast.error(tc('error'));
+    });
   }
 
   return (
@@ -78,6 +84,7 @@ export function UsersManager({ users, locale, canEdit }: { users: Profile[]; loc
                     <td className="px-4 py-3 text-end">
                       <select
                         defaultValue={user.role}
+                        disabled={isSubmitting}
                         onChange={(e) => handleRoleChange(user.id, e.target.value as UserRole)}
                         className="rounded-lg border border-border px-2 py-1 text-sm"
                       >
@@ -93,7 +100,7 @@ export function UsersManager({ users, locale, canEdit }: { users: Profile[]; loc
         </div>
       )}
 
-      <Modal open={open} onClose={() => setOpen(false)} title={t('create')}>
+      <Modal open={open} onClose={() => !isSubmitting && setOpen(false)} title={t('create')}>
         <form onSubmit={handleCreateUser} className="space-y-4">
           <Input name="full_name" label={t('fullName')} required />
           <Input name="email" type="email" label={t('email')} required />
@@ -106,8 +113,8 @@ export function UsersManager({ users, locale, canEdit }: { users: Profile[]; loc
             </select>
           </div>
           <div className="flex justify-end gap-3">
-            <Button variant="outline" type="button" onClick={() => setOpen(false)}>{tc('cancel')}</Button>
-            <Button type="submit">{t('create')}</Button>
+            <Button variant="outline" type="button" disabled={isSubmitting} onClick={() => setOpen(false)}>{tc('cancel')}</Button>
+            <Button type="submit" disabled={isSubmitting}>{isSubmitting ? tc('loading') : t('create')}</Button>
           </div>
         </form>
       </Modal>

@@ -110,4 +110,28 @@ export const contractsRepository = {
     if (error) throw error;
     return data;
   },
+
+  async update(
+    id: string,
+    input: {
+      contract_number?: string | null;
+      tenant_id?: string | null;
+      start_date?: string;
+      end_date?: string;
+      total_amount?: number;
+      payment_cycle?: PaymentCycle;
+      notes?: string | null;
+    },
+    ctx: LogContext
+  ): Promise<Contract> {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from('contracts')
+      .update(input)
+      .eq('id', id)
+      .select(CONTRACT_SELECT)
+      .single();
+    if (error) throw error;
+    return data;
+  },
 };

@@ -20,4 +20,20 @@ export const tenantsRepository = {
     if (error) throw error;
     return data;
   },
+
+  async update(
+    id: string,
+    input: { full_name?: string; phone?: string | null; email?: string | null },
+    ctx: LogContext
+  ): Promise<Tenant> {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from('tenants')
+      .update(input)
+      .eq('id', id)
+      .select('*')
+      .single();
+    if (error) throw error;
+    return data;
+  },
 };

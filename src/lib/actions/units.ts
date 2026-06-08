@@ -7,6 +7,7 @@ import { invoicesRepository } from '@/lib/repositories/invoices';
 import { contractsRepository } from '@/lib/repositories/contracts';
 import { auditService } from '@/lib/services/audit-service';
 import { validationService } from '@/lib/services/validation-service';
+import { isUniqueViolation } from '@/lib/db/postgres-errors';
 import { revalidatePath } from 'next/cache';
 import type { UnitStatus } from '@/types/database';
 
@@ -14,13 +15,8 @@ async function getCtx() {
   return { correlation_id: await getCorrelationId() };
 }
 
-function isUniqueViolation(error: unknown) {
-  return Boolean(
-    error &&
-      typeof error === 'object' &&
-      'code' in error &&
-      (error as { code?: string }).code === '23505'
-  );
+function normalizeManualUnitStatus(status: UnitStatus | undefined): Extract<UnitStatus, 'vacant' | 'maintenance'> {
+  return status === 'maintenance' ? 'maintenance' : 'vacant';
 }
 
 export async function getUnits(locale: string, filters?: { locationId?: string; status?: string }) {
@@ -37,12 +33,13 @@ export async function createUnit(locale: string, data: {
 }) {
   const auth = await requireAdminEditor(locale, await getCtx());
   const ctx = { ...(await getCtx()), user_id: auth.userId, role: auth.role };
-  const validation = validationService.validateUnit(data);
+  const input = { ...data, status: normalizeManualUnitStatus(data.status) };
+  const validation = validationService.validateUnit(input);
   if (!validation.valid) return { success: false, error: validation.errors.join(', ') };
 
   let unit;
   try {
-    unit = await unitsRepository.create(data, ctx);
+    unit = await unitsRepository.create(input, ctx);
   } catch (error) {
     if (isUniqueViolation(error)) {
       return { success: false, error: 'duplicateUnit', errorCode: 'DUPLICATE_UNIT' };
@@ -66,17 +63,19 @@ export async function updateUnit(locale: string, id: string, data: Partial<{
   const ctx = { ...(await getCtx()), user_id: auth.userId, role: auth.role };
   const old = await unitsRepository.findById(id, ctx);
   if (!old) return { success: false, error: 'Unit not found' };
+  const input = { ...data };
+  if (data.status) input.status = normalizeManualUnitStatus(data.status);
 
   const validation = validationService.validateUnit({
-    location_id: data.location_id ?? old.location_id,
-    unit_number: data.unit_number ?? old.unit_number,
-    floor: data.floor ?? old.floor ?? undefined,
-    area_sqm: data.area_sqm ?? old.area_sqm ?? undefined,
-    status: data.status ?? old.status,
+    location_id: input.location_id ?? old.location_id,
+    unit_number: input.unit_number ?? old.unit_number,
+    floor: input.floor ?? old.floor ?? undefined,
+    area_sqm: input.area_sqm ?? old.area_sqm ?? undefined,
+    status: input.status ?? old.status,
   });
   if (!validation.valid) return { success: false, error: validation.errors.join(', ') };
 
-  const unit = await unitsRepository.update(id, data, ctx);
+  const unit = await unitsRepository.update(id, input, ctx);
   await auditService.log(auth, 'update', 'unit', id, old, unit, ctx);
   revalidatePath(`/${locale}/units`);
   return { success: true, data: unit };

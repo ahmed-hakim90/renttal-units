@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
 import { createLocation, updateLocation, deleteLocation } from '@/lib/actions/locations';
+import { useSingleSubmit } from '@/lib/hooks/use-single-submit';
 import { toast } from 'sonner';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 import type { Location } from '@/types/database';
@@ -21,9 +22,11 @@ export function LocationsPageClient({
   const tc = useTranslations('common');
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Location | null>(null);
+  const { isSubmitting, runOnce } = useSingleSubmit();
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    await runOnce(async () => {
     const fd = new FormData(e.currentTarget);
     const data = {
       name_en: fd.get('name_en') as string,
@@ -44,6 +47,7 @@ export function LocationsPageClient({
     } else {
       toast.error('error' in result ? result.error : tc('error'));
     }
+    });
   }
 
   return (
@@ -97,7 +101,7 @@ export function LocationsPageClient({
         </div>
       )}
 
-      <Modal open={open} onClose={() => { setOpen(false); setEditing(null); }} title={editing ? t('edit') : t('create')}>
+      <Modal open={open} onClose={() => { if (!isSubmitting) { setOpen(false); setEditing(null); } }} title={editing ? t('edit') : t('create')}>
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input name="name_en" label={t('nameEn')} defaultValue={editing?.name_en} required />
           <Input name="name_ar" label={t('nameAr')} defaultValue={editing?.name_ar} required />
@@ -105,8 +109,8 @@ export function LocationsPageClient({
           <Input name="city" label={t('city')} defaultValue={editing?.city ?? ''} />
           <Input name="region" label={t('region')} defaultValue={editing?.region ?? ''} />
           <div className="flex justify-end gap-3">
-            <Button variant="outline" type="button" onClick={() => setOpen(false)}>{tc('cancel')}</Button>
-            <Button type="submit">{tc('save')}</Button>
+            <Button variant="outline" type="button" disabled={isSubmitting} onClick={() => setOpen(false)}>{tc('cancel')}</Button>
+            <Button type="submit" disabled={isSubmitting}>{isSubmitting ? tc('loading') : tc('save')}</Button>
           </div>
         </form>
       </Modal>
