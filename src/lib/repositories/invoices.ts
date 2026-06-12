@@ -179,26 +179,39 @@ export const invoicesRepository = {
     if (error) throw error;
   },
 
-  async deleteFutureDueByContractId(contractId: string, afterDate: string, ctx: LogContext): Promise<void> {
+  // Remove all unpaid invoices (any status) whose period starts after the date.
+  // paid_amount = 0 guarantees no payments reference them (FK is ON DELETE RESTRICT).
+  async deleteFutureUnpaidByContractId(contractId: string, afterDate: string, ctx: LogContext): Promise<void> {
     const supabase = await createClient();
     const { error } = await supabase
       .from('invoices')
       .delete()
       .eq('contract_id', contractId)
-      .eq('status', 'due')
       .eq('paid_amount', 0)
-      .gt('due_date', afterDate);
+      .gt('period_start', afterDate);
     if (error) throw error;
   },
 
-  async findCurrentDueByContractId(contractId: string, date: string, ctx: LogContext): Promise<Invoice | null> {
+  // Future invoices that already carry payments and so cannot be deleted.
+  async findFuturePaidByContractId(contractId: string, afterDate: string, ctx: LogContext): Promise<Invoice[]> {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from('invoices')
+      .select('*')
+      .eq('contract_id', contractId)
+      .gt('paid_amount', 0)
+      .gt('period_start', afterDate);
+    if (error) throw error;
+    return data ?? [];
+  },
+
+  // The invoice whose period contains the given date, regardless of status.
+  async findPeriodContaining(contractId: string, date: string, ctx: LogContext): Promise<Invoice | null> {
     const supabase = await createClient();
     const { data, error } = await supabase
       .from('invoices')
       .select(INVOICE_SELECT)
       .eq('contract_id', contractId)
-      .eq('status', 'due')
-      .eq('paid_amount', 0)
       .lte('period_start', date)
       .gte('period_end', date)
       .maybeSingle();

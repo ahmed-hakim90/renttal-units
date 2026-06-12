@@ -10,11 +10,12 @@ import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
 import { Badge } from '@/components/ui/badge';
 import { formatCurrency, formatDate } from '@/lib/i18n/format';
+import { getContractDisplayStatus } from '@/lib/rental/calculations';
+import { getInvoiceDisplayStatus } from '@/lib/rental/invoice-display';
 import { toast } from 'sonner';
 import type {
   Contract,
   ContractCancellationHandling,
-  ContractStatus,
   PaymentCycle,
   Unit,
 } from '@/types/database';
@@ -198,7 +199,10 @@ export function ContractsManager({
                         {formatDate(contract.start_date, loc)} - {formatDate(contract.end_date, loc)}
                       </p>
                     </div>
-                    <Badge status={contract.status} label={t(contract.status as ContractStatus)} />
+                    <Badge
+                      status={getContractDisplayStatus(contract.status, contract.end_date)}
+                      label={t(getContractDisplayStatus(contract.status, contract.end_date))}
+                    />
                   </div>
                   <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
                     <div>
@@ -287,14 +291,17 @@ export function ContractsManager({
                               <div key={invoice.id} className="flex justify-between gap-4">
                                 <span>{formatDate(invoice.due_date, loc)}</span>
                                 <span>{formatCurrency(Number(invoice.amount), loc)}</span>
-                                <span>{ts(invoice.status)}</span>
+                                <span>{ts(getInvoiceDisplayStatus(invoice))}</span>
                               </div>
                             ))}
                           </div>
                         </details>
                       </td>
                       <td className="px-4 py-3">
-                        <Badge status={contract.status} label={t(contract.status as ContractStatus)} />
+                        <Badge
+                      status={getContractDisplayStatus(contract.status, contract.end_date)}
+                      label={t(getContractDisplayStatus(contract.status, contract.end_date))}
+                    />
                       </td>
                       {canEdit && (
                         <td className="px-4 py-3 text-end">

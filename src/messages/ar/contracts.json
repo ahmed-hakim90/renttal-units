@@ -38,5 +38,6 @@
   "empty": "لا توجد عقود بعد",
   "active": "نشط",
   "cancelled": "ملغي",
-  "completed": "مكتمل"
+  "completed": "مكتمل",
+  "expired": "منتهٍ"
 }

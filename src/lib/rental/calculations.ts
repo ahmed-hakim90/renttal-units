@@ -1,5 +1,18 @@
 import { addDays, addMonths, differenceInDays, format, intervalToDuration, parseISO, subDays } from 'date-fns';
-import type { Contract, PaymentCycle, Unit } from '@/types/database';
+import type { Contract, ContractStatus, PaymentCycle, Unit } from '@/types/database';
+
+export type ContractDisplayStatus = ContractStatus | 'expired';
+
+// An 'active' contract whose end date has passed is shown as 'expired' so it is
+// not confused with a genuinely running contract. The stored status is unchanged.
+export function getContractDisplayStatus(
+  status: ContractStatus,
+  endDate: string,
+  asOfDate: Date = new Date(),
+): ContractDisplayStatus {
+  if (status === 'active' && endDate < format(asOfDate, 'yyyy-MM-dd')) return 'expired';
+  return status;
+}
 
 export interface UnitRentPeriod {
   periodStart: string;
@@ -71,16 +84,24 @@ export function calculateContractPaymentSchedule(
   const contractStart = parseISO(contract.start_date);
   const contractEnd = parseISO(contract.end_date);
   const cycleMonths = getCycleMonths(contract.payment_cycle);
-  const periods: UnitRentPeriod[] = [];
+
+  // Each period carries a weight: 1 for a full cycle, and a day-based fraction
+  // for a trailing partial cycle, so a stub period is prorated by its days
+  // instead of being charged a full cycle.
+  const periods: Array<UnitRentPeriod & { weight: number }> = [];
   let periodStart = contractStart;
 
   while (periodStart <= contractEnd) {
     const naturalPeriodEnd = subDays(addMonths(periodStart, cycleMonths), 1);
     const periodEnd = naturalPeriodEnd > contractEnd ? contractEnd : naturalPeriodEnd;
 
+    const fullDays = differenceInDays(naturalPeriodEnd, periodStart) + 1;
+    const actualDays = differenceInDays(periodEnd, periodStart) + 1;
+
     periods.push({
       periodStart: format(periodStart, 'yyyy-MM-dd'),
       periodEnd: format(periodEnd, 'yyyy-MM-dd'),
+      weight: actualDays / fullDays,
     });
 
     periodStart = addMonths(periodStart, cycleMonths);
@@ -88,14 +109,17 @@ export function calculateContractPaymentSchedule(
 
   if (periods.length === 0) return [];
 
-  const baseAmount = roundMoney(Number(contract.total_amount) / periods.length);
+  const total = Number(contract.total_amount);
+  const totalWeight = periods.reduce((sum, period) => sum + period.weight, 0);
   let assigned = 0;
 
   return periods.map((period, index) => {
     const isLast = index === periods.length - 1;
-    const amount = isLast ? roundMoney(Number(contract.total_amount) - assigned) : baseAmount;
+    const amount = isLast
+      ? roundMoney(total - assigned)
+      : roundMoney((total * period.weight) / totalWeight);
     assigned = roundMoney(assigned + amount);
-    return { ...period, amount };
+    return { periodStart: period.periodStart, periodEnd: period.periodEnd, amount };
   });
 }
 

@@ -1,7 +1,25 @@
 import { getDaysOverdue } from '@/lib/rental/aging';
+import type { Invoice, InvoiceStatus } from '@/types/database';
 
 export function getInvoiceDaysOverdue(dueDate: string, asOfDate: Date = new Date()): number {
   return getDaysOverdue(dueDate, asOfDate);
+}
+
+// Effective lifecycle status for display. The DB never flips invoices to
+// 'overdue', so we derive it from the balance and due date at render time.
+// A not-yet-issued 'due' placeholder stays 'due' (it was never billed).
+export function getInvoiceDisplayStatus(
+  invoice: Pick<Invoice, 'amount' | 'paid_amount' | 'due_date' | 'status'>,
+  asOfDate: Date = new Date(),
+): InvoiceStatus {
+  const amount = Number(invoice.amount);
+  const paid = Number(invoice.paid_amount);
+  if (paid >= amount) return 'fully_paid';
+
+  const overdue = getDaysOverdue(invoice.due_date, asOfDate) > 0;
+  if (paid > 0) return overdue ? 'overdue' : 'partially_paid';
+  if (invoice.status === 'invoice_issued') return overdue ? 'overdue' : 'invoice_issued';
+  return invoice.status;
 }
 
 export function isOldOutstandingDue(dueDate: string, status: string, asOfDate: Date = new Date()): boolean {

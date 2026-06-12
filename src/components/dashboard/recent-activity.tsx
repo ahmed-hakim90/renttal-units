@@ -12,6 +12,7 @@ import { useSingleSubmit } from '@/lib/hooks/use-single-submit';
 import { formatCurrency, formatDate, formatNumber } from '@/lib/i18n/format';
 import {
   getInvoiceDaysOverdue,
+  getInvoiceDisplayStatus,
   getInvoiceRowHighlight,
   getOverdueBadgeClass,
   isOldOutstandingDue,
@@ -124,7 +125,7 @@ export function RecentActivity({
                         )}
                       </div>
                       <div className="flex flex-col items-end gap-1">
-                        <Badge status={inv.status} label={tc(inv.status)} />
+                        <Badge status={getInvoiceDisplayStatus(inv)} label={tc(getInvoiceDisplayStatus(inv))} />
                         {daysOverdue > 0 && (
                           <span className={cn('rounded-full px-2 py-0.5 text-[10px] font-medium', getOverdueBadgeClass(daysOverdue))}>
                             {ti('daysOverdueLabel', { days: formatNumber(daysOverdue, loc) })}

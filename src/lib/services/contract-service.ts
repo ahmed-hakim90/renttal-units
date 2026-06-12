@@ -277,21 +277,35 @@ export const contractService = {
         return { success: false, error: 'cancellationDateOutOfRange', errorCode: 'VALIDATION' };
       }
 
+      // Prorate the period that contains the cancellation date, never dropping
+      // below what has already been paid (would violate paid_amount <= amount).
       if (input.cancellation_handling === 'prorate_current') {
-        const current = await invoicesRepository.findCurrentDueByContractId(id, input.cancellation_date, ctx);
+        const current = await invoicesRepository.findPeriodContaining(id, input.cancellation_date, ctx);
         if (current) {
-          await invoicesRepository.update(current.id, {
-            amount: prorateAmount(
-              Number(current.amount),
-              current.period_start,
-              current.period_end,
-              input.cancellation_date
-            ),
-          }, ctx);
+          const prorated = prorateAmount(
+            Number(current.amount),
+            current.period_start,
+            current.period_end,
+            input.cancellation_date
+          );
+          const newAmount = Math.max(prorated, Number(current.paid_amount));
+          if (newAmount !== Number(current.amount)) {
+            await invoicesRepository.update(current.id, { amount: newAmount }, ctx);
+          }
         }
       }
 
-      await invoicesRepository.deleteFutureDueByContractId(id, input.cancellation_date, ctx);
+      // Leave no future debt: drop unpaid future invoices outright, and for any
+      // future invoice that carries payments, clamp its amount to the paid amount
+      // so the outstanding balance is zero.
+      await invoicesRepository.deleteFutureUnpaidByContractId(id, input.cancellation_date, ctx);
+      const futurePaid = await invoicesRepository.findFuturePaidByContractId(id, input.cancellation_date, ctx);
+      for (const invoice of futurePaid) {
+        if (Number(invoice.amount) !== Number(invoice.paid_amount)) {
+          await invoicesRepository.update(invoice.id, { amount: Number(invoice.paid_amount) }, ctx);
+        }
+      }
+
       const cancelled = await contractsRepository.cancel(id, input, ctx);
       await auditService.log(auth, 'cancel', 'contract', id, contract, cancelled, ctx);
 

@@ -38,5 +38,6 @@
   "empty": "No contracts yet",
   "active": "Active",
   "cancelled": "Cancelled",
-  "completed": "Completed"
+  "completed": "Completed",
+  "expired": "Expired"
 }

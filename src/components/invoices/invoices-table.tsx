@@ -12,6 +12,7 @@ import { useSingleSubmit } from '@/lib/hooks/use-single-submit';
 import { formatCurrency, formatDate, formatNumber } from '@/lib/i18n/format';
 import {
   getInvoiceDaysOverdue,
+  getInvoiceDisplayStatus,
   getInvoiceRowHighlight,
   getOverdueBadgeClass,
   isOldOutstandingDue,
@@ -19,7 +20,7 @@ import {
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { CreditCard, FileText } from 'lucide-react';
-import type { Invoice, InvoiceStatus, PaymentMethod } from '@/types/database';
+import type { Invoice, PaymentMethod } from '@/types/database';
 import type { Locale } from '@/lib/i18n/routing';
 
 function OverdueTag({ days, label }: { days: number; label: string }) {
@@ -103,10 +104,11 @@ export function InvoicesTable({
 
   function renderStatus(inv: Invoice) {
     const daysOverdue = getInvoiceDaysOverdue(inv.due_date);
+    const displayStatus = getInvoiceDisplayStatus(inv);
 
     return (
       <div className="flex flex-wrap items-center gap-1.5">
-        <Badge status={inv.status} label={tc(inv.status as InvoiceStatus)} />
+        <Badge status={displayStatus} label={tc(displayStatus)} />
         {daysOverdue > 0 && (
           <OverdueTag
             days={daysOverdue}
