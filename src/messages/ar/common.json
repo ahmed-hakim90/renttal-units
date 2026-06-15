@@ -24,6 +24,11 @@
   "email": "البريد الإلكتروني",
   "password": "كلمة المرور",
   "viewOnly": "عرض فقط",
+  "preview": "معاينة",
+  "valid": "صالح",
+  "invalid": "غير صالح",
+  "import": "استيراد",
+  "contracts": "عقود",
   "pwa": {
     "install": "تثبيت التطبيق",
     "installed": "تم تثبيت التطبيق",

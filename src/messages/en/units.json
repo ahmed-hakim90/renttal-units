@@ -36,7 +36,7 @@
   "duplicateUnit": "A unit with this number already exists in this location",
   "unitHasFinancialRecords": "Cannot delete this unit because it has issued invoices or payment records",
   "importContracts": "Import Contracts",
-  "importContractsDesc": "Upload an Excel file (.xlsx) with the contract data. Arabic headers are supported.",
+  "importContractsDesc": "Upload an Excel file (.xlsx) with contract data. Arabic headers are supported. Add \"Paid Through Date\" for existing contracts.",
   "importContractsSuccess": "{success} contracts imported, {errors} errors",
   "downloadTemplate": "Download Template"
 }

@@ -24,6 +24,11 @@
   "email": "Email",
   "password": "Password",
   "viewOnly": "View only",
+  "preview": "Preview",
+  "valid": "valid",
+  "invalid": "invalid",
+  "import": "Import",
+  "contracts": "contracts",
   "pwa": {
     "install": "Install app",
     "installed": "App installed",

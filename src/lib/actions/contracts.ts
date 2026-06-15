@@ -35,6 +35,8 @@ export async function createContract(locale: string, data: {
   tenant_name?: string | null;
   tenant_phone?: string | null;
   tenant_email?: string | null;
+  paid_through_date?: string | null;
+  opening_paid_amount?: number | null;
 }) {
   const auth = await requireAdminEditor(locale, await getCtx());
   const result = await contractService.create(auth, data, { ...(await getCtx()), user_id: auth.userId, role: auth.role });

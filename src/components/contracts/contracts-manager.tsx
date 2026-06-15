@@ -88,6 +88,8 @@ export function ContractsManager({
       total_amount: Number(fd.get('total_amount')),
       payment_cycle: fd.get('payment_cycle') as PaymentCycle,
       notes: (fd.get('notes') as string) || null,
+      paid_through_date: (fd.get('paid_through_date') as string) || null,
+      opening_paid_amount: fd.get('opening_paid_amount') ? Number(fd.get('opening_paid_amount')) : null,
       tenant_name: (fd.get('tenant_name') as string) || null,
       tenant_phone: (fd.get('tenant_phone') as string) || null,
       tenant_email: (fd.get('tenant_email') as string) || null,
@@ -368,6 +370,12 @@ export function ContractsManager({
             </select>
           </div>
           <Input name="notes" label={t('notes')} />
+          <div className="rounded-xl border border-border p-4 space-y-3">
+            <p className="text-sm font-medium text-muted-foreground">{t('openingBalanceSection')}</p>
+            <p className="text-xs text-muted-foreground">{t('openingBalanceHint')}</p>
+            <Input name="paid_through_date" label={t('paidThroughDate')} type="date" />
+            <Input name="opening_paid_amount" label={t('openingPaidAmount')} type="number" step="0.01" min="0" />
+          </div>
           <div className="rounded-xl border border-border p-4 space-y-3">
             <p className="text-sm font-medium text-muted-foreground">{t('tenantSection')}</p>
             <Input name="tenant_name" label={t('tenantName')} />

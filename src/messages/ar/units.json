@@ -36,7 +36,7 @@
   "duplicateUnit": "توجد وحدة بنفس الرقم في هذا الموقع",
   "unitHasFinancialRecords": "لا يمكن حذف هذه الوحدة لأنها مرتبطة بفواتير صادرة أو مدفوعات",
   "importContracts": "استيراد العقود",
-  "importContractsDesc": "ارفع ملف Excel يحتوي على بيانات العقود. يدعم الرؤوس العربية.",
+  "importContractsDesc": "ارفع ملف Excel يحتوي على بيانات العقود. يدعم الرؤوس العربية. أضف عمود \"آخر تاريخ مدفوع\" للعقود القديمة.",
   "importContractsSuccess": "تم استيراد {success} عقد، {errors} أخطاء",
   "downloadTemplate": "تحميل النموذج"
 }

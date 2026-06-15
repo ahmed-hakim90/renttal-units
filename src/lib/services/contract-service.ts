@@ -15,6 +15,11 @@ import { validationService } from '@/lib/services/validation-service';
 import { isUniqueViolation } from '@/lib/db/postgres-errors';
 import { calculateContractPaymentSchedule } from '@/lib/rental/calculations';
 import { buildDueInvoiceNumber } from '@/lib/rental/due-invoice-number';
+import {
+  applyOpeningBalanceToSchedule,
+  type ContractOpeningBalanceInput,
+} from '@/lib/rental/contract-opening-balance';
+import { validateContractOpeningBalance } from '@/lib/rental/validate-opening-balance';
 import { withSpan, type LogContext } from '@/lib/observability';
 
 function roundMoney(value: number) {
@@ -30,8 +35,15 @@ function prorateAmount(amount: number, periodStart: string, periodEnd: string, c
   return roundMoney(amount * Math.max(0, Math.min(usedDays, totalDays)) / totalDays);
 }
 
-async function createContractInvoices(contract: Contract, ctx: LogContext) {
-  const schedule = calculateContractPaymentSchedule(contract);
+async function createContractInvoices(
+  contract: Contract,
+  ctx: LogContext,
+  openingBalance?: ContractOpeningBalanceInput,
+) {
+  const schedule = applyOpeningBalanceToSchedule(
+    calculateContractPaymentSchedule(contract),
+    openingBalance,
+  );
   let created = 0;
 
   for (const period of schedule) {
@@ -53,8 +65,8 @@ async function createContractInvoices(contract: Contract, ctx: LogContext) {
         period_start: period.periodStart,
         period_end: period.periodEnd,
         amount: period.amount,
-        paid_amount: 0,
-        status: 'due',
+        paid_amount: period.paid_amount,
+        status: period.status,
         due_date: period.periodStart,
         issued_at: null,
         notes: null,
@@ -143,16 +155,34 @@ export const contractService = {
       tenant_name?: string | null;
       tenant_phone?: string | null;
       tenant_email?: string | null;
+      paid_through_date?: string | null;
+      opening_paid_amount?: number | null;
     },
     ctx: LogContext
   ): Promise<ServiceResult<Contract>> {
     if (!auth.isAdminEditor) return { success: false, error: 'Unauthorized', errorCode: 'FORBIDDEN' };
 
     return withSpan('contractService.create', { ...ctx, service: 'contract', user_id: auth.userId }, async () => {
-      const { tenant_name, tenant_phone, tenant_email, ...contractInput } = input;
+      const {
+        tenant_name,
+        tenant_phone,
+        tenant_email,
+        paid_through_date,
+        opening_paid_amount,
+        ...contractInput
+      } = input;
+      const openingBalance: ContractOpeningBalanceInput = {
+        paid_through_date: paid_through_date ?? null,
+        opening_paid_amount: opening_paid_amount ?? null,
+      };
 
       const validation = validationService.validateContract(contractInput);
       if (!validation.valid) return { success: false, error: validation.errors.join(', '), errorCode: 'VALIDATION' };
+
+      const openingErrors = validateContractOpeningBalance(contractInput, openingBalance);
+      if (openingErrors.length > 0) {
+        return { success: false, error: openingErrors.join(', '), errorCode: 'VALIDATION' };
+      }
 
       const unit = await unitsRepository.findById(input.unit_id, ctx);
       if (!unit) return { success: false, error: 'unitNotFound', errorCode: 'NOT_FOUND' };
@@ -185,7 +215,7 @@ export const contractService = {
         throw error;
       }
 
-      await createContractInvoices(contract, ctx);
+      await createContractInvoices(contract, ctx, openingBalance);
       await auditService.log(auth, 'create', 'contract', contract.id, null, contract, ctx);
 
       const hydrated = await contractsRepository.findById(contract.id, ctx);
@@ -245,6 +275,12 @@ export const contractService = {
 
       if (scheduleFieldsChanged) {
         await invoicesRepository.deleteAllDueByContractId(id, ctx);
+        await invoicesRepository.deleteDueOutsideContractBounds(
+          id,
+          updated.start_date,
+          updated.end_date,
+          ctx,
+        );
         await createContractInvoices(updated, ctx);
       }
 

@@ -39,5 +39,9 @@
   "active": "Active",
   "cancelled": "Cancelled",
   "completed": "Completed",
-  "expired": "Expired"
+  "expired": "Expired",
+  "openingBalanceSection": "Opening Balance (Optional)",
+  "openingBalanceHint": "For existing contracts: enter the end date of the last fully paid period, and any amount already paid in the current period.",
+  "paidThroughDate": "Paid Through Date",
+  "openingPaidAmount": "Opening Paid Amount (Current Period)"
 }

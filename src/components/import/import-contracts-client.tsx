@@ -22,6 +22,8 @@ interface ContractPreviewRow {
     end_date: string;
     total_amount: number;
     payment_cycle: PaymentCycle | null;
+    paid_through_date: string | null;
+    opening_paid_amount: number | null;
   };
   errors: string[];
   valid: boolean;
@@ -51,6 +53,8 @@ export function ImportContractsClient({ locale, canEdit }: { locale: string; can
       'إجمالي قيمة العقد (ريال)',
       'قيمة الدفعة الدورية (ريال)',
       'عدد الدفعات',
+      'آخر تاريخ مدفوع',
+      'مبلغ مدفوع مسبقاً (ريال)',
     ];
     const exampleRow = [
       'CTR-001',
@@ -62,6 +66,8 @@ export function ImportContractsClient({ locale, canEdit }: { locale: string; can
       '24000',
       '12000',
       '2',
+      '2025-07-01',
+      '0',
     ];
 
     // Build CSV with BOM so Excel opens Arabic correctly
@@ -110,6 +116,8 @@ export function ImportContractsClient({ locale, canEdit }: { locale: string; can
         end_date: r.data.end_date,
         total_amount: r.data.total_amount,
         payment_cycle: r.data.payment_cycle as PaymentCycle,
+        paid_through_date: r.data.paid_through_date,
+        opening_paid_amount: r.data.opening_paid_amount,
       }));
 
     const result = await executeContractImport(locale, validRows);
@@ -171,6 +179,8 @@ export function ImportContractsClient({ locale, canEdit }: { locale: string; can
                 <th className="px-4 py-3 text-start">النهاية</th>
                 <th className="px-4 py-3 text-start">المبلغ</th>
                 <th className="px-4 py-3 text-start">الدورية</th>
+                <th className="px-4 py-3 text-start">آخر مدفوع</th>
+                <th className="px-4 py-3 text-start">مدفوع مسبقاً</th>
                 <th className="px-4 py-3 text-start">الحالة</th>
               </tr>
             </thead>
@@ -185,6 +195,8 @@ export function ImportContractsClient({ locale, canEdit }: { locale: string; can
                   <td className="px-4 py-2 text-xs">{row.data.end_date || '—'}</td>
                   <td className="px-4 py-2">{row.data.total_amount ? formatCurrency(row.data.total_amount, loc) : '—'}</td>
                   <td className="px-4 py-2">{row.data.payment_cycle ? tc(`paymentCycle.${row.data.payment_cycle}`) : '—'}</td>
+                  <td className="px-4 py-2 text-xs">{row.data.paid_through_date || '—'}</td>
+                  <td className="px-4 py-2">{row.data.opening_paid_amount ? formatCurrency(row.data.opening_paid_amount, loc) : '—'}</td>
                   <td className="px-4 py-2">
                     {row.valid ? (
                       <span className="text-green-600 font-medium">✓</span>

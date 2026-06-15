@@ -99,6 +99,7 @@ export const invoicesRepository = {
     const { data, error } = await supabase
       .from('invoices')
       .select(INVOICE_SELECT)
+      .gte('due_date', '2000-01-01')
       .lte('due_date', end)
       .eq('status', 'due')
       .order('due_date');
@@ -165,6 +166,23 @@ export const invoicesRepository = {
       .eq('contract_id', contractId)
       .eq('status', 'due')
       .eq('paid_amount', 0);
+    if (error) throw error;
+  },
+
+  async deleteDueOutsideContractBounds(
+    contractId: string,
+    startDate: string,
+    endDate: string,
+    ctx: LogContext,
+  ): Promise<void> {
+    const supabase = await createClient();
+    const { error } = await supabase
+      .from('invoices')
+      .delete()
+      .eq('contract_id', contractId)
+      .eq('status', 'due')
+      .eq('paid_amount', 0)
+      .or(`period_start.lt.${startDate},period_end.gt.${endDate}`);
     if (error) throw error;
   },
 

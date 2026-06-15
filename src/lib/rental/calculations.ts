@@ -1,7 +1,10 @@
 import { addDays, addMonths, differenceInDays, format, intervalToDuration, parseISO, subDays } from 'date-fns';
+import { CONTRACT_DATE_MIN } from '@/lib/dates/contract-dates';
 import type { Contract, ContractStatus, PaymentCycle, Unit } from '@/types/database';
 
 export type ContractDisplayStatus = ContractStatus | 'expired';
+
+const MAX_CONTRACT_PERIODS = 50;
 
 // An 'active' contract whose end date has passed is shown as 'expired' so it is
 // not confused with a genuinely running contract. The stored status is unchanged.
@@ -81,6 +84,10 @@ export function calculateAllUnitRentPeriods(unit: Unit, upToDate: Date = new Dat
 export function calculateContractPaymentSchedule(
   contract: Pick<Contract, 'start_date' | 'end_date' | 'payment_cycle' | 'total_amount'>
 ): ContractPaymentPeriod[] {
+  if (contract.start_date < CONTRACT_DATE_MIN) {
+    throw new Error(`Contract start_date must be on or after ${CONTRACT_DATE_MIN}`);
+  }
+
   const contractStart = parseISO(contract.start_date);
   const contractEnd = parseISO(contract.end_date);
   const cycleMonths = getCycleMonths(contract.payment_cycle);
@@ -92,6 +99,10 @@ export function calculateContractPaymentSchedule(
   let periodStart = contractStart;
 
   while (periodStart <= contractEnd) {
+    if (periods.length >= MAX_CONTRACT_PERIODS) {
+      throw new Error(`Contract payment schedule exceeds maximum of ${MAX_CONTRACT_PERIODS} periods`);
+    }
+
     const naturalPeriodEnd = subDays(addMonths(periodStart, cycleMonths), 1);
     const periodEnd = naturalPeriodEnd > contractEnd ? contractEnd : naturalPeriodEnd;
 

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isReasonableContractDate, isValidDateInput } from '@/lib/dates/contract-dates';
 
 const locationSchema = z.object({
   name_en: z.string().min(1),
@@ -7,12 +8,6 @@ const locationSchema = z.object({
   city: z.string().optional(),
   region: z.string().optional(),
 });
-
-function isValidDateInput(value: string) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const date = new Date(`${value}T00:00:00.000Z`);
-  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
-}
 
 const unitSchema = z.object({
   location_id: z.string().uuid(),
@@ -42,8 +37,8 @@ const unitSchema = z.object({
 const contractSchema = z.object({
   unit_id: z.string().uuid(),
   contract_number: z.string().nullable().optional(),
-  start_date: z.string().refine(isValidDateInput, 'start_date must be a valid date'),
-  end_date: z.string().refine(isValidDateInput, 'end_date must be a valid date'),
+  start_date: z.string().refine(isReasonableContractDate, 'start_date must be a valid date between 1990 and 2100'),
+  end_date: z.string().refine(isReasonableContractDate, 'end_date must be a valid date between 1990 and 2100'),
   total_amount: z.number().positive(),
   payment_cycle: z.enum(['monthly', 'quarterly', 'semi_annual', 'yearly']),
   notes: z.string().nullable().optional(),
@@ -54,7 +49,7 @@ const contractSchema = z.object({
 });
 
 const cancelContractSchema = z.object({
-  cancellation_date: z.string().refine(isValidDateInput, 'cancellation_date must be a valid date'),
+  cancellation_date: z.string().refine(isReasonableContractDate, 'cancellation_date must be a valid date between 1990 and 2100'),
   cancellation_handling: z.enum(['keep_current_full', 'prorate_current']),
 });
 
