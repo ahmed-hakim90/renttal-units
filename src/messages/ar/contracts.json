@@ -43,5 +43,27 @@
   "openingBalanceSection": "الرصيد الافتتاحي (اختياري)",
   "openingBalanceHint": "للعقود القديمة: أدخل نهاية آخر فترة مدفوعة بالكامل، ومبلغاً مدفوعاً مسبقاً في الفترة الحالية إن وُجد.",
   "paidThroughDate": "آخر تاريخ مدفوع",
-  "openingPaidAmount": "مبلغ مدفوع مسبقاً (الفترة الحالية)"
+  "openingPaidAmount": "مبلغ مدفوع مسبقاً (الفترة الحالية)",
+  "previewTitle": "هذا العقد سينشئ {count} فاتورة",
+  "previewSummary": "الإجمالي {total} · مدفوع {paid} · جزئي {partial} · مستحق {due}",
+  "previewPaid": "مدفوع",
+  "previewPartial": "جزئي",
+  "previewDue": "مستحق",
+  "validation": {
+    "unitRequired": "اختر وحدة",
+    "startDateRequired": "تاريخ البداية مطلوب",
+    "startDateInvalid": "تاريخ البداية يجب أن يكون بين 1990 و 2100",
+    "endDateRequired": "تاريخ النهاية مطلوب",
+    "endDateInvalid": "تاريخ النهاية يجب أن يكون بين 1990 و 2100",
+    "endBeforeStart": "تاريخ النهاية يجب أن يكون بعد أو يساوي تاريخ البداية",
+    "amountRequired": "قيمة العقد مطلوبة",
+    "amountPositive": "قيمة العقد يجب أن تكون أكبر من صفر",
+    "paidThroughInvalid": "آخر تاريخ مدفوع يجب أن يكون بين 1990 و 2100",
+    "paidThroughOutOfRange": "آخر تاريخ مدفوع يجب أن يكون داخل مدة العقد",
+    "openingPaidNegative": "المبلغ المدفوع مسبقاً لا يمكن أن يكون سالباً",
+    "openingPaidExceedsPeriod": "المبلغ المدفوع مسبقاً لا يمكن أن يتجاوز قيمة أول فترة غير مدفوعة",
+    "tenantEmailInvalid": "أدخل بريداً إلكترونياً صالحاً",
+    "tooManyPeriods": "هذا العقد سينشئ أكثر من 50 فاتورة. قصّر المدة أو اختر دورة دفع أطول.",
+    "scheduleFailed": "لا يمكن بناء جدول الفواتير بهذه القيم"
+  }
 }

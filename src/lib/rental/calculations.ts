@@ -4,7 +4,7 @@ import type { Contract, ContractStatus, PaymentCycle, Unit } from '@/types/datab
 
 export type ContractDisplayStatus = ContractStatus | 'expired';
 
-const MAX_CONTRACT_PERIODS = 50;
+export const MAX_CONTRACT_PERIODS = 50;
 
 // An 'active' contract whose end date has passed is shown as 'expired' so it is
 // not confused with a genuinely running contract. The stored status is unchanged.

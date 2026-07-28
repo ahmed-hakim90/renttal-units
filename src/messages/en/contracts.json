@@ -43,5 +43,27 @@
   "openingBalanceSection": "Opening Balance (Optional)",
   "openingBalanceHint": "For existing contracts: enter the end date of the last fully paid period, and any amount already paid in the current period.",
   "paidThroughDate": "Paid Through Date",
-  "openingPaidAmount": "Opening Paid Amount (Current Period)"
+  "openingPaidAmount": "Opening Paid Amount (Current Period)",
+  "previewTitle": "This contract will create {count} invoices",
+  "previewSummary": "Total {total} · Paid {paid} · Partial {partial} · Due {due}",
+  "previewPaid": "Paid",
+  "previewPartial": "Partial",
+  "previewDue": "Due",
+  "validation": {
+    "unitRequired": "Select a unit",
+    "startDateRequired": "Start date is required",
+    "startDateInvalid": "Start date must be a valid date between 1990 and 2100",
+    "endDateRequired": "End date is required",
+    "endDateInvalid": "End date must be a valid date between 1990 and 2100",
+    "endBeforeStart": "End date must be on or after start date",
+    "amountRequired": "Contract value is required",
+    "amountPositive": "Contract value must be greater than zero",
+    "paidThroughInvalid": "Paid through date must be a valid date between 1990 and 2100",
+    "paidThroughOutOfRange": "Paid through date must be within the contract period",
+    "openingPaidNegative": "Opening paid amount cannot be negative",
+    "openingPaidExceedsPeriod": "Opening paid amount cannot exceed the first unpaid period amount",
+    "tenantEmailInvalid": "Enter a valid email address",
+    "tooManyPeriods": "This contract would create more than 50 invoices. Shorten the period or choose a longer payment cycle.",
+    "scheduleFailed": "Cannot build the invoice schedule with these values"
+  }
 }

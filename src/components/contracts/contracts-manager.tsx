@@ -4,7 +4,8 @@ import { useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { CalendarX, Pencil, Plus } from 'lucide-react';
-import { createContract, cancelContract, updateContract } from '@/lib/actions/contracts';
+import { cancelContract, updateContract } from '@/lib/actions/contracts';
+import { ContractCreateForm } from '@/components/contracts/contract-create-form';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
@@ -73,42 +74,6 @@ export function ContractsManager({
     if (error === 'duplicateContractNumber') return t('duplicateContractNumber');
     if (error === 'contractHasFinancialActivity') return t('contractHasFinancialActivity');
     return error;
-  }
-
-  async function handleCreate(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    if (isSavingRef.current) return;
-
-    const fd = new FormData(e.currentTarget);
-    const data = {
-      unit_id: fd.get('unit_id') as string,
-      contract_number: (fd.get('contract_number') as string) || null,
-      start_date: fd.get('start_date') as string,
-      end_date: fd.get('end_date') as string,
-      total_amount: Number(fd.get('total_amount')),
-      payment_cycle: fd.get('payment_cycle') as PaymentCycle,
-      notes: (fd.get('notes') as string) || null,
-      paid_through_date: (fd.get('paid_through_date') as string) || null,
-      opening_paid_amount: fd.get('opening_paid_amount') ? Number(fd.get('opening_paid_amount')) : null,
-      tenant_name: (fd.get('tenant_name') as string) || null,
-      tenant_phone: (fd.get('tenant_phone') as string) || null,
-      tenant_email: (fd.get('tenant_email') as string) || null,
-    };
-
-    isSavingRef.current = true;
-    setIsSaving(true);
-    try {
-      const result = await createContract(locale, data);
-      if (result.success) {
-        toast.success(tc('success'));
-        setCreateOpen(false);
-      } else {
-        toast.error(result.error ? getActionErrorMessage(result.error) : tc('error'));
-      }
-    } finally {
-      isSavingRef.current = false;
-      setIsSaving(false);
-    }
   }
 
   async function handleEdit(e: React.FormEvent<HTMLFormElement>) {
@@ -345,50 +310,20 @@ export function ContractsManager({
       )}
 
       <Modal open={createOpen} onClose={() => !isSaving && setCreateOpen(false)} title={t('create')}>
-        <form onSubmit={handleCreate} className="space-y-4">
-          <Input name="contract_number" label={t('contractNumber')} />
-          <div>
-            <label className="text-sm font-medium">{t('unit')}</label>
-            <select name="unit_id" required className="mt-1.5 flex h-10 w-full rounded-xl border border-border bg-card px-3 text-sm">
-              <option value="">{t('selectUnit')}</option>
-              {availableUnits.map((unit) => (
-                <option key={unit.id} value={unit.id}>
-                  {unit.unit_number} - {unit.location?.name_en ?? ''}
-                </option>
-              ))}
-            </select>
-          </div>
-          <Input name="start_date" label={t('startDate')} type="date" required />
-          <Input name="end_date" label={t('endDate')} type="date" required />
-          <Input name="total_amount" label={t('totalAmount')} type="number" step="0.01" required />
-          <div>
-            <label className="text-sm font-medium">{t('paymentCycle')}</label>
-            <select name="payment_cycle" defaultValue="monthly" className="mt-1.5 flex h-10 w-full rounded-xl border border-border bg-card px-3 text-sm">
-              {(['monthly', 'quarterly', 'semi_annual', 'yearly'] as const).map((cycle) => (
-                <option key={cycle} value={cycle}>{tc(`paymentCycle.${cycle}`)}</option>
-              ))}
-            </select>
-          </div>
-          <Input name="notes" label={t('notes')} />
-          <div className="rounded-xl border border-border p-4 space-y-3">
-            <p className="text-sm font-medium text-muted-foreground">{t('openingBalanceSection')}</p>
-            <p className="text-xs text-muted-foreground">{t('openingBalanceHint')}</p>
-            <Input name="paid_through_date" label={t('paidThroughDate')} type="date" />
-            <Input name="opening_paid_amount" label={t('openingPaidAmount')} type="number" step="0.01" min="0" />
-          </div>
-          <div className="rounded-xl border border-border p-4 space-y-3">
-            <p className="text-sm font-medium text-muted-foreground">{t('tenantSection')}</p>
-            <Input name="tenant_name" label={t('tenantName')} />
-            <Input name="tenant_phone" label={t('tenantPhone')} type="tel" />
-            <Input name="tenant_email" label={t('tenantEmail')} type="email" />
-          </div>
-          <div className="flex justify-end gap-3">
-            <Button variant="outline" type="button" disabled={isSaving} onClick={() => setCreateOpen(false)}>
-              {tc('cancel')}
-            </Button>
-            <Button type="submit" disabled={isSaving}>{isSaving ? tc('loading') : t('create')}</Button>
-          </div>
-        </form>
+        {createOpen && (
+          <ContractCreateForm
+            key="create-contract-form"
+            units={availableUnits}
+            locale={locale}
+            isSaving={isSaving}
+            setIsSaving={(saving) => {
+              isSavingRef.current = saving;
+              setIsSaving(saving);
+            }}
+            onCancel={() => setCreateOpen(false)}
+            onSuccess={() => setCreateOpen(false)}
+          />
+        )}
       </Modal>
 
       <Modal open={editOpen} onClose={() => !isSaving && setEditOpen(false)} title={t('edit')}>

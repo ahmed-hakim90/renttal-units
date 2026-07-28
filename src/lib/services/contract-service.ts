@@ -184,6 +184,13 @@ export const contractService = {
         return { success: false, error: openingErrors.join(', '), errorCode: 'VALIDATION' };
       }
 
+      try {
+        calculateContractPaymentSchedule(contractInput);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Invalid contract schedule';
+        return { success: false, error: message, errorCode: 'VALIDATION' };
+      }
+
       const unit = await unitsRepository.findById(input.unit_id, ctx);
       if (!unit) return { success: false, error: 'unitNotFound', errorCode: 'NOT_FOUND' };
 
