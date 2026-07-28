@@ -26,15 +26,16 @@ export async function getContracts(locale: string) {
 
 export async function createContract(locale: string, data: {
   unit_id: string;
-  contract_number?: string | null;
+  contract_number: string;
   start_date: string;
   end_date: string;
   total_amount: number;
   payment_cycle: PaymentCycle;
   notes?: string | null;
-  tenant_name?: string | null;
+  tenant_name: string;
   tenant_phone?: string | null;
   tenant_email?: string | null;
+  tenant_national_id?: string | null;
   paid_through_date?: string | null;
   opening_paid_amount?: number | null;
 }) {
@@ -45,15 +46,16 @@ export async function createContract(locale: string, data: {
 }
 
 export async function updateContract(locale: string, id: string, data: {
-  contract_number?: string | null;
+  contract_number: string;
   start_date: string;
   end_date: string;
   total_amount: number;
   payment_cycle: PaymentCycle;
   notes?: string | null;
-  tenant_name?: string | null;
+  tenant_name: string;
   tenant_phone?: string | null;
   tenant_email?: string | null;
+  tenant_national_id?: string | null;
 }) {
   const auth = await requireAdminEditor(locale, await getCtx());
   const result = await contractService.update(auth, id, data, { ...(await getCtx()), user_id: auth.userId, role: auth.role });

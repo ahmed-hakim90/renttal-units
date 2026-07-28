@@ -72,6 +72,7 @@ export function ContractsManager({
     if (error === 'contractNotActive') return t('contractNotActive');
     if (error === 'cancellationDateOutOfRange') return t('cancellationDateOutOfRange');
     if (error === 'duplicateContractNumber') return t('duplicateContractNumber');
+    if (error === 'duplicateNationalId') return t('duplicateNationalId');
     if (error === 'contractHasFinancialActivity') return t('contractHasFinancialActivity');
     return error;
   }
@@ -82,15 +83,16 @@ export function ContractsManager({
 
     const fd = new FormData(e.currentTarget);
     const data = {
-      contract_number: (fd.get('contract_number') as string) || null,
+      contract_number: (fd.get('contract_number') as string).trim(),
       start_date: fd.get('start_date') as string,
       end_date: fd.get('end_date') as string,
       total_amount: Number(fd.get('total_amount')),
       payment_cycle: fd.get('payment_cycle') as PaymentCycle,
       notes: (fd.get('notes') as string) || null,
-      tenant_name: (fd.get('tenant_name') as string) || null,
+      tenant_name: (fd.get('tenant_name') as string).trim(),
       tenant_phone: (fd.get('tenant_phone') as string) || null,
       tenant_email: (fd.get('tenant_email') as string) || null,
+      tenant_national_id: (fd.get('tenant_national_id') as string) || null,
     };
 
     isSavingRef.current = true;
@@ -333,6 +335,7 @@ export function ContractsManager({
               name="contract_number"
               label={t('contractNumber')}
               defaultValue={selectedContract.contract_number ?? ''}
+              required
             />
             <div>
               <label className="text-sm font-medium">{t('unit')}</label>
@@ -386,6 +389,7 @@ export function ContractsManager({
                 name="tenant_name"
                 label={t('tenantName')}
                 defaultValue={selectedContract.tenant?.full_name ?? ''}
+                required
               />
               <Input
                 name="tenant_phone"
@@ -398,6 +402,13 @@ export function ContractsManager({
                 label={t('tenantEmail')}
                 type="email"
                 defaultValue={selectedContract.tenant?.email ?? ''}
+              />
+              <Input
+                name="tenant_national_id"
+                label={t('tenantNationalId')}
+                defaultValue={selectedContract.tenant?.national_id ?? ''}
+                inputMode="numeric"
+                maxLength={10}
               />
             </div>
             <div className="flex justify-end gap-3">

@@ -11,6 +11,7 @@ export interface Profile {
   email: string;
   full_name: string | null;
   role: UserRole;
+  must_change_password: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -80,7 +81,7 @@ export interface Invoice {
 export interface Contract {
   id: string;
   unit_id: string;
-  contract_number: string | null;
+  contract_number: string;
   tenant_id: string | null;
   start_date: string;
   end_date: string;
@@ -204,6 +205,7 @@ export interface AuthContext {
   email: string;
   role: UserRole;
   isAdminEditor: boolean;
+  mustChangePassword: boolean;
 }
 
 export interface ServiceResult<T> {

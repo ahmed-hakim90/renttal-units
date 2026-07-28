@@ -66,7 +66,7 @@ export const contractsRepository = {
 
   async create(input: {
     unit_id: string;
-    contract_number?: string | null;
+    contract_number: string;
     tenant_id?: string | null;
     start_date: string;
     end_date: string;
@@ -114,13 +114,14 @@ export const contractsRepository = {
   async update(
     id: string,
     input: {
-      contract_number?: string | null;
+      contract_number?: string;
       tenant_id?: string | null;
       start_date?: string;
       end_date?: string;
       total_amount?: number;
       payment_cycle?: PaymentCycle;
       notes?: string | null;
+      status?: 'active' | 'cancelled' | 'completed';
     },
     ctx: LogContext
   ): Promise<Contract> {
@@ -133,5 +134,16 @@ export const contractsRepository = {
       .single();
     if (error) throw error;
     return data;
+  },
+
+  async markCompleted(ids: string[], ctx: LogContext): Promise<void> {
+    if (ids.length === 0) return;
+    const supabase = await createClient();
+    const { error } = await supabase
+      .from('contracts')
+      .update({ status: 'completed' })
+      .in('id', ids)
+      .eq('status', 'active');
+    if (error) throw error;
   },
 };

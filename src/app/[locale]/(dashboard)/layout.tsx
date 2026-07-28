@@ -28,6 +28,10 @@ export default async function DashboardLayout({
 
   const session = auth as NonNullable<typeof auth>;
 
+  if (session.mustChangePassword) {
+    redirect({ href: '/change-password', locale });
+  }
+
   return (
     <DashboardShell auth={session}>
       {children}

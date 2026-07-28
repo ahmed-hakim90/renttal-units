@@ -107,10 +107,10 @@ export function ImportContractsClient({ locale, canEdit }: { locale: string; can
     try {
 
     const validRows = preview
-      .filter((r) => r.valid && r.data.unit_id && r.data.payment_cycle)
+      .filter((r) => r.valid && r.data.unit_id && r.data.payment_cycle && r.data.contract_number && r.data.tenant_name)
       .map((r) => ({
-        contract_number: r.data.contract_number,
-        tenant_name: r.data.tenant_name,
+        contract_number: String(r.data.contract_number).trim(),
+        tenant_name: String(r.data.tenant_name).trim(),
         unit_id: r.data.unit_id as string,
         start_date: r.data.start_date,
         end_date: r.data.end_date,
@@ -122,10 +122,13 @@ export function ImportContractsClient({ locale, canEdit }: { locale: string; can
 
     const result = await executeContractImport(locale, validRows);
     if (result.success) {
-      toast.success(t('importContractsSuccess', { success: result.successCount, errors: result.errorCount }));
+      toast.success(t('importContractsSuccess', {
+        success: result.successCount ?? 0,
+        errors: result.errorCount ?? 0,
+      }));
       setPreview(null);
     } else {
-      toast.error(tc('error'));
+      toast.error('error' in result && result.error ? result.error : tc('error'));
     }
     } finally {
       setLoading(false);

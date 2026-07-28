@@ -8,20 +8,27 @@ import {
   type SettledContractPeriod,
 } from '@/lib/rental/contract-opening-balance';
 import type { PaymentCycle } from '@/types/database';
+import { isValidSaudiNationalId, normalizeNationalId } from '@/lib/validation/saudi-national-id';
 
 export type ContractFormField =
   | 'unit_id'
+  | 'contract_number'
   | 'start_date'
   | 'end_date'
   | 'total_amount'
   | 'payment_cycle'
   | 'paid_through_date'
   | 'opening_paid_amount'
+  | 'tenant_name'
   | 'tenant_email'
+  | 'tenant_national_id'
   | 'schedule';
 
 export type ContractFormErrorCode =
   | 'unitRequired'
+  | 'contractNumberRequired'
+  | 'tenantNameRequired'
+  | 'nationalIdInvalid'
   | 'startDateRequired'
   | 'startDateInvalid'
   | 'endDateRequired'
@@ -41,13 +48,16 @@ export type ContractFormFieldErrors = Partial<Record<ContractFormField, Contract
 
 export interface ContractFormValues {
   unit_id: string;
+  contract_number: string;
   start_date: string;
   end_date: string;
   total_amount: string;
   payment_cycle: PaymentCycle;
   paid_through_date: string;
   opening_paid_amount: string;
+  tenant_name: string;
   tenant_email: string;
+  tenant_national_id: string;
 }
 
 export interface ContractInvoicePreview {
@@ -80,6 +90,19 @@ export function validateContractForm(
 
   if (requireUnit && !values.unit_id.trim()) {
     errors.unit_id = 'unitRequired';
+  }
+
+  if (!values.contract_number.trim()) {
+    errors.contract_number = 'contractNumberRequired';
+  }
+
+  if (!values.tenant_name.trim()) {
+    errors.tenant_name = 'tenantNameRequired';
+  }
+
+  const nationalId = normalizeNationalId(values.tenant_national_id);
+  if (nationalId && !isValidSaudiNationalId(nationalId)) {
+    errors.tenant_national_id = 'nationalIdInvalid';
   }
 
   if (!values.start_date.trim()) {

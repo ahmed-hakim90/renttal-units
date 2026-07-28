@@ -1,5 +1,41 @@
 import { z } from 'zod';
 import { isReasonableContractDate, isValidDateInput } from '@/lib/dates/contract-dates';
+import {
+  isValidSaudiNationalId,
+  normalizeNationalId,
+} from '@/lib/validation/saudi-national-id';
+
+const phoneSchema = z
+  .string()
+  .trim()
+  .refine(
+    (value) => value === '' || /^[+0-9][0-9\s-]{6,20}$/.test(value),
+    'phone must be a valid phone number',
+  )
+  .optional()
+  .nullable();
+
+const tenantSchema = z.object({
+  full_name: z.string().trim().min(1, 'tenant name is required'),
+  phone: phoneSchema,
+  email: z
+    .union([
+      z.literal(''),
+      z.null(),
+      z.undefined(),
+      z.string().trim().email('tenant email must be valid'),
+    ])
+    .optional(),
+  national_id: z
+    .string()
+    .trim()
+    .optional()
+    .nullable()
+    .refine(
+      (value) => isValidSaudiNationalId(normalizeNationalId(value)),
+      'national_id must be a valid Saudi ID/Iqama',
+    ),
+});
 
 const locationSchema = z.object({
   name_en: z.string().min(1),
@@ -36,7 +72,11 @@ const unitSchema = z.object({
 
 const contractSchema = z.object({
   unit_id: z.string().uuid(),
-  contract_number: z.string().nullable().optional(),
+  contract_number: z
+    .string()
+    .trim()
+    .min(1, 'contract_number is required')
+    .max(64, 'contract_number must be at most 64 characters'),
   start_date: z.string().refine(isReasonableContractDate, 'start_date must be a valid date between 1990 and 2100'),
   end_date: z.string().refine(isReasonableContractDate, 'end_date must be a valid date between 1990 and 2100'),
   total_amount: z.number().positive(),
@@ -92,6 +132,22 @@ export const validationService = {
   validateUnit(data: unknown) {
     const result = unitSchema.safeParse(data);
     return result.success ? { valid: true as const, errors: [] } : { valid: false as const, errors: formatErrors(result.error) };
+  },
+
+  validateTenant(data: unknown) {
+    const result = tenantSchema.safeParse(data);
+    return result.success
+      ? {
+          valid: true as const,
+          errors: [],
+          data: {
+            full_name: result.data.full_name,
+            phone: result.data.phone?.trim() || null,
+            email: typeof result.data.email === 'string' ? (result.data.email.trim() || null) : null,
+            national_id: normalizeNationalId(result.data.national_id),
+          },
+        }
+      : { valid: false as const, errors: formatErrors(result.error) };
   },
 
   validateContract(data: unknown) {

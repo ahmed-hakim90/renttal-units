@@ -8,6 +8,7 @@
   "create": "Create User",
   "created": "User created successfully",
   "temporaryPassword": "Temporary Password",
+  "temporaryPasswordHint": "Min 12 chars with upper, lower, and a number. User must change it on first login.",
   "updateRole": "Update Role",
   "adminEditorDesc": "Full access to create, edit, and delete",
   "viewerDesc": "Read-only access to all data",

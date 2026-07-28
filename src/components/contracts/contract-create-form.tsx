@@ -20,13 +20,16 @@ import type { Locale } from '@/lib/i18n/routing';
 
 const EMPTY_FORM: ContractFormValues = {
   unit_id: '',
+  contract_number: '',
   start_date: '',
   end_date: '',
   total_amount: '',
   payment_cycle: 'monthly',
   paid_through_date: '',
   opening_paid_amount: '',
+  tenant_name: '',
   tenant_email: '',
+  tenant_national_id: '',
 };
 
 function SelectField({
@@ -86,9 +89,7 @@ export function ContractCreateForm({
   const loc = locale as Locale;
 
   const [values, setValues] = useState<ContractFormValues>(EMPTY_FORM);
-  const [tenantName, setTenantName] = useState('');
   const [tenantPhone, setTenantPhone] = useState('');
-  const [contractNumber, setContractNumber] = useState('');
   const [notes, setNotes] = useState('');
   const [touched, setTouched] = useState<Partial<Record<ContractFormField, boolean>>>({});
   const [attempted, setAttempted] = useState(false);
@@ -114,6 +115,7 @@ export function ContractCreateForm({
   function getActionErrorMessage(error: string) {
     if (error === 'activeContractExists') return t('activeContractExists');
     if (error === 'duplicateContractNumber') return t('duplicateContractNumber');
+    if (error === 'duplicateNationalId') return t('duplicateNationalId');
     return error;
   }
 
@@ -126,7 +128,7 @@ export function ContractCreateForm({
     try {
       const result = await createContract(locale, {
         unit_id: values.unit_id,
-        contract_number: contractNumber.trim() || null,
+        contract_number: values.contract_number.trim(),
         start_date: values.start_date,
         end_date: values.end_date,
         total_amount: Number(values.total_amount),
@@ -136,9 +138,10 @@ export function ContractCreateForm({
         opening_paid_amount: values.opening_paid_amount.trim()
           ? Number(values.opening_paid_amount)
           : null,
-        tenant_name: tenantName.trim() || null,
+        tenant_name: values.tenant_name.trim(),
         tenant_phone: tenantPhone.trim() || null,
         tenant_email: values.tenant_email.trim() || null,
+        tenant_national_id: values.tenant_national_id.trim() || null,
       });
 
       if (result.success) {
@@ -157,8 +160,11 @@ export function ContractCreateForm({
       <Input
         name="contract_number"
         label={t('contractNumber')}
-        value={contractNumber}
-        onChange={(e) => setContractNumber(e.target.value)}
+        value={values.contract_number}
+        onChange={(e) => setField('contract_number', e.target.value)}
+        onBlur={() => touch('contract_number')}
+        error={fieldError('contract_number')}
+        required
       />
 
       <SelectField
@@ -320,8 +326,11 @@ export function ContractCreateForm({
         <Input
           name="tenant_name"
           label={t('tenantName')}
-          value={tenantName}
-          onChange={(e) => setTenantName(e.target.value)}
+          value={values.tenant_name}
+          onChange={(e) => setField('tenant_name', e.target.value)}
+          onBlur={() => touch('tenant_name')}
+          error={fieldError('tenant_name')}
+          required
         />
         <Input
           name="tenant_phone"
@@ -338,6 +347,16 @@ export function ContractCreateForm({
           onChange={(e) => setField('tenant_email', e.target.value)}
           onBlur={() => touch('tenant_email')}
           error={fieldError('tenant_email')}
+        />
+        <Input
+          name="tenant_national_id"
+          label={t('tenantNationalId')}
+          value={values.tenant_national_id}
+          onChange={(e) => setField('tenant_national_id', e.target.value)}
+          onBlur={() => touch('tenant_national_id')}
+          error={fieldError('tenant_national_id')}
+          inputMode="numeric"
+          maxLength={10}
         />
       </div>
 

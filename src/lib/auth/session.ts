@@ -17,6 +17,7 @@ export async function getAuthContext(ctx: LogContext = {}): Promise<AuthContext 
     email: user.email ?? profile.email,
     role: profile.role,
     isAdminEditor: profile.role === 'admin_editor',
+    mustChangePassword: Boolean(profile.must_change_password),
   };
 }
 

@@ -18,9 +18,18 @@ import ExcelJS from 'exceljs';
 import { Readable } from 'node:stream';
 import { isReasonableContractDate } from '@/lib/dates/contract-dates';
 import { validateContractOpeningBalance } from '@/lib/rental/validate-opening-balance';
+import { validateStaffPassword } from '@/lib/validation/password-policy';
+import {
+  buildRateLimitKey,
+  isRateLimited,
+  recordRateLimitFailure,
+} from '@/lib/security/rate-limit';
 
 const MAX_IMPORT_FILE_SIZE_BYTES = 2 * 1024 * 1024;
 const MAX_IMPORT_ROWS = 1000;
+const IMPORT_RATE_LIMIT_ATTEMPTS = 10;
+const IMPORT_RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
+const GENERIC_IMPORT_RATE_LIMIT_ERROR = 'Too many import attempts. Try again later.';
 const ALLOWED_IMPORT_EXTENSIONS = new Set(['.xlsx', '.csv']);
 const ALLOWED_IMPORT_MIME_TYPES = new Set([
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -173,10 +182,12 @@ export async function createUser(locale: string, data: {
   const fullName = data.full_name.trim();
   const email = data.email.trim().toLowerCase();
   const temporaryPassword = data.temporary_password;
+  const GENERIC_CREATE_USER_ERROR = 'Failed to create user';
 
   if (!fullName) return { success: false, error: 'Name is required' };
   if (!email) return { success: false, error: 'Email is required' };
-  if (temporaryPassword.length < 8) return { success: false, error: 'Temporary password must be at least 8 characters' };
+  const passwordError = validateStaffPassword(temporaryPassword);
+  if (passwordError) return { success: false, error: passwordError };
   if (!['admin_editor', 'viewer'].includes(data.role)) return { success: false, error: 'Invalid role' };
 
   const supabaseAdmin = createAdminClient();
@@ -190,7 +201,7 @@ export async function createUser(locale: string, data: {
   });
 
   if (error || !created.user) {
-    return { success: false, error: error?.message ?? 'Failed to create user' };
+    return { success: false, error: GENERIC_CREATE_USER_ERROR };
   }
 
   const profile = await usersRepository.upsertProfile({
@@ -198,6 +209,7 @@ export async function createUser(locale: string, data: {
     email,
     full_name: fullName,
     role: data.role,
+    must_change_password: true,
   }, ctx);
 
   await auditService.log(
@@ -253,8 +265,17 @@ export async function updateUserRole(locale: string, userId: string, role: UserR
 }
 
 export async function getSettings(locale: string) {
-  const auth = await requireAuth(locale, await getCtx());
+  const auth = await requireAdminEditor(locale, await getCtx());
   return settingsRepository.findAll({ ...await getCtx(), user_id: auth.userId, role: auth.role });
+}
+
+async function consumeImportRateLimit(userId: string) {
+  const key = await buildRateLimitKey('import', userId);
+  if (await isRateLimited(key.keyHash, IMPORT_RATE_LIMIT_ATTEMPTS, IMPORT_RATE_LIMIT_WINDOW_MS)) {
+    return { ok: false as const };
+  }
+  await recordRateLimitFailure(key, IMPORT_RATE_LIMIT_ATTEMPTS, IMPORT_RATE_LIMIT_WINDOW_MS);
+  return { ok: true as const };
 }
 
 export async function updateSetting(locale: string, key: string, value: unknown) {
@@ -269,6 +290,11 @@ export async function updateSetting(locale: string, key: string, value: unknown)
 
 export async function previewImport(locale: string, formData: FormData) {
   const auth = await requireAdminEditor(locale, await getCtx());
+  const rate = await consumeImportRateLimit(auth.userId);
+  if (!rate.ok) {
+    return { success: false, error: GENERIC_IMPORT_RATE_LIMIT_ERROR };
+  }
+
   const file = formData.get('file') as File;
   if (!file) return { success: false, error: 'No file provided' };
   const fileError = validateImportFile(file);
@@ -277,8 +303,8 @@ export async function previewImport(locale: string, formData: FormData) {
   let rows: Array<Record<string, unknown>>;
   try {
     rows = await readImportRows(file);
-  } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : 'Failed to read import file' };
+  } catch {
+    return { success: false, error: 'Failed to read import file' };
   }
 
   const locations = await locationsRepository.findAll({ ...await getCtx(), user_id: auth.userId, role: auth.role });
@@ -305,6 +331,10 @@ export async function executeImport(locale: string, rows: Array<{
   status: UnitStatus;
 }>) {
   const auth = await requireAdminEditor(locale, await getCtx());
+  const rate = await consumeImportRateLimit(auth.userId);
+  if (!rate.ok) {
+    return { success: false, error: GENERIC_IMPORT_RATE_LIMIT_ERROR };
+  }
   const ctx = { ...(await getCtx()), user_id: auth.userId, role: auth.role };
 
   const errors: Array<{ row: number; message: string }> = [];
@@ -426,7 +456,19 @@ function inferPaymentCycle(total: number, periodic: number): PaymentCycle {
 
 function validateContractImportRow(row: Record<string, unknown>, rowIndex: number): string[] {
   const errors: string[] = [];
+  if (!row.contract_number || !String(row.contract_number).trim()) {
+    errors.push(`Row ${rowIndex}: رقم العقد مطلوب`);
+  }
+  if (!row.tenant_name || !String(row.tenant_name).trim()) {
+    errors.push(`Row ${rowIndex}: اسم المستأجر مطلوب`);
+  }
   if (!row.unit_number && row.unit_number !== 0) errors.push(`Row ${rowIndex}: رقم الوحدة مطلوب`);
+  if (!row.contract_number || !String(row.contract_number).trim()) {
+    errors.push(`Row ${rowIndex}: رقم العقد مطلوب`);
+  }
+  if (!row.tenant_name || !String(row.tenant_name).trim()) {
+    errors.push(`Row ${rowIndex}: اسم المستأجر مطلوب`);
+  }
   if (!row.start_date) errors.push(`Row ${rowIndex}: تاريخ بداية الإيجار مطلوب`);
   if (!row.end_date) errors.push(`Row ${rowIndex}: تاريخ نهاية الإيجار مطلوب`);
   if (row.start_date && !isReasonableContractDate(String(row.start_date))) {
@@ -476,6 +518,10 @@ function validateContractImportRow(row: Record<string, unknown>, rowIndex: numbe
 
 export async function previewContractImport(locale: string, formData: FormData) {
   const auth = await requireAdminEditor(locale, await getCtx());
+  const rate = await consumeImportRateLimit(auth.userId);
+  if (!rate.ok) {
+    return { success: false, error: GENERIC_IMPORT_RATE_LIMIT_ERROR };
+  }
   const file = formData.get('file') as File;
   if (!file) return { success: false, error: 'No file provided' };
   const fileError = validateImportFile(file);
@@ -484,8 +530,8 @@ export async function previewContractImport(locale: string, formData: FormData) 
   let rawRows: Array<Record<string, unknown>>;
   try {
     rawRows = await readImportRows(file);
-  } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : 'Failed to read import file' };
+  } catch {
+    return { success: false, error: 'Failed to read import file' };
   }
 
   const ctx = { ...await getCtx(), user_id: auth.userId, role: auth.role };
@@ -536,8 +582,8 @@ export async function previewContractImport(locale: string, formData: FormData) 
 }
 
 export async function executeContractImport(locale: string, rows: Array<{
-  contract_number: string | null;
-  tenant_name: string | null;
+  contract_number: string;
+  tenant_name: string;
   unit_id: string;
   start_date: string;
   end_date: string;
@@ -547,6 +593,10 @@ export async function executeContractImport(locale: string, rows: Array<{
   opening_paid_amount?: number | null;
 }>) {
   const auth = await requireAdminEditor(locale, await getCtx());
+  const rate = await consumeImportRateLimit(auth.userId);
+  if (!rate.ok) {
+    return { success: false, error: GENERIC_IMPORT_RATE_LIMIT_ERROR };
+  }
   const ctx = { ...await getCtx(), user_id: auth.userId, role: auth.role };
 
   const errors: Array<{ row: number; message: string }> = [];
@@ -555,23 +605,16 @@ export async function executeContractImport(locale: string, rows: Array<{
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
     try {
-      let tenantName: string | null = null;
-      const tenantPhone: string | null = null;
-      const tenantEmail: string | null = null;
-      if (row.tenant_name?.trim()) {
-        tenantName = row.tenant_name.trim();
-      }
-
       const result = await contractService.create(auth, {
         unit_id: row.unit_id,
-        contract_number: row.contract_number || null,
+        contract_number: row.contract_number.trim(),
         start_date: row.start_date,
         end_date: row.end_date,
         total_amount: row.total_amount,
         payment_cycle: row.payment_cycle,
-        tenant_name: tenantName,
-        tenant_phone: tenantPhone,
-        tenant_email: tenantEmail,
+        tenant_name: row.tenant_name.trim(),
+        tenant_phone: null,
+        tenant_email: null,
         paid_through_date: row.paid_through_date ?? null,
         opening_paid_amount: row.opening_paid_amount ?? null,
       }, ctx);

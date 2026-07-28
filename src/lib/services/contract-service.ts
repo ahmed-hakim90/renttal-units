@@ -61,7 +61,7 @@ async function createContractInvoices(
         invoice_number: buildDueInvoiceNumber(contract.id, period.periodStart),
         contract_id: contract.id,
         unit_id: contract.unit_id,
-        tenant_id: null,
+        tenant_id: contract.tenant_id,
         period_start: period.periodStart,
         period_end: period.periodEnd,
         amount: period.amount,
@@ -109,52 +109,69 @@ async function syncContractTenant(
   tenantName: string | null | undefined,
   tenantPhone: string | null | undefined,
   tenantEmail: string | null | undefined,
+  tenantNationalId: string | null | undefined,
   ctx: LogContext
-): Promise<string | null> {
-  const name = tenantName?.trim() ?? '';
-
-  if (!name) {
-    await unitsRepository.update(contract.unit_id, { tenant_id: null }, ctx);
-    return null;
+): Promise<ServiceResult<string>> {
+  const tenantValidation = validationService.validateTenant({
+    full_name: tenantName,
+    phone: tenantPhone,
+    email: tenantEmail,
+    national_id: tenantNationalId,
+  });
+  if (!tenantValidation.valid || !tenantValidation.data) {
+    return { success: false, error: tenantValidation.errors.join(', '), errorCode: 'VALIDATION' };
   }
 
-  if (contract.tenant_id) {
-    await tenantsRepository.update(contract.tenant_id, {
-      full_name: name,
-      phone: tenantPhone?.trim() || null,
-      email: tenantEmail?.trim() || null,
-    }, ctx);
-    await unitsRepository.update(contract.unit_id, { tenant_id: contract.tenant_id }, ctx);
-    return contract.tenant_id;
-  }
+  const payload = tenantValidation.data;
 
-  const tenant = await tenantsRepository.create({
-    full_name: name,
-    phone: tenantPhone?.trim() || null,
-    email: tenantEmail?.trim() || null,
-  }, ctx);
-  await unitsRepository.update(contract.unit_id, { tenant_id: tenant.id }, ctx);
-  return tenant.id;
+  try {
+    if (contract.tenant_id) {
+      await tenantsRepository.update(contract.tenant_id, payload, ctx);
+      await unitsRepository.update(contract.unit_id, { tenant_id: contract.tenant_id }, ctx);
+      return { success: true, data: contract.tenant_id };
+    }
+
+    const tenant = await tenantsRepository.create(payload, ctx);
+    await unitsRepository.update(contract.unit_id, { tenant_id: tenant.id }, ctx);
+    return { success: true, data: tenant.id };
+  } catch (error) {
+    if (isUniqueViolation(error)) {
+      return { success: false, error: 'duplicateNationalId', errorCode: 'DUPLICATE_NATIONAL_ID' };
+    }
+    throw error;
+  }
 }
 
 export const contractService = {
   async list(auth: AuthContext, ctx: LogContext) {
+    await this.completeExpired(auth, ctx);
     return contractsRepository.findAll(ctx);
+  },
+
+  async completeExpired(auth: AuthContext, ctx: LogContext) {
+    if (!auth.isAdminEditor) return;
+    const active = await contractsRepository.findActive(ctx);
+    const today = new Date().toISOString().slice(0, 10);
+    const expiredIds = active
+      .filter((contract) => contract.end_date < today)
+      .map((contract) => contract.id);
+    await contractsRepository.markCompleted(expiredIds, ctx);
   },
 
   async create(
     auth: AuthContext,
     input: {
       unit_id: string;
-      contract_number?: string | null;
+      contract_number: string;
       start_date: string;
       end_date: string;
       total_amount: number;
       payment_cycle: PaymentCycle;
       notes?: string | null;
-      tenant_name?: string | null;
+      tenant_name: string;
       tenant_phone?: string | null;
       tenant_email?: string | null;
+      tenant_national_id?: string | null;
       paid_through_date?: string | null;
       opening_paid_amount?: number | null;
     },
@@ -167,6 +184,7 @@ export const contractService = {
         tenant_name,
         tenant_phone,
         tenant_email,
+        tenant_national_id,
         paid_through_date,
         opening_paid_amount,
         ...contractInput
@@ -176,8 +194,21 @@ export const contractService = {
         opening_paid_amount: opening_paid_amount ?? null,
       };
 
-      const validation = validationService.validateContract(contractInput);
+      const validation = validationService.validateContract({
+        ...contractInput,
+        contract_number: String(contractInput.contract_number ?? '').trim(),
+      });
       if (!validation.valid) return { success: false, error: validation.errors.join(', '), errorCode: 'VALIDATION' };
+
+      const tenantValidation = validationService.validateTenant({
+        full_name: tenant_name,
+        phone: tenant_phone,
+        email: tenant_email,
+        national_id: tenant_national_id,
+      });
+      if (!tenantValidation.valid || !tenantValidation.data) {
+        return { success: false, error: tenantValidation.errors.join(', '), errorCode: 'VALIDATION' };
+      }
 
       const openingErrors = validateContractOpeningBalance(contractInput, openingBalance);
       if (openingErrors.length > 0) {
@@ -197,24 +228,27 @@ export const contractService = {
       const active = await contractsRepository.findActiveByUnitId(input.unit_id, ctx);
       if (active) return { success: false, error: 'activeContractExists', errorCode: 'ACTIVE_CONTRACT_EXISTS' };
 
-      // Create tenant if name provided
-      let tenantId: string | null = null;
-      if (tenant_name?.trim()) {
-        const tenant = await tenantsRepository.create({
-          full_name: tenant_name.trim(),
-          phone: tenant_phone?.trim() || null,
-          email: tenant_email?.trim() || null,
-        }, ctx);
+      let tenantId: string;
+      try {
+        const tenant = await tenantsRepository.create(tenantValidation.data, ctx);
         tenantId = tenant.id;
         await unitsRepository.update(input.unit_id, { tenant_id: tenantId }, ctx);
+      } catch (error) {
+        if (isUniqueViolation(error)) {
+          return { success: false, error: 'duplicateNationalId', errorCode: 'DUPLICATE_NATIONAL_ID' };
+        }
+        throw error;
       }
 
       let contract: Contract;
       try {
-        contract = await contractsRepository.create({ ...contractInput, tenant_id: tenantId }, ctx);
+        contract = await contractsRepository.create({
+          ...contractInput,
+          contract_number: String(contractInput.contract_number).trim(),
+          tenant_id: tenantId,
+        }, ctx);
       } catch (error) {
         if (isUniqueViolation(error)) {
-          // Could be active contract index OR contract_number unique constraint
           const active2 = await contractsRepository.findActiveByUnitId(input.unit_id, ctx);
           if (active2) return { success: false, error: 'activeContractExists', errorCode: 'ACTIVE_CONTRACT_EXISTS' };
           return { success: false, error: 'duplicateContractNumber', errorCode: 'DUPLICATE_CONTRACT_NUMBER' };
@@ -234,28 +268,39 @@ export const contractService = {
     auth: AuthContext,
     id: string,
     input: {
-      contract_number?: string | null;
+      contract_number: string;
       start_date: string;
       end_date: string;
       total_amount: number;
       payment_cycle: PaymentCycle;
       notes?: string | null;
-      tenant_name?: string | null;
+      tenant_name: string;
       tenant_phone?: string | null;
       tenant_email?: string | null;
+      tenant_national_id?: string | null;
     },
     ctx: LogContext
   ): Promise<ServiceResult<Contract>> {
     if (!auth.isAdminEditor) return { success: false, error: 'Unauthorized', errorCode: 'FORBIDDEN' };
 
     return withSpan('contractService.update', { ...ctx, service: 'contract', user_id: auth.userId }, async () => {
-      const { tenant_name, tenant_phone, tenant_email, ...contractInput } = input;
+      const {
+        tenant_name,
+        tenant_phone,
+        tenant_email,
+        tenant_national_id,
+        ...contractInput
+      } = input;
 
       const contract = await contractsRepository.findById(id, ctx);
       if (!contract) return { success: false, error: 'contractNotFound', errorCode: 'NOT_FOUND' };
       if (contract.status !== 'active') return { success: false, error: 'contractNotActive', errorCode: 'VALIDATION' };
 
-      const validation = validationService.validateContract({ ...contractInput, unit_id: contract.unit_id });
+      const validation = validationService.validateContract({
+        ...contractInput,
+        unit_id: contract.unit_id,
+        contract_number: String(contractInput.contract_number ?? '').trim(),
+      });
       if (!validation.valid) return { success: false, error: validation.errors.join(', '), errorCode: 'VALIDATION' };
 
       const invoices = await invoicesRepository.findByContractId(id, ctx);
@@ -265,13 +310,24 @@ export const contractService = {
         return { success: false, error: 'contractHasFinancialActivity', errorCode: 'VALIDATION' };
       }
 
-      const tenantId = await syncContractTenant(contract, tenant_name, tenant_phone, tenant_email, ctx);
+      const tenantResult = await syncContractTenant(
+        contract,
+        tenant_name,
+        tenant_phone,
+        tenant_email,
+        tenant_national_id,
+        ctx,
+      );
+      if (!tenantResult.success || !tenantResult.data) {
+        return { success: false, error: tenantResult.error, errorCode: tenantResult.errorCode };
+      }
 
       let updated: Contract;
       try {
         updated = await contractsRepository.update(id, {
           ...contractInput,
-          tenant_id: tenantId,
+          contract_number: String(contractInput.contract_number).trim(),
+          tenant_id: tenantResult.data,
         }, ctx);
       } catch (error) {
         if (isUniqueViolation(error)) {

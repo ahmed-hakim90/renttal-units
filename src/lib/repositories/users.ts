@@ -29,6 +29,7 @@ export const usersRepository = {
     email: string;
     full_name: string;
     role: UserRole;
+    must_change_password?: boolean;
   }, ctx: LogContext): Promise<Profile> {
     const supabase = await createClient();
     const { data, error } = await supabase

@@ -104,7 +104,8 @@ export function UsersManager({ users, locale, canEdit }: { users: Profile[]; loc
         <form onSubmit={handleCreateUser} className="space-y-4">
           <Input name="full_name" label={t('fullName')} required />
           <Input name="email" type="email" label={t('email')} required />
-          <Input name="temporary_password" type="password" label={t('temporaryPassword')} required minLength={8} />
+          <Input name="temporary_password" type="password" label={t('temporaryPassword')} required minLength={12} />
+          <p className="text-xs text-muted-foreground">{t('temporaryPasswordHint')}</p>
           <div>
             <label className="text-sm font-medium">{t('role')}</label>
             <select name="role" defaultValue="viewer" className="mt-1.5 flex h-10 w-full rounded-xl border border-border bg-card px-3 text-sm">
