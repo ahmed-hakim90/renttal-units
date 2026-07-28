@@ -1,5 +1,5 @@
 import type { InvoiceStatus } from '@/types/database';
-import { computeInvoiceStatus } from '@/lib/services/invoice-service';
+import { computeInvoiceStatus } from '@/lib/rental/invoice-status';
 import type { ContractPaymentPeriod } from '@/lib/rental/calculations';
 
 export interface ContractOpeningBalanceInput {

@@ -5,21 +5,9 @@ import { validationService } from './validation-service';
 import { withSpan, type LogContext } from '@/lib/observability';
 import { unitsRepository } from '@/lib/repositories/units';
 import { rentalService } from './rental-service';
+import { computeInvoiceStatus } from '@/lib/rental/invoice-status';
 
-export function computeInvoiceStatus(amount: number, paidAmount: number, dueDate: string, currentStatus: InvoiceStatus): InvoiceStatus {
-  if (paidAmount >= amount) return 'fully_paid';
-  if (paidAmount > 0) {
-    const today = new Date().toISOString().split('T')[0];
-    if (dueDate < today) return 'overdue';
-    return 'partially_paid';
-  }
-  if (currentStatus === 'invoice_issued') {
-    const today = new Date().toISOString().split('T')[0];
-    if (dueDate < today) return 'overdue';
-    return 'invoice_issued';
-  }
-  return currentStatus;
-}
+export { computeInvoiceStatus } from '@/lib/rental/invoice-status';
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;
