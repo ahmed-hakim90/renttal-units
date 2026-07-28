@@ -1,0 +1,778 @@
+{"kind":"deck","id":"pr/ulsftm","name":"Deck"}
+{"kind":"layout","layoutId":"6cb4ce27-3774-4b1b-ac8f-080a5543a5e4","name":"Master","type":"master"}
+{"kind":"layout","layoutId":"0657d435-afb2-40a9-8ff8-b42a14ff2cfa","name":"Title Slide","type":"title"}
+{"kind":"slide","id":"sl/3oytw4","slide":1,"title":"وحدات الإيجار","textShapes":49}
+{"kind":"textbox","id":"sh/e9kvut8z","slide":1,"text":"وحدات الإيجار","textPreview":"وحدات الإيجار","textChars":13,"textLines":1,"bbox":[70,45,1050,54]}
+{"kind":"textbox","id":"sh/lwbu587a","slide":1,"text":"عرض تسليم يوضح شاشات النظام وكل إجراء يستخدمه فريق الشركة يومياً.","textPreview":"عرض تسليم يوضح شاشات النظام وكل إجراء يستخدمه فريق الشركة يومياً.","textChars":65,"textLines":1,"bbox":[70,118,1050,34]}
+{"kind":"shape","id":"sh/0b2dw3q5","slide":1,"bbox":[70,150,620,430]}
+{"kind":"shape","id":"sh/r6tcze98","slide":1,"bbox":[535,150,155,430]}
+{"kind":"shape","id":"sh/q5kbq98n","slide":1,"bbox":[549,168,30,30]}
+{"kind":"textbox","id":"sh/d8bu1ore","slide":1,"text":"م","textPreview":"م","textChars":1,"textLines":1,"bbox":[549,173,30,20]}
+{"kind":"textbox","id":"sh/c72dsjqt","slide":1,"text":"وحدات الإيجار","textPreview":"وحدات الإيجار","textChars":13,"textLines":1,"bbox":[585,170,88,24]}
+{"kind":"shape","id":"sh/v2dcbips","slide":1,"bbox":[547,220,131,24]}
+{"kind":"textbox","id":"sh/a14v2d87","slide":1,"text":"لوحة التحكم","textPreview":"لوحة التحكم","textChars":11,"textLines":1,"bbox":[557,224,111,16]}
+{"kind":"textbox","id":"sh/gfi5kbmp","slide":1,"text":"المواقع","textPreview":"المواقع","textChars":7,"textLines":1,"bbox":[557,254,111,16]}
+{"kind":"textbox","id":"sh/1gr6dgna","slide":1,"text":"الوحدات","textPreview":"الوحدات","textChars":7,"textLines":1,"bbox":[557,284,111,16]}
+{"kind":"textbox","id":"sh/ed0nil4j","slide":1,"text":"العقود","textPreview":"العقود","textChars":6,"textLines":1,"bbox":[557,314,111,16]}
+{"kind":"textbox","id":"sh/fe9ob654","slide":1,"text":"مستحق الآن","textPreview":"مستحق الآن","textChars":10,"textLines":1,"bbox":[557,344,111,16]}
+{"kind":"textbox","id":"sh/sbi5gbmd","slide":1,"text":"الفواتير","textPreview":"الفواتير","textChars":8,"textLines":1,"bbox":[557,374,111,16]}
+{"kind":"textbox","id":"sh/tcrmpgny","slide":1,"text":"المدفوعات","textPreview":"المدفوعات","textChars":9,"textLines":1,"bbox":[557,404,111,16]}
+{"kind":"textbox","id":"sh/6pgne14n","slide":1,"text":"التقارير","textPreview":"التقارير","textChars":8,"textLines":1,"bbox":[557,434,111,16]}
+{"kind":"textbox","id":"sh/rqp4n65s","slide":1,"text":"الاستيراد","textPreview":"الاستيراد","textChars":9,"textLines":1,"bbox":[557,464,111,16]}
+{"kind":"textbox","id":"sh/4ny5crmh","slide":1,"text":"المستخدمون","textPreview":"المستخدمون","textChars":10,"textLines":1,"bbox":[557,494,111,16]}
+{"kind":"textbox","id":"sh/5o7mlwn2","slide":1,"text":"لوحة التحكم","textPreview":"لوحة التحكم","textChars":11,"textLines":1,"bbox":[92,176,260,32]}
+{"kind":"textbox","id":"sh/l8futobe","slide":1,"text":"متابعة وإدارة البيانات اليومية","textPreview":"متابعة وإدارة البيانات اليومية","textChars":30,"textLines":1,"bbox":[92,210,260,20]}
+{"kind":"shape","id":"sh/k76t0jut","slide":1,"bbox":[398,178,110,34]}
+{"kind":"textbox","id":"sh/z6xcryto","slide":1,"text":"عرض التفاصيل","textPreview":"عرض التفاصيل","textChars":12,"textLines":1,"bbox":[403,187,100,16]}
+{"kind":"shape","id":"sh/y5obytc3","slide":1,"bbox":[92,250,421,34]}
+{"kind":"textbox","id":"sh/x4fupobi","slide":1,"text":"بحث أو تصفية...","textPreview":"بحث أو تصفية...","textChars":15,"textLines":1,"bbox":[104,258,397,16]}
+{"kind":"shape","id":"sh/c36twjux","slide":1,"bbox":[92,300,133.67,72]}
+{"kind":"textbox","id":"sh/b2xcnetc","slide":1,"text":"مستحق الآن","textPreview":"مستحق الآن","textChars":10,"textLines":1,"bbox":[102,313,113.67,16]}
+{"kind":"textbox","id":"sh/a14bu9cr","slide":1,"text":"18","textPreview":"18","textChars":2,"textLines":1,"bbox":[102,335,113.67,24]}
+{"kind":"shape","id":"sh/h0zu18bm","slide":1,"bbox":[235.67,300,133.67,72]}
+{"kind":"textbox","id":"sh/wzqd8nu1","slide":1,"text":"في انتظار الدفع","textPreview":"في انتظار الدفع","textChars":15,"textLines":1,"bbox":[245.67,313,113.67,16]}
+{"kind":"textbox","id":"sh/e5krm5sj","slide":1,"text":"42","textPreview":"42","textChars":2,"textLines":1,"bbox":[245.67,335,113.67,24]}
+{"kind":"shape","id":"sh/f6t8va94","slide":1,"bbox":[379.33,300,133.67,72]}
+{"kind":"textbox","id":"sh/g729ofap","slide":1,"text":"مدفوع جزئياً","textPreview":"مدفوع جزئياً","textChars":12,"textLines":1,"bbox":[389.33,313,113.67,16]}
+{"kind":"textbox","id":"sh/18baxkra","slide":1,"text":"9","textPreview":"9","textChars":1,"textLines":1,"bbox":[389.33,335,113.67,24]}
+{"kind":"shape","id":"sh/6h0ri5sn","slide":1,"bbox":[92,396,421,145]}
+{"kind":"shape","id":"sh/ri98ra98","slide":1,"bbox":[92,396,421,34]}
+{"kind":"textbox","id":"sh/s329kfat","slide":1,"text":"العنصر","textPreview":"العنصر","textChars":6,"textLines":1,"bbox":[363,405,110,16]}
+{"kind":"textbox","id":"sh/t4bqt0ry","slide":1,"text":"التفاصيل","textPreview":"التفاصيل","textChars":8,"textLines":1,"bbox":[213,405,110,16]}
+{"kind":"textbox","id":"sh/ad4rupsr","slide":1,"text":"الحالة","textPreview":"الحالة","textChars":6,"textLines":1,"bbox":[122,405,110,16]}
+{"kind":"textbox","id":"sh/beds3u9c","slide":1,"text":"مستحق الآن","textPreview":"مستحق الآن","textChars":10,"textLines":1,"bbox":[353,435,120,16]}
+{"kind":"textbox","id":"sh/vqtoz6ds","slide":1,"text":"18","textPreview":"18","textChars":2,"textLines":1,"bbox":[208,435,120,16]}
+{"kind":"shape","id":"sh/a5knq1w7","slide":1,"bbox":[116,432,88,22]}
+{"kind":"textbox","id":"sh/xsb61wvy","slide":1,"text":"إجراء متاح","textPreview":"إجراء متاح","textChars":10,"textLines":1,"bbox":[121,437,78,12]}
+{"kind":"textbox","id":"sh/wr25sred","slide":1,"text":"في انتظار الدفع","textPreview":"في انتظار الدفع","textChars":15,"textLines":1,"bbox":[353,469,120,16]}
+{"kind":"textbox","id":"sh/n294vmdg","slide":1,"text":"42","textPreview":"42","textChars":2,"textLines":1,"bbox":[208,469,120,16]}
+{"kind":"shape","id":"sh/m10nmhwb","slide":1,"bbox":[116,466,88,22]}
+{"kind":"textbox","id":"sh/94b6xwvm","slide":1,"text":"متابعة","textPreview":"متابعة","textChars":6,"textLines":1,"bbox":[121,471,78,12]}
+{"kind":"textbox","id":"sh/83i5ore1","slide":1,"text":"مدفوع جزئياً","textPreview":"مدفوع جزئياً","textChars":12,"textLines":1,"bbox":[353,503,120,16]}
+{"kind":"textbox","id":"sh/7ydo7qd0","slide":1,"text":"9","textPreview":"9","textChars":1,"textLines":1,"bbox":[208,503,120,16]}
+{"kind":"shape","id":"sh/6x4nylcf","slide":1,"bbox":[116,500,88,22]}
+{"kind":"textbox","id":"sh/o3elsnux","slide":1,"text":"متابعة","textPreview":"متابعة","textChars":6,"textLines":1,"bbox":[121,505,78,12]}
+{"kind":"textbox","id":"sh/p4n218bi","slide":1,"text":"مدفوع بالكامل","textPreview":"مدفوع بالكامل","textChars":13,"textLines":1,"bbox":[353,537,120,16]}
+{"kind":"textbox","id":"sh/21w3qdcr","slide":1,"text":"128","textPreview":"128","textChars":3,"textLines":1,"bbox":[208,537,120,16]}
+{"kind":"shape","id":"sh/325kzitc","slide":1,"bbox":[116,534,88,22]}
+{"kind":"textbox","id":"sh/c7ylwnut","slide":1,"text":"متابعة","textPreview":"متابعة","textChars":6,"textLines":1,"bbox":[121,539,78,12]}
+{"kind":"textbox","id":"sh/d8725sbe","slide":1,"text":"الأكشنز في الشاشة","textPreview":"الأكشنز في الشاشة","textChars":17,"textLines":1,"bbox":[735,170,400,32]}
+{"kind":"shape","id":"sh/q5g3udc3","slide":1,"bbox":[934,215,185,48]}
+{"kind":"textbox","id":"sh/b6pk3it8","slide":1,"text":"لوحة التحكم","textPreview":"لوحة التحكم","textChars":11,"textLines":1,"bbox":[944,228,165,22]}
+{"kind":"shape","id":"sh/0byl07a5","slide":1,"bbox":[735,215,185,48]}
+{"kind":"textbox","id":"sh/lw729sbq","slide":1,"text":"المواقع","textPreview":"المواقع","textChars":7,"textLines":1,"bbox":[745,228,165,22]}
+{"kind":"shape","id":"sh/9sn2ds3u","slide":1,"bbox":[934,275,185,48]}
+{"kind":"textbox","id":"sh/8rulkn29","slide":1,"text":"الوحدات","textPreview":"الوحدات","textChars":7,"textLines":1,"bbox":[944,288,165,22]}
+{"kind":"shape","id":"sh/7qlkbilo","slide":1,"bbox":[735,275,185,48]}
+{"kind":"textbox","id":"sh/mpcjixk3","slide":1,"text":"العقود","textPreview":"العقود","textChars":6,"textLines":1,"bbox":[745,288,165,22]}
+{"kind":"shape","id":"sh/hwn2hc3q","slide":1,"bbox":[934,335,185,48]}
+{"kind":"textbox","id":"sh/wvelo725","slide":1,"text":"الفواتير","textPreview":"الفواتير","textChars":8,"textLines":1,"bbox":[944,348,165,22]}
+{"kind":"shape","id":"sh/vu5kf2lk","slide":1,"bbox":[735,335,185,48]}
+{"kind":"textbox","id":"sh/utw3mxkf","slide":1,"text":"المدفوعات","textPreview":"المدفوعات","textChars":9,"textLines":1,"bbox":[745,348,165,22]}
+{"kind":"shape","id":"sh/x032583m","slide":1,"bbox":[934,395,185,48]}
+{"kind":"textbox","id":"sh/cza1c3m1","slide":1,"text":"التقارير","textPreview":"التقارير","textChars":8,"textLines":1,"bbox":[944,408,165,22]}
+{"kind":"shape","id":"sh/2torqpwn","slide":1,"bbox":[735,395,185,48]}
+{"kind":"textbox","id":"sh/3ux8zux8","slide":1,"text":"الصلاحيات","textPreview":"الصلاحيات","textChars":9,"textLines":1,"bbox":[745,408,165,22]}
+{"kind":"textbox","id":"sh/ovq9sfet","slide":1,"text":"وحدات الإيجار | 1","textPreview":"وحدات الإيجار | 1","textChars":17,"textLines":1,"bbox":[70,670,180,22]}
+{"kind":"notes","id":"nt/3oytw4","slide":1,"text":"عرض تسليم غير تقني يشرح الشاشات والإجراءات اليومية.\n\n[Sources]\nsrc/messages/ar/*.json: أسماء الشاشات والأزرار والحالات المستخدمة في واجهة النظام.\nREADME.md: نطاق النظام العام وصفحات التشغيل."}
+{"kind":"slide","id":"sl/wc32od","slide":2,"title":"لوحة التحكم","textShapes":46}
+{"kind":"textbox","id":"sh/qxc3qt8f","slide":2,"text":"لوحة التحكم","textPreview":"لوحة التحكم","textChars":11,"textLines":1,"bbox":[70,45,1050,54]}
+{"kind":"textbox","id":"sh/d0n2l87q","slide":2,"text":"الشاشة اللي تبدأ منها المتابعة اليومية.","textPreview":"الشاشة اللي تبدأ منها المتابعة اليومية.","textChars":39,"textLines":1,"bbox":[70,98,1050,34]}
+{"kind":"shape","id":"sh/szels3q5","slide":2,"bbox":[70,150,620,430]}
+{"kind":"shape","id":"sh/f25knypw","slide":2,"bbox":[535,150,155,430]}
+{"kind":"shape","id":"sh/e1w3ud8b","slide":2,"bbox":[549,168,30,30]}
+{"kind":"textbox","id":"sh/14n2p872","slide":2,"text":"م","textPreview":"م","textChars":1,"textLines":1,"bbox":[549,173,30,20]}
+{"kind":"textbox","id":"sh/03elw3qh","slide":2,"text":"وحدات الإيجار","textPreview":"وحدات الإيجار","textChars":13,"textLines":1,"bbox":[585,170,88,24]}
+{"kind":"shape","id":"sh/nqpkrips","slide":2,"bbox":[547,220,131,24]}
+{"kind":"textbox","id":"sh/2pw3yd8n","slide":2,"text":"لوحة التحكم","textPreview":"لوحة التحكم","textChars":11,"textLines":1,"bbox":[557,224,111,16]}
+{"kind":"textbox","id":"sh/wve9gre5","slide":2,"text":"المواقع","textPreview":"المواقع","textChars":7,"textLines":1,"bbox":[557,254,111,16]}
+{"kind":"textbox","id":"sh/xwnqpwvq","slide":2,"text":"الوحدات","textPreview":"الوحدات","textChars":7,"textLines":1,"bbox":[557,284,111,16]}
+{"kind":"textbox","id":"sh/atcrehwz","slide":2,"text":"العقود","textPreview":"العقود","textChars":6,"textLines":1,"bbox":[557,314,111,16]}
+{"kind":"textbox","id":"sh/vu58nmxk","slide":2,"text":"مستحق الآن","textPreview":"مستحق الآن","textChars":10,"textLines":1,"bbox":[557,344,111,16]}
+{"kind":"textbox","id":"sh/kje9kreh","slide":2,"text":"الفواتير","textPreview":"الفواتير","textChars":8,"textLines":1,"bbox":[557,374,111,16]}
+{"kind":"textbox","id":"sh/5knqtwv2","slide":2,"text":"المدفوعات","textPreview":"المدفوعات","textChars":9,"textLines":1,"bbox":[557,404,111,16]}
+{"kind":"textbox","id":"sh/ixwrihwb","slide":2,"text":"التقارير","textPreview":"التقارير","textChars":8,"textLines":1,"bbox":[557,434,111,16]}
+{"kind":"textbox","id":"sh/ji58rmdw","slide":2,"text":"الاستيراد","textPreview":"الاستيراد","textChars":9,"textLines":1,"bbox":[557,464,111,16]}
+{"kind":"textbox","id":"sh/sny9obed","slide":2,"text":"المستخدمون","textPreview":"المستخدمون","textChars":10,"textLines":1,"bbox":[557,494,111,16]}
+{"kind":"textbox","id":"sh/to7qxgvy","slide":2,"text":"لوحة التحكم","textPreview":"لوحة التحكم","textChars":11,"textLines":1,"bbox":[92,176,260,32]}
+{"kind":"textbox","id":"sh/143qhwn2","slide":2,"text":"متابعة وإدارة البيانات اليومية","textPreview":"متابعة وإدارة البيانات اليومية","textChars":30,"textLines":1,"bbox":[92,210,260,20]}
+{"kind":"shape","id":"sh/g3u98r6h","slide":2,"bbox":[398,178,110,34]}
+{"kind":"textbox","id":"sh/fil8f65w","slide":2,"text":"عرض التفاصيل","textPreview":"عرض التفاصيل","textChars":12,"textLines":1,"bbox":[403,187,100,16]}
+{"kind":"shape","id":"sh/ehcr61ob","slide":2,"bbox":[92,250,421,34]}
+{"kind":"textbox","id":"sh/p8nqlgne","slide":2,"text":"بحث أو تصفية...","textPreview":"بحث أو تصفية...","textChars":15,"textLines":1,"bbox":[104,258,397,16]}
+{"kind":"shape","id":"sh/o7u9cb6t","slide":2,"bbox":[92,300,133.67,72]}
+{"kind":"textbox","id":"sh/36l8j658","slide":2,"text":"مستحق الآن","textPreview":"مستحق الآن","textChars":10,"textLines":1,"bbox":[102,313,113.67,16]}
+{"kind":"textbox","id":"sh/25cra1on","slide":2,"text":"18","textPreview":"18","textChars":2,"textLines":1,"bbox":[102,335,113.67,24]}
+{"kind":"shape","id":"sh/5cjq9cnu","slide":2,"bbox":[235.67,300,133.67,72]}
+{"kind":"textbox","id":"sh/4bap0769","slide":2,"text":"في انتظار الدفع","textPreview":"في انتظار الدفع","textChars":15,"textLines":1,"bbox":[245.67,313,113.67,16]}
+{"kind":"textbox","id":"sh/uh8nad47","slide":2,"text":"42","textPreview":"42","textChars":2,"textLines":1,"bbox":[245.67,335,113.67,24]}
+{"kind":"shape","id":"sh/vihojils","slide":2,"bbox":[379.33,300,133.67,72]}
+{"kind":"textbox","id":"sh/wjq5cnmd","slide":2,"text":"مدفوع جزئياً","textPreview":"مدفوع جزئياً","textChars":12,"textLines":1,"bbox":[389.33,313,113.67,16]}
+{"kind":"textbox","id":"sh/hkz6ls3y","slide":2,"text":"9","textPreview":"9","textChars":1,"textLines":1,"bbox":[389.33,335,113.67,24]}
+{"kind":"shape","id":"sh/il8nex43","slide":2,"bbox":[92,396,421,145]}
+{"kind":"shape","id":"sh/jmhon2lo","slide":2,"bbox":[92,396,421,34]}
+{"kind":"textbox","id":"sh/4nq5g7m9","slide":2,"text":"العنصر","textPreview":"العنصر","textChars":6,"textLines":1,"bbox":[363,405,110,16]}
+{"kind":"textbox","id":"sh/5oz6ps3u","slide":2,"text":"التفاصيل","textPreview":"التفاصيل","textChars":8,"textLines":1,"bbox":[213,405,110,16]}
+{"kind":"textbox","id":"sh/yp4n2t4z","slide":2,"text":"الحالة","textPreview":"الحالة","textChars":6,"textLines":1,"bbox":[122,405,110,16]}
+{"kind":"textbox","id":"sh/zqx4bylk","slide":2,"text":"مستحق الآن","textPreview":"مستحق الآن","textChars":10,"textLines":1,"bbox":[353,435,120,16]}
+{"kind":"textbox","id":"sh/fa5cjqtc","slide":2,"text":"18","textPreview":"18","textChars":2,"textLines":1,"bbox":[208,435,120,16]}
+{"kind":"shape","id":"sh/e9wbqlsr","slide":2,"bbox":[116,432,88,22]}
+{"kind":"textbox","id":"sh/1wnul0b2","slide":2,"text":"إجراء متاح","textPreview":"إجراء متاح","textChars":10,"textLines":1,"bbox":[121,437,78,12]}
+{"kind":"textbox","id":"sh/gvedsvah","slide":2,"text":"في انتظار الدفع","textPreview":"في انتظار الدفع","textChars":15,"textLines":1,"bbox":[353,469,120,16]}
+{"kind":"textbox","id":"sh/3y5cnat8","slide":2,"text":"42","textPreview":"42","textChars":2,"textLines":1,"bbox":[208,469,120,16]}
+{"kind":"shape","id":"sh/2xwvu5sn","slide":2,"bbox":[116,466,88,22]}
+{"kind":"textbox","id":"sh/p07upkbe","slide":2,"text":"متابعة","textPreview":"متابعة","textChars":6,"textLines":1,"bbox":[121,471,78,12]}
+{"kind":"textbox","id":"sh/ozedwfat","slide":2,"text":"مدفوع جزئياً","textPreview":"مدفوع جزئياً","textChars":12,"textLines":1,"bbox":[353,503,120,16]}
+{"kind":"textbox","id":"sh/b2pcrat4","slide":2,"text":"9","textPreview":"9","textChars":1,"textLines":1,"bbox":[208,503,120,16]}
+{"kind":"shape","id":"sh/q1gvy5sz","slide":2,"bbox":[116,500,88,22]}
+{"kind":"textbox","id":"sh/87it8fqx","slide":2,"text":"متابعة","textPreview":"متابعة","textChars":6,"textLines":1,"bbox":[121,505,78,12]}
+{"kind":"textbox","id":"sh/9sruhk7i","slide":2,"text":"مدفوع بالكامل","textPreview":"مدفوع بالكامل","textChars":13,"textLines":1,"bbox":[353,537,120,16]}
+{"kind":"textbox","id":"sh/m5gb6p8r","slide":2,"text":"128","textPreview":"128","textChars":3,"textLines":1,"bbox":[208,537,120,16]}
+{"kind":"shape","id":"sh/76pcfupc","slide":2,"bbox":[116,534,88,22]}
+{"kind":"textbox","id":"sh/03yt4fq1","slide":2,"text":"متابعة","textPreview":"متابعة","textChars":6,"textLines":1,"bbox":[121,539,78,12]}
+{"kind":"textbox","id":"sh/l47udk7m","slide":2,"text":"الأكشنز في الشاشة","textPreview":"الأكشنز في الشاشة","textChars":17,"textLines":1,"bbox":[735,170,400,32]}
+{"kind":"shape","id":"sh/y1gb258v","slide":2,"bbox":[934,215,185,48]}
+{"kind":"textbox","id":"sh/z2psbapg","slide":2,"text":"عرض المستحق الآن","textPreview":"عرض المستحق الآن","textChars":16,"textLines":1,"bbox":[944,228,165,22]}
+{"kind":"shape","id":"sh/czet0vqp","slide":2,"bbox":[735,215,185,48]}
+{"kind":"textbox","id":"sh/d07a907a","slide":2,"text":"متابعة الفواتير المنتظرة","textPreview":"متابعة الفواتير المنتظرة","textChars":24,"textLines":1,"bbox":[745,228,165,22]}
+{"kind":"shape","id":"sh/dwzqdwjy","slide":2,"bbox":[934,275,185,48]}
+{"kind":"textbox","id":"sh/sv694rit","slide":2,"text":"معرفة المدفوع جزئياً","textPreview":"معرفة المدفوع جزئياً","textChars":20,"textLines":1,"bbox":[944,288,165,22]}
+{"kind":"shape","id":"sh/rux8bm18","slide":2,"bbox":[735,275,185,48]}
+{"kind":"textbox","id":"sh/qtor2h0n","slide":2,"text":"فتح الفواتير المدفوعة","textPreview":"فتح الفواتير المدفوعة","textChars":21,"textLines":1,"bbox":[745,288,165,22]}
+{"kind":"shape","id":"sh/5sfq9cj2","slide":2,"bbox":[934,335,185,48]}
+{"kind":"textbox","id":"sh/4r690rih","slide":2,"text":"البحث عن وحدة أو فاتورة","textPreview":"البحث عن وحدة أو فاتورة","textChars":23,"textLines":1,"bbox":[944,348,165,22]}
+{"kind":"textbox","id":"sh/3qx87m1w","slide":2,"text":"وحدات الإيجار | 2","textPreview":"وحدات الإيجار | 2","textChars":17,"textLines":1,"bbox":[70,670,180,22]}
+{"kind":"notes","id":"nt/wc32od","slide":2,"text":"عرض تسليم غير تقني يشرح الشاشات والإجراءات اليومية.\n\n[Sources]\nsrc/messages/ar/*.json: أسماء الشاشات والأزرار والحالات المستخدمة في واجهة النظام.\nREADME.md: نطاق النظام العام وصفحات التشغيل."}
+{"kind":"slide","id":"sl/stiau4","slide":3,"title":"شاشة المواقع","textShapes":43}
+{"kind":"textbox","id":"sh/2d8f6dgj","slide":3,"text":"شاشة المواقع","textPreview":"شاشة المواقع","textChars":12,"textLines":1,"bbox":[70,45,1050,54]}
+{"kind":"textbox","id":"sh/pgzy18fu","slide":3,"text":"تنظيم العقارات حسب الموقع والمدينة والمنطقة.","textPreview":"تنظيم العقارات حسب الموقع والمدينة والمنطقة.","textChars":44,"textLines":1,"bbox":[70,98,1050,34]}
+{"kind":"shape","id":"sh/ofqx8ny9","slide":3,"bbox":[70,150,620,430]}
+{"kind":"shape","id":"sh/bihg3ix0","slide":3,"bbox":[535,150,155,430]}
+{"kind":"shape","id":"sh/qh8fadgf","slide":3,"bbox":[549,168,30,30]}
+{"kind":"textbox","id":"sh/dkjy5sf6","slide":3,"text":"م","textPreview":"م","textChars":1,"textLines":1,"bbox":[549,173,30,20]}
+{"kind":"textbox","id":"sh/cjqxcnyl","slide":3,"text":"وحدات الإيجار","textPreview":"وحدات الإيجار","textChars":13,"textLines":1,"bbox":[585,170,88,24]}
+{"kind":"textbox","id":"sh/rmxwryxw","slide":3,"text":"لوحة التحكم","textPreview":"لوحة التحكم","textChars":11,"textLines":1,"bbox":[557,224,111,16]}
+{"kind":"shape","id":"sh/6lofytgb","slide":3,"bbox":[547,250,131,24]}
+{"kind":"textbox","id":"sh/c3yl8v2p","slide":3,"text":"المواقع","textPreview":"المواقع","textChars":7,"textLines":1,"bbox":[557,254,111,16]}
+{"kind":"textbox","id":"sh/x4r210ju","slide":3,"text":"الوحدات","textPreview":"الوحدات","textChars":7,"textLines":1,"bbox":[557,284,111,16]}
+{"kind":"textbox","id":"sh/a1g365kj","slide":3,"text":"العقود","textPreview":"العقود","textChars":6,"textLines":1,"bbox":[557,314,111,16]}
+{"kind":"textbox","id":"sh/b2pkza14","slide":3,"text":"مستحق الآن","textPreview":"مستحق الآن","textChars":10,"textLines":1,"bbox":[557,344,111,16]}
+{"kind":"textbox","id":"sh/k7ilcf2l","slide":3,"text":"الفواتير","textPreview":"الفواتير","textChars":8,"textLines":1,"bbox":[557,374,111,16]}
+{"kind":"textbox","id":"sh/lsr25kj6","slide":3,"text":"المدفوعات","textPreview":"المدفوعات","textChars":9,"textLines":1,"bbox":[557,404,111,16]}
+{"kind":"textbox","id":"sh/y503a5kf","slide":3,"text":"التقارير","textPreview":"التقارير","textChars":8,"textLines":1,"bbox":[557,434,111,16]}
+{"kind":"textbox","id":"sh/z69k3a10","slide":3,"text":"الاستيراد","textPreview":"الاستيراد","textChars":9,"textLines":1,"bbox":[557,464,111,16]}
+{"kind":"textbox","id":"sh/0be10b2h","slide":3,"text":"المستخدمون","textPreview":"المستخدمون","textChars":10,"textLines":1,"bbox":[557,494,111,16]}
+{"kind":"textbox","id":"sh/1wn2tg32","slide":3,"text":"المواقع","textPreview":"المواقع","textChars":7,"textLines":1,"bbox":[92,176,260,32]}
+{"kind":"textbox","id":"sh/hgfah8re","slide":3,"text":"متابعة وإدارة البيانات اليومية","textPreview":"متابعة وإدارة البيانات اليومية","textChars":30,"textLines":1,"bbox":[92,210,260,20]}
+{"kind":"shape","id":"sh/gf698nqt","slide":3,"bbox":[398,178,110,34]}
+{"kind":"textbox","id":"sh/vedsfi98","slide":3,"text":"إضافة موقع","textPreview":"إضافة موقع","textChars":10,"textLines":1,"bbox":[403,187,100,16]}
+{"kind":"shape","id":"sh/ut4r6d83","slide":3,"bbox":[92,250,421,34]}
+{"kind":"textbox","id":"sh/5kfalsrq","slide":3,"text":"بحث أو تصفية...","textPreview":"بحث أو تصفية...","textChars":15,"textLines":1,"bbox":[104,258,397,16]}
+{"kind":"shape","id":"sh/4j69cnq5","slide":3,"bbox":[92,300,133.67,72]}
+{"kind":"textbox","id":"sh/3ixsji9k","slide":3,"text":"الرياض - العليا","textPreview":"الرياض - العليا","textChars":15,"textLines":1,"bbox":[102,313,113.67,16]}
+{"kind":"textbox","id":"sh/ihorad8z","slide":3,"text":"12 وحدة","textPreview":"12 وحدة","textChars":7,"textLines":1,"bbox":[102,335,113.67,24]}
+{"kind":"shape","id":"sh/dozapcrm","slide":3,"bbox":[235.67,300,133.67,72]}
+{"kind":"textbox","id":"sh/snq9g7q1","slide":3,"text":"جدة - السلامة","textPreview":"جدة - السلامة","textChars":13,"textLines":1,"bbox":[245.67,313,113.67,16]}
+{"kind":"textbox","id":"sh/at07apoj","slide":3,"text":"8 وحدات","textPreview":"8 وحدات","textChars":7,"textLines":1,"bbox":[245.67,335,113.67,24]}
+{"kind":"shape","id":"sh/bu9ojup4","slide":3,"bbox":[379.33,300,133.67,72]}
+{"kind":"textbox","id":"sh/wvipcz6p","slide":3,"text":"الدمام - الشاطئ","textPreview":"الدمام - الشاطئ","textChars":15,"textLines":1,"bbox":[389.33,313,113.67,16]}
+{"kind":"textbox","id":"sh/xwb6547a","slide":3,"text":"6 وحدات","textPreview":"6 وحدات","textChars":7,"textLines":1,"bbox":[389.33,335,113.67,24]}
+{"kind":"shape","id":"sh/yxk7e9ov","slide":3,"bbox":[92,396,421,145]}
+{"kind":"shape","id":"sh/jyto7ep0","slide":3,"bbox":[92,396,421,34]}
+{"kind":"textbox","id":"sh/kz2pgj6l","slide":3,"text":"العنصر","textPreview":"العنصر","textChars":6,"textLines":1,"bbox":[363,405,110,16]}
+{"kind":"textbox","id":"sh/lkb69o76","slide":3,"text":"التفاصيل","textPreview":"التفاصيل","textChars":8,"textLines":1,"bbox":[213,405,110,16]}
+{"kind":"textbox","id":"sh/6lk7i9or","slide":3,"text":"الحالة","textPreview":"الحالة","textChars":6,"textLines":1,"bbox":[122,405,110,16]}
+{"kind":"textbox","id":"sh/7mtobepc","slide":3,"text":"الرياض - العليا","textPreview":"الرياض - العليا","textChars":15,"textLines":1,"bbox":[353,435,120,16]}
+{"kind":"textbox","id":"sh/fipovehg","slide":3,"text":"12 وحدة","textPreview":"12 وحدة","textChars":7,"textLines":1,"bbox":[208,435,120,16]}
+{"kind":"shape","id":"sh/uhg729gv","slide":3,"bbox":[116,432,88,22]}
+{"kind":"textbox","id":"sh/h4r6xozm","slide":3,"text":"إجراء متاح","textPreview":"إجراء متاح","textChars":10,"textLines":1,"bbox":[121,437,78,12]}
+{"kind":"textbox","id":"sh/gjip4jy1","slide":3,"text":"جدة - السلامة","textPreview":"جدة - السلامة","textChars":13,"textLines":1,"bbox":[353,469,120,16]}
+{"kind":"textbox","id":"sh/369ozyhc","slide":3,"text":"8 وحدات","textPreview":"8 وحدات","textChars":7,"textLines":1,"bbox":[208,469,120,16]}
+{"kind":"shape","id":"sh/25076tg7","slide":3,"bbox":[116,466,88,22]}
+{"kind":"textbox","id":"sh/p8r61ozi","slide":3,"text":"متابعة","textPreview":"متابعة","textChars":6,"textLines":1,"bbox":[121,471,78,12]}
+{"kind":"textbox","id":"sh/47ip83yx","slide":3,"text":"الدمام - الشاطئ","textPreview":"الدمام - الشاطئ","textChars":15,"textLines":1,"bbox":[353,503,120,16]}
+{"kind":"textbox","id":"sh/ja5onuh8","slide":3,"text":"6 وحدات","textPreview":"6 وحدات","textChars":7,"textLines":1,"bbox":[208,503,120,16]}
+{"kind":"shape","id":"sh/i9wnupgn","slide":3,"bbox":[116,500,88,22]}
+{"kind":"textbox","id":"sh/o3ad8ba9","slide":3,"text":"متابعة","textPreview":"متابعة","textChars":6,"textLines":1,"bbox":[121,505,78,12]}
+{"kind":"textbox","id":"sh/p4juhwbu","slide":3,"text":"الأكشنز في الشاشة","textPreview":"الأكشنز في الشاشة","textChars":17,"textLines":1,"bbox":[735,170,400,32]}
+{"kind":"shape","id":"sh/2hsv61s3","slide":3,"bbox":[934,215,185,48]}
+{"kind":"textbox","id":"sh/ni1cf6to","slide":3,"text":"إضافة موقع","textPreview":"إضافة موقع","textChars":10,"textLines":1,"bbox":[944,228,165,22]}
+{"kind":"shape","id":"sh/0fat4rad","slide":3,"bbox":[735,215,185,48]}
+{"kind":"textbox","id":"sh/1gjudwby","slide":3,"text":"تعديل بيانات الموقع","textPreview":"تعديل بيانات الموقع","textChars":19,"textLines":1,"bbox":[745,228,165,22]}
+{"kind":"shape","id":"sh/ed8b2hs7","slide":3,"bbox":[934,275,185,48]}
+{"kind":"textbox","id":"sh/fehcbmts","slide":3,"text":"حذف الموقع إذا ما عليه وحدات","textPreview":"حذف الموقع إذا ما عليه وحدات","textChars":28,"textLines":1,"bbox":[944,288,165,22]}
+{"kind":"shape","id":"sh/kbudgvah","slide":3,"bbox":[735,275,185,48]}
+{"kind":"textbox","id":"sh/lc3upgb2","slide":3,"text":"عرض عدد الوحدات","textPreview":"عرض عدد الوحدات","textChars":15,"textLines":1,"bbox":[745,288,165,22]}
+{"kind":"shape","id":"sh/tszu9gj6","slide":3,"bbox":[934,335,185,48]}
+{"kind":"textbox","id":"sh/8rqd0b2l","slide":3,"text":"البحث والتصفية","textPreview":"البحث والتصفية","textChars":14,"textLines":1,"bbox":[944,348,165,22]}
+{"kind":"textbox","id":"sh/7qhc76l0","slide":3,"text":"وحدات الإيجار | 3","textPreview":"وحدات الإيجار | 3","textChars":17,"textLines":1,"bbox":[70,670,180,22]}
+{"kind":"notes","id":"nt/stiau4","slide":3,"text":"عرض تسليم غير تقني يشرح الشاشات والإجراءات اليومية.\n\n[Sources]\nsrc/messages/ar/*.json: أسماء الشاشات والأزرار والحالات المستخدمة في واجهة النظام.\nREADME.md: نطاق النظام العام وصفحات التشغيل."}
+{"kind":"slide","id":"sl/zt1c9e","slide":4,"title":"شاشة الوحدات","textShapes":44}
+{"kind":"textbox","id":"sh/ihs3a5kv","slide":4,"text":"شاشة الوحدات","textPreview":"شاشة الوحدات","textChars":12,"textLines":1,"bbox":[70,45,1050,54]}
+{"kind":"textbox","id":"sh/5kj25kj6","slide":4,"text":"إدارة كل وحدة إيجارية وحالتها وتفاصيلها.","textPreview":"إدارة كل وحدة إيجارية وحالتها وتفاصيلها.","textChars":40,"textLines":1,"bbox":[70,98,1050,34]}
+{"kind":"shape","id":"sh/kjalcf21","slide":4,"bbox":[70,150,620,430]}
+{"kind":"shape","id":"sh/vehkzq14","slide":4,"bbox":[535,150,155,430]}
+{"kind":"shape","id":"sh/ad8j65kj","slide":4,"bbox":[549,168,30,30]}
+{"kind":"textbox","id":"sh/xgj210ja","slide":4,"text":"م","textPreview":"م","textChars":1,"textLines":1,"bbox":[549,173,30,20]}
+{"kind":"textbox","id":"sh/wfa18v2p","slide":4,"text":"وحدات الإيجار","textPreview":"وحدات الإيجار","textChars":13,"textLines":1,"bbox":[585,170,88,24]}
+{"kind":"textbox","id":"sh/falkbu1o","slide":4,"text":"لوحة التحكم","textPreview":"لوحة التحكم","textChars":11,"textLines":1,"bbox":[557,224,111,16]}
+{"kind":"textbox","id":"sh/e9c3ipk3","slide":4,"text":"المواقع","textPreview":"المواقع","textChars":7,"textLines":1,"bbox":[557,254,111,16]}
+{"kind":"shape","id":"sh/s729cja1","slide":4,"bbox":[547,280,131,24]}
+{"kind":"textbox","id":"sh/t8ba5obm","slide":4,"text":"الوحدات","textPreview":"الوحدات","textChars":7,"textLines":1,"bbox":[557,284,111,16]}
+{"kind":"textbox","id":"sh/6lkra9sb","slide":4,"text":"العقود","textPreview":"العقود","textChars":6,"textLines":1,"bbox":[557,314,111,16]}
+{"kind":"textbox","id":"sh/7mts3etw","slide":4,"text":"مستحق الآن","textPreview":"مستحق الآن","textChars":10,"textLines":1,"bbox":[557,344,111,16]}
+{"kind":"textbox","id":"sh/kj298za5","slide":4,"text":"الفواتير","textPreview":"الفواتير","textChars":8,"textLines":1,"bbox":[557,374,111,16]}
+{"kind":"textbox","id":"sh/5kba14bq","slide":4,"text":"المدفوعات","textPreview":"المدفوعات","textChars":9,"textLines":1,"bbox":[557,404,111,16]}
+{"kind":"textbox","id":"sh/ih0r69sz","slide":4,"text":"التقارير","textPreview":"التقارير","textChars":8,"textLines":1,"bbox":[557,434,111,16]}
+{"kind":"textbox","id":"sh/ji9szutk","slide":4,"text":"الاستيراد","textPreview":"الاستيراد","textChars":9,"textLines":1,"bbox":[557,464,111,16]}
+{"kind":"textbox","id":"sh/wfi94za9","slide":4,"text":"المستخدمون","textPreview":"المستخدمون","textChars":10,"textLines":1,"bbox":[557,494,111,16]}
+{"kind":"textbox","id":"sh/xgrqx4be","slide":4,"text":"الوحدات","textPreview":"الوحدات","textChars":7,"textLines":1,"bbox":[92,176,260,32]}
+{"kind":"textbox","id":"sh/xcjq1g3i","slide":4,"text":"متابعة وإدارة البيانات اليومية","textPreview":"متابعة وإدارة البيانات اليومية","textChars":30,"textLines":1,"bbox":[92,210,260,20]}
+{"kind":"shape","id":"sh/cbap8vmx","slide":4,"bbox":[398,178,110,34]}
+{"kind":"textbox","id":"sh/ba18zqlc","slide":4,"text":"إضافة وحدة","textPreview":"إضافة وحدة","textChars":10,"textLines":1,"bbox":[403,187,100,16]}
+{"kind":"shape","id":"sh/a9s76l4r","slide":4,"bbox":[92,250,421,34]}
+{"kind":"textbox","id":"sh/p8j6xg36","slide":4,"text":"بحث أو تصفية...","textPreview":"بحث أو تصفية...","textChars":15,"textLines":1,"bbox":[104,258,397,16]}
+{"kind":"shape","id":"sh/o7ap4bml","slide":4,"bbox":[92,300,133.67,72]}
+{"kind":"textbox","id":"sh/n6hov6lg","slide":4,"text":"A-101","textPreview":"A-101","textChars":5,"textLines":1,"bbox":[102,313,113.67,16]}
+{"kind":"textbox","id":"sh/2587214v","slide":4,"text":"مشغول","textPreview":"مشغول","textChars":5,"textLines":1,"bbox":[102,335,113.67,24]}
+{"kind":"shape","id":"sh/943q903q","slide":4,"bbox":[235.67,300,133.67,72]}
+{"kind":"textbox","id":"sh/83upgf25","slide":4,"text":"A-102","textPreview":"A-102","textChars":5,"textLines":1,"bbox":[245.67,313,113.67,16]}
+{"kind":"textbox","id":"sh/6d4vedgb","slide":4,"text":"شاغر","textPreview":"شاغر","textChars":4,"textLines":1,"bbox":[245.67,335,113.67,24]}
+{"kind":"shape","id":"sh/7edwnixw","slide":4,"bbox":[379.33,300,133.67,72]}
+{"kind":"textbox","id":"sh/szmdgnyh","slide":4,"text":"B-204","textPreview":"B-204","textChars":5,"textLines":1,"bbox":[389.33,313,113.67,16]}
+{"kind":"textbox","id":"sh/t0vep8f2","slide":4,"text":"صيانة","textPreview":"صيانة","textChars":5,"textLines":1,"bbox":[389.33,335,113.67,24]}
+{"kind":"shape","id":"sh/i9kvatgf","slide":4,"bbox":[92,396,421,145]}
+{"kind":"shape","id":"sh/jatwjyxk","slide":4,"bbox":[92,396,421,34]}
+{"kind":"textbox","id":"sh/kbmdc3y5","slide":4,"text":"العنصر","textPreview":"العنصر","textChars":6,"textLines":1,"bbox":[363,405,110,16]}
+{"kind":"textbox","id":"sh/5cvel8fq","slide":4,"text":"التفاصيل","textPreview":"التفاصيل","textChars":8,"textLines":1,"bbox":[213,405,110,16]}
+{"kind":"textbox","id":"sh/25ovmxgj","slide":4,"text":"الحالة","textPreview":"الحالة","textChars":6,"textLines":1,"bbox":[122,405,110,16]}
+{"kind":"textbox","id":"sh/36xwv2x4","slide":4,"text":"A-101","textPreview":"A-101","textChars":5,"textLines":1,"bbox":[353,435,120,16]}
+{"kind":"textbox","id":"sh/nydsru1k","slide":4,"text":"مشغول","textPreview":"مشغول","textChars":5,"textLines":1,"bbox":[208,435,120,16]}
+{"kind":"shape","id":"sh/mx4rip0z","slide":4,"bbox":[116,432,88,22]}
+{"kind":"textbox","id":"sh/90vat4ja","slide":4,"text":"إجراء متاح","textPreview":"إجراء متاح","textChars":10,"textLines":1,"bbox":[121,437,78,12]}
+{"kind":"textbox","id":"sh/ozm9kzip","slide":4,"text":"A-102","textPreview":"A-102","textChars":5,"textLines":1,"bbox":[353,469,120,16]}
+{"kind":"textbox","id":"sh/zutsnu18","slide":4,"text":"شاغر","textPreview":"شاغر","textChars":4,"textLines":1,"bbox":[208,469,120,16]}
+{"kind":"shape","id":"sh/etkrepkn","slide":4,"bbox":[116,466,88,22]}
+{"kind":"textbox","id":"sh/1wvapkje","slide":4,"text":"متابعة","textPreview":"متابعة","textChars":6,"textLines":1,"bbox":[121,471,78,12]}
+{"kind":"textbox","id":"sh/0v29gf2t","slide":4,"text":"B-204","textPreview":"B-204","textChars":5,"textLines":1,"bbox":[353,503,120,16]}
+{"kind":"textbox","id":"sh/jqxsze1c","slide":4,"text":"صيانة","textPreview":"صيانة","textChars":5,"textLines":1,"bbox":[208,503,120,16]}
+{"kind":"shape","id":"sh/ypobq907","slide":4,"bbox":[116,500,88,22]}
+{"kind":"textbox","id":"sh/gbypkbip","slide":4,"text":"متابعة","textPreview":"متابعة","textChars":6,"textLines":1,"bbox":[121,505,78,12]}
+{"kind":"textbox","id":"sh/hw76dgzu","slide":4,"text":"الأكشنز في الشاشة","textPreview":"الأكشنز في الشاشة","textChars":17,"textLines":1,"bbox":[735,170,400,32]}
+{"kind":"shape","id":"sh/u9g7i10j","slide":4,"bbox":[934,215,185,48]}
+{"kind":"textbox","id":"sh/vapob6h4","slide":4,"text":"إضافة وحدة","textPreview":"إضافة وحدة","textChars":10,"textLines":1,"bbox":[944,228,165,22]}
+{"kind":"shape","id":"sh/4zipovyl","slide":4,"bbox":[735,215,185,48]}
+{"kind":"textbox","id":"sh/p0r6hgz6","slide":4,"text":"تعديل وحدة","textPreview":"تعديل وحدة","textChars":10,"textLines":1,"bbox":[745,228,165,22]}
+{"kind":"shape","id":"sh/2x07ml0f","slide":4,"bbox":[934,275,185,48]}
+{"kind":"textbox","id":"sh/3y9ofqh0","slide":4,"text":"تغيير الحالة","textPreview":"تغيير الحالة","textChars":12,"textLines":1,"bbox":[944,288,165,22]}
+{"kind":"shape","id":"sh/c3ipsvyh","slide":4,"bbox":[735,275,185,48]}
+{"kind":"textbox","id":"sh/d4rql0z2","slide":4,"text":"ربط الوحدة بالموقع","textPreview":"ربط الوحدة بالموقع","textChars":18,"textLines":1,"bbox":[745,288,165,22]}
+{"kind":"shape","id":"sh/lk7650r6","slide":4,"bbox":[934,335,185,48]}
+{"kind":"textbox","id":"sh/0jepcvq1","slide":4,"text":"متابعة المستأجر والعقد","textPreview":"متابعة المستأجر والعقد","textChars":22,"textLines":1,"bbox":[944,348,165,22]}
+{"kind":"shape","id":"sh/zi5o3q9g","slide":4,"bbox":[735,335,185,48]}
+{"kind":"textbox","id":"sh/yhw7al8v","slide":4,"text":"استيراد العقود من Excel","textPreview":"استيراد العقود من Excel","textChars":23,"textLines":1,"bbox":[745,348,165,22]}
+{"kind":"textbox","id":"sh/9o7690ri","slide":4,"text":"وحدات الإيجار | 4","textPreview":"وحدات الإيجار | 4","textChars":17,"textLines":1,"bbox":[70,670,180,22]}
+{"kind":"notes","id":"nt/zt1c9e","slide":4,"text":"عرض تسليم غير تقني يشرح الشاشات والإجراءات اليومية.\n\n[Sources]\nsrc/messages/ar/*.json: أسماء الشاشات والأزرار والحالات المستخدمة في واجهة النظام.\nREADME.md: نطاق النظام العام وصفحات التشغيل."}
+{"kind":"slide","id":"sl/3mjg6n","slide":5,"title":"شاشة العقود","textShapes":45}
+{"kind":"textbox","id":"sh/ry5wzaxc","slide":5,"text":"شاشة العقود","textPreview":"شاشة العقود","textChars":11,"textLines":1,"bbox":[70,45,1050,54]}
+{"kind":"textbox","id":"sh/czed8vex","slide":5,"text":"إنشاء العقد وربطه بالوحدة والمستأجر وجدول الدفعات.","textPreview":"إنشاء العقد وربطه بالوحدة والمستأجر وجدول الدفعات.","textChars":50,"textLines":1,"bbox":[70,98,1050,34]}
+{"kind":"shape","id":"sh/d0ne10fi","slide":5,"bbox":[70,150,620,430]}
+{"kind":"shape","id":"sh/e1wfa5w3","slide":5,"bbox":[535,150,155,430]}
+{"kind":"shape","id":"sh/z25w3axo","slide":5,"bbox":[549,168,30,30]}
+{"kind":"textbox","id":"sh/03excfet","slide":5,"text":"م","textPreview":"م","textChars":1,"textLines":1,"bbox":[549,173,30,20]}
+{"kind":"textbox","id":"sh/147e5kfe","slide":5,"text":"وحدات الإيجار","textPreview":"وحدات الإيجار","textChars":13,"textLines":1,"bbox":[585,170,88,24]}
+{"kind":"textbox","id":"sh/m5gfepwz","slide":5,"text":"لوحة التحكم","textPreview":"لوحة التحكم","textChars":11,"textLines":1,"bbox":[557,224,111,16]}
+{"kind":"textbox","id":"sh/n6pw7uxk","slide":5,"text":"المواقع","textPreview":"المواقع","textChars":7,"textLines":1,"bbox":[557,254,111,16]}
+{"kind":"textbox","id":"sh/be5gbyhs","slide":5,"text":"الوحدات","textPreview":"الوحدات","textChars":7,"textLines":1,"bbox":[557,284,111,16]}
+{"kind":"shape","id":"sh/qdwzit07","slide":5,"bbox":[547,310,131,24]}
+{"kind":"textbox","id":"sh/dgnyd8zy","slide":5,"text":"العقود","textPreview":"العقود","textChars":6,"textLines":1,"bbox":[557,314,111,16]}
+{"kind":"textbox","id":"sh/cfehk3id","slide":5,"text":"مستحق الآن","textPreview":"مستحق الآن","textChars":10,"textLines":1,"bbox":[557,344,111,16]}
+{"kind":"textbox","id":"sh/3a5g7ehg","slide":5,"text":"الفواتير","textPreview":"الفواتير","textChars":8,"textLines":1,"bbox":[557,374,111,16]}
+{"kind":"textbox","id":"sh/2pwfet0b","slide":5,"text":"المدفوعات","textPreview":"المدفوعات","textChars":9,"textLines":1,"bbox":[557,404,111,16]}
+{"kind":"textbox","id":"sh/pcny9ozm","slide":5,"text":"التقارير","textPreview":"التقارير","textChars":8,"textLines":1,"bbox":[557,434,111,16]}
+{"kind":"textbox","id":"sh/obehgji1","slide":5,"text":"الاستيراد","textPreview":"الاستيراد","textChars":9,"textLines":1,"bbox":[557,464,111,16]}
+{"kind":"textbox","id":"sh/76pgjih0","slide":5,"text":"المستخدمون","textPreview":"المستخدمون","textChars":10,"textLines":1,"bbox":[557,494,111,16]}
+{"kind":"textbox","id":"sh/m5gzqdgf","slide":5,"text":"العقود","textPreview":"العقود","textChars":6,"textLines":1,"bbox":[92,176,260,32]}
+{"kind":"textbox","id":"sh/i1kjih0n","slide":5,"text":"متابعة وإدارة البيانات اليومية","textPreview":"متابعة وإدارة البيانات اليومية","textChars":30,"textLines":1,"bbox":[92,210,260,20]}
+{"kind":"shape","id":"sh/j2tkbm18","slide":5,"bbox":[398,178,110,34]}
+{"kind":"textbox","id":"sh/4321krit","slide":5,"text":"إنشاء عقد","textPreview":"إنشاء عقد","textChars":9,"textLines":1,"bbox":[403,187,100,16]}
+{"kind":"shape","id":"sh/54b2dwje","slide":5,"bbox":[92,250,421,34]}
+{"kind":"textbox","id":"sh/65kjm10j","slide":5,"text":"بحث أو تصفية...","textPreview":"بحث أو تصفية...","textChars":15,"textLines":1,"bbox":[104,258,397,16]}
+{"kind":"shape","id":"sh/r6tkfm14","slide":5,"bbox":[92,300,133.67,72]}
+{"kind":"textbox","id":"sh/s721orip","slide":5,"text":"CON-2026-017","textPreview":"CON-2026-017","textChars":12,"textLines":1,"bbox":[102,313,113.67,16]}
+{"kind":"textbox","id":"sh/t8v2hwja","slide":5,"text":"نشط","textPreview":"نشط","textChars":3,"textLines":1,"bbox":[102,335,113.67,24]}
+{"kind":"shape","id":"sh/m90jaxkf","slide":5,"bbox":[235.67,300,133.67,72]}
+{"kind":"textbox","id":"sh/7a903210","slide":5,"text":"CON-2026-018","textPreview":"CON-2026-018","textChars":12,"textLines":1,"bbox":[245.67,313,113.67,16]}
+{"kind":"textbox","id":"sh/p4fm903i","slide":5,"text":"منتهٍ","textPreview":"منتهٍ","textChars":5,"textLines":1,"bbox":[245.67,335,113.67,24]}
+{"kind":"shape","id":"sh/o365gv2x","slide":5,"bbox":[379.33,300,133.67,72]}
+{"kind":"textbox","id":"sh/32x47qlc","slide":5,"text":"CON-2026-019","textPreview":"CON-2026-019","textChars":12,"textLines":1,"bbox":[389.33,313,113.67,16]}
+{"kind":"textbox","id":"sh/21onelkr","slide":5,"text":"ملغي","textPreview":"ملغي","textChars":4,"textLines":1,"bbox":[389.33,335,113.67,24]}
+{"kind":"shape","id":"sh/dszmdk3e","slide":5,"bbox":[92,396,421,145]}
+{"kind":"shape","id":"sh/crq5kf29","slide":5,"bbox":[92,396,421,34]}
+{"kind":"textbox","id":"sh/bqx4balo","slide":5,"text":"العنصر","textPreview":"العنصر","textChars":6,"textLines":1,"bbox":[363,405,110,16]}
+{"kind":"textbox","id":"sh/qponi5k3","slide":5,"text":"التفاصيل","textPreview":"التفاصيل","textChars":8,"textLines":1,"bbox":[213,405,110,16]}
+{"kind":"textbox","id":"sh/twvm1g3a","slide":5,"text":"الحالة","textPreview":"الحالة","textChars":6,"textLines":1,"bbox":[122,405,110,16]}
+{"kind":"textbox","id":"sh/svml8bmp","slide":5,"text":"CON-2026-017","textPreview":"CON-2026-017","textChars":12,"textLines":1,"bbox":[353,435,120,16]}
+{"kind":"textbox","id":"sh/g3ehwnqp","slide":5,"text":"نشط","textPreview":"نشط","textChars":3,"textLines":1,"bbox":[208,435,120,16]}
+{"kind":"shape","id":"sh/h4ny5sra","slide":5,"bbox":[116,432,88,22]}
+{"kind":"textbox","id":"sh/u1czud8j","slide":5,"text":"إجراء متاح","textPreview":"إجراء متاح","textChars":10,"textLines":1,"bbox":[121,437,78,12]}
+{"kind":"textbox","id":"sh/v2lg3i94","slide":5,"text":"CON-2026-018","textPreview":"CON-2026-018","textChars":12,"textLines":1,"bbox":[353,469,120,16]}
+{"kind":"textbox","id":"sh/8zuhs3qd","slide":5,"text":"منتهٍ","textPreview":"منتهٍ","textChars":5,"textLines":1,"bbox":[208,469,120,16]}
+{"kind":"shape","id":"sh/t03y18ry","slide":5,"bbox":[116,466,88,22]}
+{"kind":"textbox","id":"sh/6xcfqt8n","slide":5,"text":"متابعة","textPreview":"متابعة","textChars":6,"textLines":1,"bbox":[121,471,78,12]}
+{"kind":"textbox","id":"sh/7ylgzy9s","slide":5,"text":"CON-2026-019","textPreview":"CON-2026-019","textChars":12,"textLines":1,"bbox":[353,503,120,16]}
+{"kind":"textbox","id":"sh/kvaxo3ah","slide":5,"text":"ملغي","textPreview":"ملغي","textChars":4,"textLines":1,"bbox":[208,503,120,16]}
+{"kind":"shape","id":"sh/lw3yx8r2","slide":5,"bbox":[116,500,88,22]}
+{"kind":"textbox","id":"sh/n6107yto","slide":5,"text":"متابعة","textPreview":"متابعة","textChars":6,"textLines":1,"bbox":[121,505,78,12]}
+{"kind":"textbox","id":"sh/25szetc3","slide":5,"text":"الأكشنز في الشاشة","textPreview":"الأكشنز في الشاشة","textChars":17,"textLines":1,"bbox":[735,170,400,32]}
+{"kind":"shape","id":"sh/psji9obu","slide":5,"bbox":[934,215,185,48]}
+{"kind":"textbox","id":"sh/o7ahg3u9","slide":5,"text":"إنشاء عقد","textPreview":"إنشاء عقد","textChars":9,"textLines":1,"bbox":[944,228,165,22]}
+{"kind":"shape","id":"sh/bu10byt0","slide":5,"bbox":[735,215,185,48]}
+{"kind":"textbox","id":"sh/atszitcf","slide":5,"text":"تعديل عقد","textPreview":"تعديل عقد","textChars":9,"textLines":1,"bbox":[745,228,165,22]}
+{"kind":"shape","id":"sh/xw3id8bq","slide":5,"bbox":[934,275,185,48]}
+{"kind":"textbox","id":"sh/cvahk3ul","slide":5,"text":"إلغاء عقد","textPreview":"إلغاء عقد","textChars":9,"textLines":1,"bbox":[944,288,165,22]}
+{"kind":"shape","id":"sh/jyl0fitw","slide":5,"bbox":[735,275,185,48]}
+{"kind":"textbox","id":"sh/yxczmdcb","slide":5,"text":"إضافة بيانات المستأجر","textPreview":"إضافة بيانات المستأجر","textChars":21,"textLines":1,"bbox":[745,288,165,22]}
+{"kind":"shape","id":"sh/utw3ehwj","slide":5,"bbox":[934,335,185,48]}
+{"kind":"textbox","id":"sh/vu5k7md4","slide":5,"text":"تحديد مدة العقد","textPreview":"تحديد مدة العقد","textChars":15,"textLines":1,"bbox":[944,348,165,22]}
+{"kind":"shape","id":"sh/gvylg7ep","slide":5,"bbox":[735,335,185,48]}
+{"kind":"textbox","id":"sh/hw729cva","slide":5,"text":"اختيار نظام الدفع","textPreview":"اختيار نظام الدفع","textChars":17,"textLines":1,"bbox":[745,348,165,22]}
+{"kind":"shape","id":"sh/6pwjaxwn","slide":5,"bbox":[934,395,185,48]}
+{"kind":"textbox","id":"sh/7q5k32d8","slide":5,"text":"معاينة جدول الفواتير","textPreview":"معاينة جدول الفواتير","textChars":20,"textLines":1,"bbox":[944,408,165,22]}
+{"kind":"textbox","id":"sh/8re1c7et","slide":5,"text":"وحدات الإيجار | 5","textPreview":"وحدات الإيجار | 5","textChars":17,"textLines":1,"bbox":[70,670,180,22]}
+{"kind":"notes","id":"nt/3mjg6n","slide":5,"text":"عرض تسليم غير تقني يشرح الشاشات والإجراءات اليومية.\n\n[Sources]\nsrc/messages/ar/*.json: أسماء الشاشات والأزرار والحالات المستخدمة في واجهة النظام.\nREADME.md: نطاق النظام العام وصفحات التشغيل."}
+{"kind":"slide","id":"sl/l1wwd6","slide":6,"title":"شاشة مستحق الآن","textShapes":43}
+{"kind":"textbox","id":"sh/zmx4r69o","slide":6,"text":"شاشة مستحق الآن","textPreview":"شاشة مستحق الآن","textChars":15,"textLines":1,"bbox":[70,45,1050,54]}
+{"kind":"textbox","id":"sh/0n650bat","slide":6,"text":"كل المستحقات القديمة ومستحقات هذا الشهر في مكان واحد.","textPreview":"كل المستحقات القديمة ومستحقات هذا الشهر في مكان واحد.","textChars":53,"textLines":1,"bbox":[70,98,1050,34]}
+{"kind":"shape","id":"sh/1ozmtgre","slide":6,"bbox":[70,150,620,430]}
+{"kind":"shape","id":"sh/mp8n21sz","slide":6,"bbox":[535,150,155,430]}
+{"kind":"shape","id":"sh/nqh4v69k","slide":6,"bbox":[549,168,30,30]}
+{"kind":"textbox","id":"sh/orq54ba5","slide":6,"text":"م","textPreview":"م","textChars":1,"textLines":1,"bbox":[549,173,30,20]}
+{"kind":"textbox","id":"sh/9szmxgrq","slide":6,"text":"وحدات الإيجار","textPreview":"وحدات الإيجار","textChars":13,"textLines":1,"bbox":[585,170,88,24]}
+{"kind":"textbox","id":"sh/ad8n6l8b","slide":6,"text":"لوحة التحكم","textPreview":"لوحة التحكم","textChars":11,"textLines":1,"bbox":[557,224,111,16]}
+{"kind":"textbox","id":"sh/behozq9g","slide":6,"text":"المواقع","textPreview":"المواقع","textChars":7,"textLines":1,"bbox":[557,254,111,16]}
+{"kind":"textbox","id":"sh/jih4nydc","slide":6,"text":"الوحدات","textPreview":"الوحدات","textChars":7,"textLines":1,"bbox":[557,284,111,16]}
+{"kind":"textbox","id":"sh/ih8nutcr","slide":6,"text":"العقود","textPreview":"العقود","textChars":6,"textLines":1,"bbox":[557,314,111,16]}
+{"kind":"shape","id":"sh/5kzmpovi","slide":6,"bbox":[547,340,131,24]}
+{"kind":"textbox","id":"sh/4jq5wjux","slide":6,"text":"مستحق الآن","textPreview":"مستحق الآن","textChars":10,"textLines":1,"bbox":[557,344,111,16]}
+{"kind":"textbox","id":"sh/vex4jedg","slide":6,"text":"الفواتير","textPreview":"الفواتير","textChars":8,"textLines":1,"bbox":[557,374,111,16]}
+{"kind":"textbox","id":"sh/udonq9cv","slide":6,"text":"المدفوعات","textPreview":"المدفوعات","textChars":9,"textLines":1,"bbox":[557,404,111,16]}
+{"kind":"textbox","id":"sh/hgzmlovm","slide":6,"text":"التقارير","textPreview":"التقارير","textChars":8,"textLines":1,"bbox":[557,434,111,16]}
+{"kind":"textbox","id":"sh/wfq5sju1","slide":6,"text":"الاستيراد","textPreview":"الاستيراد","textChars":9,"textLines":1,"bbox":[557,464,111,16]}
+{"kind":"textbox","id":"sh/fa1ovitk","slide":6,"text":"المستخدمون","textPreview":"المستخدمون","textChars":10,"textLines":1,"bbox":[557,494,111,16]}
+{"kind":"textbox","id":"sh/e9sn2dcz","slide":6,"text":"مستحق الآن","textPreview":"مستحق الآن","textChars":10,"textLines":1,"bbox":[92,176,260,32]}
+{"kind":"textbox","id":"sh/ahwza10j","slide":6,"text":"متابعة وإدارة البيانات اليومية","textPreview":"متابعة وإدارة البيانات اليومية","textChars":30,"textLines":1,"bbox":[92,210,260,20]}
+{"kind":"shape","id":"sh/bi5gj614","slide":6,"bbox":[398,178,110,34]}
+{"kind":"textbox","id":"sh/cjyhcbip","slide":6,"text":"إصدار فاتورة","textPreview":"إصدار فاتورة","textChars":12,"textLines":1,"bbox":[403,187,100,16]}
+{"kind":"shape","id":"sh/xk7ylgja","slide":6,"bbox":[92,250,421,34]}
+{"kind":"textbox","id":"sh/ylgzel0v","slide":6,"text":"بحث أو تصفية...","textPreview":"بحث أو تصفية...","textChars":15,"textLines":1,"bbox":[104,258,397,16]}
+{"kind":"shape","id":"sh/zmpgnqh0","slide":6,"bbox":[92,300,133.67,72]}
+{"kind":"textbox","id":"sh/knyhgbil","slide":6,"text":"INV-DUE-041","textPreview":"INV-DUE-041","textChars":11,"textLines":1,"bbox":[102,313,113.67,16]}
+{"kind":"textbox","id":"sh/l87ypgz6","slide":6,"text":"متأخر 12 يوم","textPreview":"متأخر 12 يوم","textChars":12,"textLines":1,"bbox":[102,335,113.67,24]}
+{"kind":"shape","id":"sh/epcf2h0b","slide":6,"bbox":[235.67,300,133.67,72]}
+{"kind":"textbox","id":"sh/fqlgbm1w","slide":6,"text":"INV-DUE-042","textPreview":"INV-DUE-042","textChars":11,"textLines":1,"bbox":[245.67,313,113.67,16]}
+{"kind":"textbox","id":"sh/h4b2hkje","slide":6,"text":"مستحق هذا الشهر","textPreview":"مستحق هذا الشهر","textChars":15,"textLines":1,"bbox":[245.67,335,113.67,24]}
+{"kind":"shape","id":"sh/g321of2t","slide":6,"bbox":[379.33,300,133.67,72]}
+{"kind":"textbox","id":"sh/v2tkfal8","slide":6,"text":"INV-DUE-043","textPreview":"INV-DUE-043","textChars":11,"textLines":1,"bbox":[389.33,313,113.67,16]}
+{"kind":"textbox","id":"sh/uh0jmpk3","slide":6,"text":"مستحق قديم","textPreview":"مستحق قديم","textChars":10,"textLines":1,"bbox":[389.33,335,113.67,24]}
+{"kind":"shape","id":"sh/58b2l4jq","slide":6,"bbox":[92,396,421,145]}
+{"kind":"shape","id":"sh/4721sz25","slide":6,"bbox":[92,396,421,34]}
+{"kind":"textbox","id":"sh/36tkju1k","slide":6,"text":"العنصر","textPreview":"العنصر","textChars":6,"textLines":1,"bbox":[363,405,110,16]}
+{"kind":"textbox","id":"sh/i5kjqpkz","slide":6,"text":"التفاصيل","textPreview":"التفاصيل","textChars":8,"textLines":1,"bbox":[213,405,110,16]}
+{"kind":"textbox","id":"sh/lcri9036","slide":6,"text":"الحالة","textPreview":"الحالة","textChars":6,"textLines":1,"bbox":[122,405,110,16]}
+{"kind":"textbox","id":"sh/kbi1gv2l","slide":6,"text":"INV-DUE-041","textPreview":"INV-DUE-041","textChars":11,"textLines":1,"bbox":[353,435,120,16]}
+{"kind":"textbox","id":"sh/or65o3m9","slide":6,"text":"متأخر 12 يوم","textPreview":"متأخر 12 يوم","textChars":12,"textLines":1,"bbox":[208,435,120,16]}
+{"kind":"shape","id":"sh/psfmh83u","slide":6,"bbox":[116,432,88,22]}
+{"kind":"textbox","id":"sh/25onmd43","slide":6,"text":"إجراء متاح","textPreview":"إجراء متاح","textChars":10,"textLines":1,"bbox":[121,437,78,12]}
+{"kind":"textbox","id":"sh/n6x4fylo","slide":6,"text":"INV-DUE-042","textPreview":"INV-DUE-042","textChars":11,"textLines":1,"bbox":[353,469,120,16]}
+{"kind":"textbox","id":"sh/0365k3md","slide":6,"text":"مستحق هذا الشهر","textPreview":"مستحق هذا الشهر","textChars":15,"textLines":1,"bbox":[208,469,120,16]}
+{"kind":"shape","id":"sh/14fmd83y","slide":6,"bbox":[116,466,88,22]}
+{"kind":"textbox","id":"sh/e1onit47","slide":6,"text":"متابعة","textPreview":"متابعة","textChars":6,"textLines":1,"bbox":[121,471,78,12]}
+{"kind":"textbox","id":"sh/f2x4byls","slide":6,"text":"INV-DUE-043","textPreview":"INV-DUE-043","textChars":11,"textLines":1,"bbox":[353,503,120,16]}
+{"kind":"textbox","id":"sh/szmlgjm1","slide":6,"text":"مستحق قديم","textPreview":"مستحق قديم","textChars":10,"textLines":1,"bbox":[208,503,120,16]}
+{"kind":"shape","id":"sh/d0vm9onm","slide":6,"bbox":[116,500,88,22]}
+{"kind":"textbox","id":"sh/vudozepo","slide":6,"text":"متابعة","textPreview":"متابعة","textChars":6,"textLines":1,"bbox":[121,505,78,12]}
+{"kind":"textbox","id":"sh/u9knq9o3","slide":6,"text":"الأكشنز في الشاشة","textPreview":"الأكشنز في الشاشة","textChars":17,"textLines":1,"bbox":[735,170,400,32]}
+{"kind":"shape","id":"sh/hwv6lo7e","slide":6,"bbox":[934,215,185,48]}
+{"kind":"textbox","id":"sh/gvm5sj69","slide":6,"text":"مراجعة المستحقات","textPreview":"مراجعة المستحقات","textChars":16,"textLines":1,"bbox":[944,228,165,22]}
+{"kind":"shape","id":"sh/3ydonypk","slide":6,"bbox":[735,215,185,48]}
+{"kind":"textbox","id":"sh/ix4nutoz","slide":6,"text":"إصدار فاتورة","textPreview":"إصدار فاتورة","textChars":12,"textLines":1,"bbox":[745,228,165,22]}
+{"kind":"shape","id":"sh/50v6p87q","slide":6,"bbox":[934,275,185,48]}
+{"kind":"textbox","id":"sh/4zm5w365","slide":6,"text":"مزامنة الفواتير المستحقة","textPreview":"مزامنة الفواتير المستحقة","textChars":24,"textLines":1,"bbox":[944,288,165,22]}
+{"kind":"shape","id":"sh/r2xorypw","slide":6,"bbox":[735,275,185,48]}
+{"kind":"textbox","id":"sh/q1onytob","slide":6,"text":"عرض التأخير بالأيام","textPreview":"عرض التأخير بالأيام","textChars":19,"textLines":1,"bbox":[745,288,165,22]}
+{"kind":"shape","id":"sh/2x8rqx8j","slide":6,"bbox":[934,335,185,48]}
+{"kind":"textbox","id":"sh/nyh8z294","slide":6,"text":"فتح تفاصيل الوحدة أو الفاتورة","textPreview":"فتح تفاصيل الوحدة أو الفاتورة","textChars":29,"textLines":1,"bbox":[944,348,165,22]}
+{"kind":"textbox","id":"sh/ozq9s7q9","slide":6,"text":"وحدات الإيجار | 6","textPreview":"وحدات الإيجار | 6","textChars":17,"textLines":1,"bbox":[70,670,180,22]}
+{"kind":"notes","id":"nt/l1wwd6","slide":6,"text":"عرض تسليم غير تقني يشرح الشاشات والإجراءات اليومية.\n\n[Sources]\nsrc/messages/ar/*.json: أسماء الشاشات والأزرار والحالات المستخدمة في واجهة النظام.\nREADME.md: نطاق النظام العام وصفحات التشغيل."}
+{"kind":"slide","id":"sl/bd081b","slide":7,"title":"شاشة الفواتير","textShapes":44}
+{"kind":"textbox","id":"sh/x4jepkfq","slide":7,"text":"شاشة الفواتير","textPreview":"شاشة الفواتير","textChars":13,"textLines":1,"bbox":[70,45,1050,54]}
+{"kind":"textbox","id":"sh/a18vupwf","slide":7,"text":"متابعة الفواتير الصادرة وحالتها ومبالغها.","textPreview":"متابعة الفواتير الصادرة وحالتها ومبالغها.","textChars":41,"textLines":1,"bbox":[70,98,1050,34]}
+{"kind":"shape","id":"sh/b2hwnux0","slide":7,"bbox":[70,150,620,430]}
+{"kind":"shape","id":"sh/krad0zeh","slide":7,"bbox":[535,150,155,430]}
+{"kind":"shape","id":"sh/lsjet4f2","slide":7,"bbox":[549,168,30,30]}
+{"kind":"textbox","id":"sh/ypsvypwb","slide":7,"text":"م","textPreview":"م","textChars":1,"textLines":1,"bbox":[549,173,30,20]}
+{"kind":"textbox","id":"sh/jq1wruxw","slide":7,"text":"وحدات الإيجار","textPreview":"وحدات الإيجار","textChars":13,"textLines":1,"bbox":[585,170,88,24]}
+{"kind":"textbox","id":"sh/8vud4zed","slide":7,"text":"لوحة التحكم","textPreview":"لوحة التحكم","textChars":11,"textLines":1,"bbox":[557,224,111,16]}
+{"kind":"textbox","id":"sh/tw3ex4fy","slide":7,"text":"المواقع","textPreview":"المواقع","textChars":7,"textLines":1,"bbox":[557,254,111,16]}
+{"kind":"textbox","id":"sh/1wbm9wv6","slide":7,"text":"الوحدات","textPreview":"الوحدات","textChars":7,"textLines":1,"bbox":[557,284,111,16]}
+{"kind":"textbox","id":"sh/0v2lgrel","slide":7,"text":"العقود","textPreview":"العقود","textChars":6,"textLines":1,"bbox":[557,314,111,16]}
+{"kind":"textbox","id":"sh/fut47md0","slide":7,"text":"مستحق الآن","textPreview":"مستحق الآن","textChars":10,"textLines":1,"bbox":[557,344,111,16]}
+{"kind":"shape","id":"sh/etk3ehwf","slide":7,"bbox":[547,370,131,24]}
+{"kind":"textbox","id":"sh/90vmdwv2","slide":7,"text":"الفواتير","textPreview":"الفواتير","textChars":8,"textLines":1,"bbox":[557,374,111,16]}
+{"kind":"textbox","id":"sh/ozm5kreh","slide":7,"text":"المدفوعات","textPreview":"المدفوعات","textChars":9,"textLines":1,"bbox":[557,404,111,16]}
+{"kind":"textbox","id":"sh/nyd4b6dc","slide":7,"text":"التقارير","textPreview":"التقارير","textChars":8,"textLines":1,"bbox":[557,434,111,16]}
+{"kind":"textbox","id":"sh/2xkni1wr","slide":7,"text":"الاستيراد","textPreview":"الاستيراد","textChars":9,"textLines":1,"bbox":[557,464,111,16]}
+{"kind":"textbox","id":"sh/54rmhcvy","slide":7,"text":"المستخدمون","textPreview":"المستخدمون","textChars":10,"textLines":1,"bbox":[557,494,111,16]}
+{"kind":"textbox","id":"sh/43il87ed","slide":7,"text":"الفواتير","textPreview":"الفواتير","textChars":8,"textLines":1,"bbox":[92,176,260,32]}
+{"kind":"textbox","id":"sh/w7m5o7m9","slide":7,"text":"متابعة وإدارة البيانات اليومية","textPreview":"متابعة وإدارة البيانات اليومية","textChars":30,"textLines":1,"bbox":[92,210,260,20]}
+{"kind":"shape","id":"sh/h8vmxc3u","slide":7,"bbox":[398,178,110,34]}
+{"kind":"textbox","id":"sh/ul43mx43","slide":7,"text":"تسجيل دفعة","textPreview":"تسجيل دفعة","textChars":10,"textLines":1,"bbox":[403,187,100,16]}
+{"kind":"shape","id":"sh/v6d4v2lo","slide":7,"bbox":[92,250,421,34]}
+{"kind":"textbox","id":"sh/4b65srm5","slide":7,"text":"بحث أو تصفية...","textPreview":"بحث أو تصفية...","textChars":15,"textLines":1,"bbox":[104,258,397,16]}
+{"kind":"shape","id":"sh/5cfm1w3q","slide":7,"bbox":[92,300,133.67,72]}
+{"kind":"textbox","id":"sh/i94nqh4f","slide":7,"text":"INV-1042","textPreview":"INV-1042","textChars":8,"textLines":1,"bbox":[102,313,113.67,16]}
+{"kind":"textbox","id":"sh/jad4zml0","slide":7,"text":"في انتظار الدفع","textPreview":"في انتظار الدفع","textChars":15,"textLines":1,"bbox":[102,335,113.67,24]}
+{"kind":"shape","id":"sh/sf65wrmh","slide":7,"bbox":[235.67,300,133.67,72]}
+{"kind":"textbox","id":"sh/tgfm5w32","slide":7,"text":"INV-1043","textPreview":"INV-1043","textChars":8,"textLines":1,"bbox":[245.67,313,113.67,16]}
+{"kind":"textbox","id":"sh/nah8vq54","slide":7,"text":"مدفوع جزئياً","textPreview":"مدفوع جزئياً","textChars":12,"textLines":1,"bbox":[245.67,335,113.67,24]}
+{"kind":"shape","id":"sh/2987mloj","slide":7,"bbox":[379.33,300,133.67,72]}
+{"kind":"textbox","id":"sh/pwjqx0na","slide":7,"text":"INV-1044","textPreview":"INV-1044","textChars":8,"textLines":1,"bbox":[389.33,313,113.67,16]}
+{"kind":"textbox","id":"sh/obapov6p","slide":7,"text":"مدفوع بالكامل","textPreview":"مدفوع بالكامل","textChars":13,"textLines":1,"bbox":[389.33,335,113.67,24]}
+{"kind":"shape","id":"sh/f6horq58","slide":7,"bbox":[92,396,421,145]}
+{"kind":"shape","id":"sh/e587ilon","slide":7,"bbox":[92,396,421,34]}
+{"kind":"textbox","id":"sh/18z6tgny","slide":7,"text":"العنصر","textPreview":"العنصر","textChars":6,"textLines":1,"bbox":[363,405,110,16]}
+{"kind":"textbox","id":"sh/g7qpkv6d","slide":7,"text":"التفاصيل","textPreview":"التفاصيل","textChars":8,"textLines":1,"bbox":[213,405,110,16]}
+{"kind":"textbox","id":"sh/z2l83a5c","slide":7,"text":"الحالة","textPreview":"الحالة","textChars":6,"textLines":1,"bbox":[122,405,110,16]}
+{"kind":"textbox","id":"sh/y1s7u5or","slide":7,"text":"INV-1042","textPreview":"INV-1042","textChars":8,"textLines":1,"bbox":[353,435,120,16]}
+{"kind":"textbox","id":"sh/69sby9kv","slide":7,"text":"في انتظار الدفع","textPreview":"في انتظار الدفع","textChars":15,"textLines":1,"bbox":[208,435,120,16]}
+{"kind":"shape","id":"sh/7a1srelg","slide":7,"bbox":[116,432,88,22]}
+{"kind":"textbox","id":"sh/8bat0j21","slide":7,"text":"إجراء متاح","textPreview":"إجراء متاح","textChars":10,"textLines":1,"bbox":[121,437,78,12]}
+{"kind":"textbox","id":"sh/tcjatojm","slide":7,"text":"INV-1043","textPreview":"INV-1043","textChars":8,"textLines":1,"bbox":[353,469,120,16]}
+{"kind":"textbox","id":"sh/yl8bupkz","slide":7,"text":"مدفوع جزئياً","textPreview":"مدفوع جزئياً","textChars":12,"textLines":1,"bbox":[208,469,120,16]}
+{"kind":"shape","id":"sh/jmhsnulk","slide":7,"bbox":[116,466,88,22]}
+{"kind":"textbox","id":"sh/knqtwz25","slide":7,"text":"متابعة","textPreview":"متابعة","textChars":6,"textLines":1,"bbox":[121,471,78,12]}
+{"kind":"textbox","id":"sh/l8zap43a","slide":7,"text":"INV-1044","textPreview":"INV-1044","textChars":8,"textLines":1,"bbox":[353,503,120,16]}
+{"kind":"textbox","id":"sh/ihcb6tk3","slide":7,"text":"مدفوع بالكامل","textPreview":"مدفوع بالكامل","textChars":13,"textLines":1,"bbox":[208,503,120,16]}
+{"kind":"shape","id":"sh/3ilczy1o","slide":7,"bbox":[116,500,88,22]}
+{"kind":"textbox","id":"sh/do7mlc72","slide":7,"text":"متابعة","textPreview":"متابعة","textChars":6,"textLines":1,"bbox":[121,505,78,12]}
+{"kind":"textbox","id":"sh/cny5crqh","slide":7,"text":"الأكشنز في الشاشة","textPreview":"الأكشنز في الشاشة","textChars":17,"textLines":1,"bbox":[735,170,400,32]}
+{"kind":"shape","id":"sh/rmp4jm9w","slide":7,"bbox":[934,215,185,48]}
+{"kind":"textbox","id":"sh/qlwnah8r","slide":7,"text":"إصدار فاتورة","textPreview":"إصدار فاتورة","textChars":12,"textLines":1,"bbox":[944,228,165,22]}
+{"kind":"shape","id":"sh/pknmhcr6","slide":7,"bbox":[735,215,185,48]}
+{"kind":"textbox","id":"sh/4je587ql","slide":7,"text":"تسجيل دفعة","textPreview":"تسجيل دفعة","textChars":10,"textLines":1,"bbox":[745,228,165,22]}
+{"kind":"shape","id":"sh/3i54f290","slide":7,"bbox":[934,275,185,48]}
+{"kind":"textbox","id":"sh/2hwn6x8f","slide":7,"text":"متابعة المتبقي","textPreview":"متابعة المتبقي","textChars":14,"textLines":1,"bbox":[944,288,165,22]}
+{"kind":"shape","id":"sh/9gr6dw7a","slide":7,"bbox":[735,275,185,48]}
+{"kind":"textbox","id":"sh/8fi5kbqp","slide":7,"text":"معرفة حالة الفاتورة","textPreview":"معرفة حالة الفاتورة","textChars":19,"textLines":1,"bbox":[745,288,165,22]}
+{"kind":"shape","id":"sh/8jqpgfy1","slide":7,"bbox":[934,335,185,48]}
+{"kind":"textbox","id":"sh/tkzqpkfm","slide":7,"text":"تصفية حسب الحالة","textPreview":"تصفية حسب الحالة","textChars":16,"textLines":1,"bbox":[944,348,165,22]}
+{"kind":"shape","id":"sh/6h87e5gv","slide":7,"bbox":[735,335,185,48]}
+{"kind":"textbox","id":"sh/7ihonaxg","slide":7,"text":"فتح الفاتورة المرتبطة بالوحدة","textPreview":"فتح الفاتورة المرتبطة بالوحدة","textChars":29,"textLines":1,"bbox":[745,348,165,22]}
+{"kind":"textbox","id":"sh/kv6pcvyp","slide":7,"text":"وحدات الإيجار | 7","textPreview":"وحدات الإيجار | 7","textChars":17,"textLines":1,"bbox":[70,670,180,22]}
+{"kind":"notes","id":"nt/bd081b","slide":7,"text":"عرض تسليم غير تقني يشرح الشاشات والإجراءات اليومية.\n\n[Sources]\nsrc/messages/ar/*.json: أسماء الشاشات والأزرار والحالات المستخدمة في واجهة النظام.\nREADME.md: نطاق النظام العام وصفحات التشغيل."}
+{"kind":"slide","id":"sl/tq570a","slide":8,"title":"شاشة المدفوعات","textShapes":44}
+{"kind":"textbox","id":"sh/ihova9o3","slide":8,"text":"شاشة المدفوعات","textPreview":"شاشة المدفوعات","textChars":14,"textLines":1,"bbox":[70,45,1050,54]}
+{"kind":"textbox","id":"sh/5kzulo7u","slide":8,"text":"سجل التحصيل بالكامل مع الفلاتر والتصدير.","textPreview":"سجل التحصيل بالكامل مع الفلاتر والتصدير.","textChars":40,"textLines":1,"bbox":[70,98,1050,34]}
+{"kind":"shape","id":"sh/kj6dcj69","slide":8,"bbox":[70,150,620,430]}
+{"kind":"shape","id":"sh/7mhcnyp0","slide":8,"bbox":[535,150,155,430]}
+{"kind":"shape","id":"sh/6l8vetof","slide":8,"bbox":[549,168,30,30]}
+{"kind":"textbox","id":"sh/tozepo7q","slide":8,"text":"م","textPreview":"م","textChars":1,"textLines":1,"bbox":[549,173,30,20]}
+{"kind":"textbox","id":"sh/snqdgj6l","slide":8,"text":"وحدات الإيجار","textPreview":"وحدات الإيجار","textChars":13,"textLines":1,"bbox":[585,170,88,24]}
+{"kind":"textbox","id":"sh/nqdcbupg","slide":8,"text":"لوحة التحكم","textPreview":"لوحة التحكم","textChars":11,"textLines":1,"bbox":[557,224,111,16]}
+{"kind":"textbox","id":"sh/mp4v2pob","slide":8,"text":"المواقع","textPreview":"المواقع","textChars":7,"textLines":1,"bbox":[557,254,111,16]}
+{"kind":"textbox","id":"sh/4zidcfml","slide":8,"text":"الوحدات","textPreview":"الوحدات","textChars":7,"textLines":1,"bbox":[557,284,111,16]}
+{"kind":"textbox","id":"sh/50relk36","slide":8,"text":"العقود","textPreview":"العقود","textChars":6,"textLines":1,"bbox":[557,314,111,16]}
+{"kind":"textbox","id":"sh/ix0va54f","slide":8,"text":"مستحق الآن","textPreview":"مستحق الآن","textChars":10,"textLines":1,"bbox":[557,344,111,16]}
+{"kind":"textbox","id":"sh/3y9wjal0","slide":8,"text":"الفواتير","textPreview":"الفواتير","textChars":8,"textLines":1,"bbox":[557,374,111,16]}
+{"kind":"shape","id":"sh/s32xgzmx","slide":8,"bbox":[547,400,131,24]}
+{"kind":"textbox","id":"sh/d4bep432","slide":8,"text":"المدفوعات","textPreview":"المدفوعات","textChars":9,"textLines":1,"bbox":[557,404,111,16]}
+{"kind":"textbox","id":"sh/q1kfep4r","slide":8,"text":"التقارير","textPreview":"التقارير","textChars":8,"textLines":1,"bbox":[557,434,111,16]}
+{"kind":"textbox","id":"sh/r2twnulc","slide":8,"text":"الاستيراد","textPreview":"الاستيراد","textChars":9,"textLines":1,"bbox":[557,464,111,16]}
+{"kind":"textbox","id":"sh/87yd4vmd","slide":8,"text":"المستخدمون","textPreview":"المستخدمون","textChars":10,"textLines":1,"bbox":[557,494,111,16]}
+{"kind":"textbox","id":"sh/t87ed0ny","slide":8,"text":"المدفوعات","textPreview":"المدفوعات","textChars":9,"textLines":1,"bbox":[92,176,260,32]}
+{"kind":"textbox","id":"sh/9ozu1wfm","slide":8,"text":"متابعة وإدارة البيانات اليومية","textPreview":"متابعة وإدارة البيانات اليومية","textChars":30,"textLines":1,"bbox":[92,210,260,20]}
+{"kind":"shape","id":"sh/onqt8reh","slide":8,"bbox":[398,178,110,34]}
+{"kind":"textbox","id":"sh/n2hczmxw","slide":8,"text":"تسجيل دفعة","textPreview":"تسجيل دفعة","textChars":10,"textLines":1,"bbox":[403,187,100,16]}
+{"kind":"shape","id":"sh/m18b6hwb","slide":8,"bbox":[92,250,421,34]}
+{"kind":"textbox","id":"sh/xsju5wfy","slide":8,"text":"بحث أو تصفية...","textPreview":"بحث أو تصفية...","textChars":15,"textLines":1,"bbox":[104,258,397,16]}
+{"kind":"shape","id":"sh/wratcred","slide":8,"bbox":[92,300,133.67,72]}
+{"kind":"textbox","id":"sh/bq1c36xs","slide":8,"text":"تحويل بنكي","textPreview":"تحويل بنكي","textChars":10,"textLines":1,"bbox":[102,313,113.67,16]}
+{"kind":"textbox","id":"sh/ap8ba1w7","slide":8,"text":"4,500 ر.س","textPreview":"4,500 ر.س","textChars":9,"textLines":1,"bbox":[102,335,113.67,24]}
+{"kind":"shape","id":"sh/lwju9gfu","slide":8,"bbox":[235.67,300,133.67,72]}
+{"kind":"textbox","id":"sh/kvadgbep","slide":8,"text":"نقدي","textPreview":"نقدي","textChars":4,"textLines":1,"bbox":[245.67,313,113.67,16]}
+{"kind":"textbox","id":"sh/ipkze98v","slide":8,"text":"2,800 ر.س","textPreview":"2,800 ر.س","textChars":9,"textLines":1,"bbox":[245.67,335,113.67,24]}
+{"kind":"shape","id":"sh/3qt0ne9g","slide":8,"bbox":[379.33,300,133.67,72]}
+{"kind":"textbox","id":"sh/4r2hgjql","slide":8,"text":"شيك","textPreview":"شيك","textChars":3,"textLines":1,"bbox":[389.33,313,113.67,16]}
+{"kind":"textbox","id":"sh/5sbipor6","slide":8,"text":"6,200 ر.س","textPreview":"6,200 ر.س","textChars":9,"textLines":1,"bbox":[389.33,335,113.67,24]}
+{"kind":"shape","id":"sh/qt4zit8r","slide":8,"bbox":[92,396,421,145]}
+{"kind":"shape","id":"sh/rud0ry9c","slide":8,"bbox":[92,396,421,34]}
+{"kind":"textbox","id":"sh/svm1kjqx","slide":8,"text":"العنصر","textPreview":"العنصر","textChars":6,"textLines":1,"bbox":[363,405,110,16]}
+{"kind":"textbox","id":"sh/dwvitori","slide":8,"text":"التفاصيل","textPreview":"التفاصيل","textChars":8,"textLines":1,"bbox":[213,405,110,16]}
+{"kind":"textbox","id":"sh/ex4jmt83","slide":8,"text":"الحالة","textPreview":"الحالة","textChars":6,"textLines":1,"bbox":[122,405,110,16]}
+{"kind":"textbox","id":"sh/fid0vy98","slide":8,"text":"تحويل بنكي","textPreview":"تحويل بنكي","textChars":10,"textLines":1,"bbox":[353,435,120,16]}
+{"kind":"textbox","id":"sh/ne90fy1s","slide":8,"text":"4,500 ر.س","textPreview":"4,500 ر.س","textChars":9,"textLines":1,"bbox":[208,435,120,16]}
+{"kind":"shape","id":"sh/md0z6t07","slide":8,"bbox":[116,432,88,22]}
+{"kind":"textbox","id":"sh/9gbih8ji","slide":8,"text":"إجراء متاح","textPreview":"إجراء متاح","textChars":10,"textLines":1,"bbox":[121,437,78,12]}
+{"kind":"textbox","id":"sh/ofih83ix","slide":8,"text":"نقدي","textPreview":"نقدي","textChars":4,"textLines":1,"bbox":[353,469,120,16]}
+{"kind":"textbox","id":"sh/b2t0jy1o","slide":8,"text":"2,800 ر.س","textPreview":"2,800 ر.س","textChars":9,"textLines":1,"bbox":[208,469,120,16]}
+{"kind":"shape","id":"sh/ahkzad03","slide":8,"bbox":[116,466,88,22]}
+{"kind":"textbox","id":"sh/x4bil8zu","slide":8,"text":"متابعة","textPreview":"متابعة","textChars":6,"textLines":1,"bbox":[121,471,78,12]}
+{"kind":"textbox","id":"sh/w32hc3i9","slide":8,"text":"شيك","textPreview":"شيك","textChars":3,"textLines":1,"bbox":[353,503,120,16]}
+{"kind":"textbox","id":"sh/r6p07e1k","slide":8,"text":"6,200 ر.س","textPreview":"6,200 ر.س","textChars":9,"textLines":1,"bbox":[208,503,120,16]}
+{"kind":"shape","id":"sh/qlgzy90z","slide":8,"bbox":[116,500,88,22]}
+{"kind":"textbox","id":"sh/grex8fyx","slide":8,"text":"متابعة","textPreview":"متابعة","textChars":6,"textLines":1,"bbox":[121,505,78,12]}
+{"kind":"textbox","id":"sh/hsnehkz2","slide":8,"text":"الأكشنز في الشاشة","textPreview":"الأكشنز في الشاشة","textChars":17,"textLines":1,"bbox":[735,170,400,32]}
+{"kind":"shape","id":"sh/upwf65gr","slide":8,"bbox":[934,215,185,48]}
+{"kind":"textbox","id":"sh/fq5wfahc","slide":8,"text":"تسجيل دفعة","textPreview":"تسجيل دفعة","textChars":10,"textLines":1,"bbox":[944,228,165,22]}
+{"kind":"shape","id":"sh/snux4vyl","slide":8,"bbox":[735,215,185,48]}
+{"kind":"textbox","id":"sh/to3ed0z6","slide":8,"text":"اختيار دفع كامل أو جزئي","textPreview":"اختيار دفع كامل أو جزئي","textChars":23,"textLines":1,"bbox":[745,228,165,22]}
+{"kind":"shape","id":"sh/6lcf25gf","slide":8,"bbox":[934,275,185,48]}
+{"kind":"textbox","id":"sh/7mlwbqh0","slide":8,"text":"تحديد طريقة الدفع","textPreview":"تحديد طريقة الدفع","textChars":17,"textLines":1,"bbox":[944,288,165,22]}
+{"kind":"shape","id":"sh/cjyxgzyp","slide":8,"bbox":[735,275,185,48]}
+{"kind":"textbox","id":"sh/dk7yp4za","slide":8,"text":"إضافة رقم مرجع","textPreview":"إضافة رقم مرجع","textChars":14,"textLines":1,"bbox":[745,288,165,22]}
+{"kind":"shape","id":"sh/l03et47e","slide":8,"bbox":[934,335,185,48]}
+{"kind":"textbox","id":"sh/0zux0zq9","slide":8,"text":"تصفية بالتاريخ أو الطريقة","textPreview":"تصفية بالتاريخ أو الطريقة","textChars":25,"textLines":1,"bbox":[944,348,165,22]}
+{"kind":"shape","id":"sh/zylwru9o","slide":8,"bbox":[735,335,185,48]}
+{"kind":"textbox","id":"sh/yxcfyp83","slide":8,"text":"تصدير Excel","textPreview":"تصدير Excel","textChars":11,"textLines":1,"bbox":[745,348,165,22]}
+{"kind":"textbox","id":"sh/dc3epkri","slide":8,"text":"وحدات الإيجار | 8","textPreview":"وحدات الإيجار | 8","textChars":17,"textLines":1,"bbox":[70,670,180,22]}
+{"kind":"notes","id":"nt/tq570a","slide":8,"text":"عرض تسليم غير تقني يشرح الشاشات والإجراءات اليومية.\n\n[Sources]\nsrc/messages/ar/*.json: أسماء الشاشات والأزرار والحالات المستخدمة في واجهة النظام.\nREADME.md: نطاق النظام العام وصفحات التشغيل."}
+{"kind":"slide","id":"sl/ehtva8","slide":9,"title":"شاشة التقارير","textShapes":44}
+{"kind":"textbox","id":"sh/4zyts3mp","slide":9,"text":"شاشة التقارير","textPreview":"شاشة التقارير","textChars":13,"textLines":1,"bbox":[70,45,1050,54]}
+{"kind":"textbox","id":"sh/3ypcjy54","slide":9,"text":"تقارير جاهزة لمتابعة الذمم وكشف الموقع.","textPreview":"تقارير جاهزة لمتابعة الذمم وكشف الموقع.","textChars":39,"textLines":1,"bbox":[70,98,1050,34]}
+{"kind":"shape","id":"sh/ixgbqd4z","slide":9,"bbox":[70,150,620,430]}
+{"kind":"shape","id":"sh/d4rupsnm","slide":9,"bbox":[535,150,155,430]}
+{"kind":"shape","id":"sh/s3ytwnm1","slide":9,"bbox":[549,168,30,30]}
+{"kind":"textbox","id":"sh/r2pcni5g","slide":9,"text":"م","textPreview":"م","textChars":1,"textLines":1,"bbox":[549,173,30,20]}
+{"kind":"textbox","id":"sh/q1gbud4v","slide":9,"text":"وحدات الإيجار","textPreview":"وحدات الإيجار","textChars":13,"textLines":1,"bbox":[585,170,88,24]}
+{"kind":"textbox","id":"sh/1srutsni","slide":9,"text":"لوحة التحكم","textPreview":"لوحة التحكم","textChars":11,"textLines":1,"bbox":[557,224,111,16]}
+{"kind":"textbox","id":"sh/0rit0nmx","slide":9,"text":"المواقع","textPreview":"المواقع","textChars":7,"textLines":1,"bbox":[557,254,111,16]}
+{"kind":"textbox","id":"sh/q9cj21or","slide":9,"text":"الوحدات","textPreview":"الوحدات","textChars":7,"textLines":1,"bbox":[557,284,111,16]}
+{"kind":"textbox","id":"sh/ba50v65w","slide":9,"text":"العقود","textPreview":"العقود","textChars":6,"textLines":1,"bbox":[557,314,111,16]}
+{"kind":"textbox","id":"sh/cbe14b6h","slide":9,"text":"مستحق الآن","textPreview":"مستحق الآن","textChars":10,"textLines":1,"bbox":[557,344,111,16]}
+{"kind":"textbox","id":"sh/dcnixgn2","slide":9,"text":"الفواتير","textPreview":"الفواتير","textChars":8,"textLines":1,"bbox":[557,374,111,16]}
+{"kind":"textbox","id":"sh/ydwj6lon","slide":9,"text":"المدفوعات","textPreview":"المدفوعات","textChars":9,"textLines":1,"bbox":[557,404,111,16]}
+{"kind":"shape","id":"sh/ze50z658","slide":9,"bbox":[547,430,131,24]}
+{"kind":"textbox","id":"sh/0ze18b6t","slide":9,"text":"التقارير","textPreview":"التقارير","textChars":8,"textLines":1,"bbox":[557,434,111,16]}
+{"kind":"textbox","id":"sh/l0n21gne","slide":9,"text":"الاستيراد","textPreview":"الاستيراد","textChars":9,"textLines":1,"bbox":[557,464,111,16]}
+{"kind":"textbox","id":"sh/ehsjuhoj","slide":9,"text":"المستخدمون","textPreview":"المستخدمون","textChars":10,"textLines":1,"bbox":[557,494,111,16]}
+{"kind":"textbox","id":"sh/fil0nm54","slide":9,"text":"التقارير","textPreview":"التقارير","textChars":8,"textLines":1,"bbox":[92,176,260,32]}
+{"kind":"textbox","id":"sh/jmhgvilw","slide":9,"text":"متابعة وإدارة البيانات اليومية","textPreview":"متابعة وإدارة البيانات اليومية","textChars":30,"textLines":1,"bbox":[92,210,260,20]}
+{"kind":"shape","id":"sh/il8f2d4b","slide":9,"bbox":[398,178,110,34]}
+{"kind":"textbox","id":"sh/5ozyxs3m","slide":9,"text":"تصدير Excel","textPreview":"تصدير Excel","textChars":11,"textLines":1,"bbox":[403,187,100,16]}
+{"kind":"shape","id":"sh/4nqx4nm1","slide":9,"bbox":[92,250,421,34]}
+{"kind":"textbox","id":"sh/vixgrylk","slide":9,"text":"بحث أو تصفية...","textPreview":"بحث أو تصفية...","textChars":15,"textLines":1,"bbox":[104,258,397,16]}
+{"kind":"shape","id":"sh/uhofyd4z","slide":9,"bbox":[92,300,133.67,72]}
+{"kind":"textbox","id":"sh/hkzyt83q","slide":9,"text":"إجمالي المستحق","textPreview":"إجمالي المستحق","textChars":14,"textLines":1,"bbox":[102,313,113.67,16]}
+{"kind":"textbox","id":"sh/wjqx03m5","slide":9,"text":"86,000 ر.س","textPreview":"86,000 ر.س","textChars":10,"textLines":1,"bbox":[102,335,113.67,24]}
+{"kind":"shape","id":"sh/fe1g32lo","slide":9,"bbox":[235.67,300,133.67,72]}
+{"kind":"textbox","id":"sh/edszax4j","slide":9,"text":"عدد الفواتير","textPreview":"عدد الفواتير","textChars":12,"textLines":1,"bbox":[245.67,313,113.67,16]}
+{"kind":"textbox","id":"sh/cj2d4z2l","slide":9,"text":"54","textPreview":"54","textChars":2,"textLines":1,"bbox":[245.67,335,113.67,24]}
+{"kind":"shape","id":"sh/dkvux4j6","slide":9,"bbox":[379.33,300,133.67,72]}
+{"kind":"textbox","id":"sh/qxkv2pkv","slide":9,"text":"إجمالي المدفوع","textPreview":"إجمالي المدفوع","textChars":14,"textLines":1,"bbox":[389.33,313,113.67,16]}
+{"kind":"textbox","id":"sh/bytcvu1g","slide":9,"text":"310,000 ر.س","textPreview":"310,000 ر.س","textChars":11,"textLines":1,"bbox":[389.33,335,113.67,24]}
+{"kind":"shape","id":"sh/knmd8z2x","slide":9,"bbox":[92,396,421,145]}
+{"kind":"shape","id":"sh/lovu14ji","slide":9,"bbox":[92,396,421,34]}
+{"kind":"textbox","id":"sh/yl4v69kr","slide":9,"text":"العنصر","textPreview":"العنصر","textChars":6,"textLines":1,"bbox":[363,405,110,16]}
+{"kind":"textbox","id":"sh/zmdcze1c","slide":9,"text":"التفاصيل","textPreview":"التفاصيل","textChars":8,"textLines":1,"bbox":[213,405,110,16]}
+{"kind":"textbox","id":"sh/8r6dcj2t","slide":9,"text":"الحالة","textPreview":"الحالة","textChars":6,"textLines":1,"bbox":[122,405,110,16]}
+{"kind":"textbox","id":"sh/9sfe5oje","slide":9,"text":"إجمالي المستحق","textPreview":"إجمالي المستحق","textChars":14,"textLines":1,"bbox":[353,435,120,16]}
+{"kind":"textbox","id":"sh/tonm5kji","slide":9,"text":"86,000 ر.س","textPreview":"86,000 ر.س","textChars":10,"textLines":1,"bbox":[208,435,120,16]}
+{"kind":"shape","id":"sh/8nu5wf2x","slide":9,"bbox":[116,432,88,22]}
+{"kind":"textbox","id":"sh/7ml43a1c","slide":9,"text":"إجراء متاح","textPreview":"إجراء متاح","textChars":10,"textLines":1,"bbox":[121,437,78,12]}
+{"kind":"textbox","id":"sh/mlcnu5kr","slide":9,"text":"عدد الفواتير","textPreview":"عدد الفواتير","textChars":12,"textLines":1,"bbox":[353,469,120,16]}
+{"kind":"textbox","id":"sh/lk3m1036","slide":9,"text":"54","textPreview":"54","textChars":2,"textLines":1,"bbox":[208,469,120,16]}
+{"kind":"shape","id":"sh/kjulsv21","slide":9,"bbox":[116,466,88,22]}
+{"kind":"textbox","id":"sh/zil4zqlg","slide":9,"text":"متابعة","textPreview":"متابعة","textChars":6,"textLines":1,"bbox":[121,471,78,12]}
+{"kind":"textbox","id":"sh/yhc3q5kv","slide":9,"text":"إجمالي المدفوع","textPreview":"إجمالي المدفوع","textChars":14,"textLines":1,"bbox":[353,503,120,16]}
+{"kind":"textbox","id":"sh/5g7md4jq","slide":9,"text":"310,000 ر.س","textPreview":"310,000 ر.س","textChars":11,"textLines":1,"bbox":[208,503,120,16]}
+{"kind":"shape","id":"sh/4fe54z25","slide":9,"bbox":[116,500,88,22]}
+{"kind":"textbox","id":"sh/218jy10n","slide":9,"text":"متابعة","textPreview":"متابعة","textChars":6,"textLines":1,"bbox":[121,505,78,12]}
+{"kind":"textbox","id":"sh/nmhkr618","slide":9,"text":"الأكشنز في الشاشة","textPreview":"الأكشنز في الشاشة","textChars":17,"textLines":1,"bbox":[735,170,400,32]}
+{"kind":"shape","id":"sh/onq10rit","slide":9,"bbox":[934,215,185,48]}
+{"kind":"textbox","id":"sh/poz2twzy","slide":9,"text":"تقرير تقادم الذمم","textPreview":"تقرير تقادم الذمم","textChars":17,"textLines":1,"bbox":[944,228,165,22]}
+{"kind":"shape","id":"sh/exojuh0b","slide":9,"bbox":[735,215,185,48]}
+{"kind":"textbox","id":"sh/fyhknm1w","slide":9,"text":"كشف حساب الموقع","textPreview":"كشف حساب الموقع","textChars":15,"textLines":1,"bbox":[745,228,165,22]}
+{"kind":"shape","id":"sh/0zq1wrih","slide":9,"bbox":[934,275,185,48]}
+{"kind":"textbox","id":"sh/10z2pwj2","slide":9,"text":"تصفية حسب الموقع","textPreview":"تصفية حسب الموقع","textChars":16,"textLines":1,"bbox":[944,288,165,22]}
+{"kind":"shape","id":"sh/ytsj6l0v","slide":9,"bbox":[735,275,185,48]}
+{"kind":"textbox","id":"sh/zu1kzqhg","slide":9,"text":"تصفية حسب الحالة","textPreview":"تصفية حسب الحالة","textChars":16,"textLines":1,"bbox":[745,288,165,22]}
+{"kind":"shape","id":"sh/vydgrihs","slide":9,"bbox":[934,335,185,48]}
+{"kind":"textbox","id":"sh/uxkzydg7","slide":9,"text":"تصدير Excel","textPreview":"تصدير Excel","textChars":11,"textLines":1,"bbox":[944,348,165,22]}
+{"kind":"shape","id":"sh/h0vyt8zy","slide":9,"bbox":[735,335,185,48]}
+{"kind":"textbox","id":"sh/gzmh0nyd","slide":9,"text":"عرض الإجماليات","textPreview":"عرض الإجماليات","textChars":14,"textLines":1,"bbox":[745,348,165,22]}
+{"kind":"textbox","id":"sh/32dgviho","slide":9,"text":"وحدات الإيجار | 9","textPreview":"وحدات الإيجار | 9","textChars":17,"textLines":1,"bbox":[70,670,180,22]}
+{"kind":"notes","id":"nt/ehtva8","slide":9,"text":"عرض تسليم غير تقني يشرح الشاشات والإجراءات اليومية.\n\n[Sources]\nsrc/messages/ar/*.json: أسماء الشاشات والأزرار والحالات المستخدمة في واجهة النظام.\nREADME.md: نطاق النظام العام وصفحات التشغيل."}
+{"kind":"slide","id":"sl/nvnzec","slide":10,"title":"شاشة الاستيراد","textShapes":44}
+{"kind":"textbox","id":"sh/mtcrihsn","slide":10,"text":"شاشة الاستيراد","textPreview":"شاشة الاستيراد","textChars":14,"textLines":1,"bbox":[70,45,1050,54]}
+{"kind":"textbox","id":"sh/9w3adwbe","slide":10,"text":"تسريع إدخال البيانات من ملفات Excel.","textPreview":"تسريع إدخال البيانات من ملفات Excel.","textChars":36,"textLines":1,"bbox":[70,98,1050,34]}
+{"kind":"shape","id":"sh/8vu9krat","slide":10,"bbox":[70,150,620,430]}
+{"kind":"shape","id":"sh/vy5sf6tk","slide":10,"bbox":[535,150,155,430]}
+{"kind":"shape","id":"sh/uxcrm1sz","slide":10,"bbox":[549,168,30,30]}
+{"kind":"textbox","id":"sh/hknahgra","slide":10,"text":"م","textPreview":"م","textChars":1,"textLines":1,"bbox":[549,173,30,20]}
+{"kind":"textbox","id":"sh/wje9oba5","slide":10,"text":"وحدات الإيجار","textPreview":"وحدات الإيجار","textChars":13,"textLines":1,"bbox":[585,170,88,24]}
+{"kind":"textbox","id":"sh/jm5sj69g","slide":10,"text":"لوحة التحكم","textPreview":"لوحة التحكم","textChars":11,"textLines":1,"bbox":[557,224,111,16]}
+{"kind":"textbox","id":"sh/ilwrq1sv","slide":10,"text":"المواقع","textPreview":"المواقع","textChars":7,"textLines":1,"bbox":[557,254,111,16]}
+{"kind":"textbox","id":"sh/sr2xknud","slide":10,"text":"الوحدات","textPreview":"الوحدات","textChars":7,"textLines":1,"bbox":[557,284,111,16]}
+{"kind":"textbox","id":"sh/dsbydsby","slide":10,"text":"العقود","textPreview":"العقود","textChars":6,"textLines":1,"bbox":[557,314,111,16]}
+{"kind":"textbox","id":"sh/qp0fidc7","slide":10,"text":"مستحق الآن","textPreview":"مستحق الآن","textChars":10,"textLines":1,"bbox":[557,344,111,16]}
+{"kind":"textbox","id":"sh/rq9gbits","slide":10,"text":"الفواتير","textPreview":"الفواتير","textChars":8,"textLines":1,"bbox":[557,374,111,16]}
+{"kind":"textbox","id":"sh/0v2ho7u9","slide":10,"text":"المدفوعات","textPreview":"المدفوعات","textChars":9,"textLines":1,"bbox":[557,404,111,16]}
+{"kind":"textbox","id":"sh/1wbyhsbu","slide":10,"text":"التقارير","textPreview":"التقارير","textChars":8,"textLines":1,"bbox":[557,434,111,16]}
+{"kind":"shape","id":"sh/etkzmxcj","slide":10,"bbox":[547,460,131,24]}
+{"kind":"textbox","id":"sh/futgf2to","slide":10,"text":"الاستيراد","textPreview":"الاستيراد","textChars":9,"textLines":1,"bbox":[557,464,111,16]}
+{"kind":"textbox","id":"sh/ojmhs7ul","slide":10,"text":"المستخدمون","textPreview":"المستخدمون","textChars":10,"textLines":1,"bbox":[557,494,111,16]}
+{"kind":"textbox","id":"sh/pkvylcb6","slide":10,"text":"الاستيراد","textPreview":"الاستيراد","textChars":9,"textLines":1,"bbox":[92,176,260,32]}
+{"kind":"textbox","id":"sh/x476p8zy","slide":10,"text":"متابعة وإدارة البيانات اليومية","textPreview":"متابعة وإدارة البيانات اليومية","textChars":30,"textLines":1,"bbox":[92,210,260,20]}
+{"kind":"shape","id":"sh/c3ypg3id","slide":10,"bbox":[398,178,110,34]}
+{"kind":"textbox","id":"sh/b2ponyhs","slide":10,"text":"رفع ملف","textPreview":"رفع ملف","textChars":7,"textLines":1,"bbox":[403,187,100,16]}
+{"kind":"shape","id":"sh/a1g7ed07","slide":10,"bbox":[92,250,421,34]}
+{"kind":"textbox","id":"sh/lsrqtszu","slide":10,"text":"بحث أو تصفية...","textPreview":"بحث أو تصفية...","textChars":15,"textLines":1,"bbox":[104,258,397,16]}
+{"kind":"shape","id":"sh/kripknip","slide":10,"bbox":[92,300,133.67,72]}
+{"kind":"textbox","id":"sh/z6p8rih4","slide":10,"text":"ملف الوحدات","textPreview":"ملف الوحدات","textChars":11,"textLines":1,"bbox":[102,313,113.67,16]}
+{"kind":"textbox","id":"sh/y5g7id0j","slide":10,"text":"تم الاستيراد","textPreview":"تم الاستيراد","textChars":12,"textLines":1,"bbox":[102,335,113.67,24]}
+{"kind":"shape","id":"sh/1wn6hozq","slide":10,"bbox":[235.67,300,133.67,72]}
+{"kind":"textbox","id":"sh/0vep8ji5","slide":10,"text":"ملف العقود","textPreview":"ملف العقود","textChars":10,"textLines":1,"bbox":[245.67,313,113.67,16]}
+{"kind":"textbox","id":"sh/q1c3ipg3","slide":10,"text":"3 أخطاء","textPreview":"3 أخطاء","textChars":7,"textLines":1,"bbox":[245.67,335,113.67,24]}
+{"kind":"shape","id":"sh/r2l4buxo","slide":10,"bbox":[379.33,300,133.67,72]}
+{"kind":"textbox","id":"sh/s3u5kzy9","slide":10,"text":"النموذج","textPreview":"النموذج","textChars":7,"textLines":1,"bbox":[389.33,313,113.67,16]}
+{"kind":"textbox","id":"sh/d43md4fe","slide":10,"text":"جاهز للتحميل","textPreview":"جاهز للتحميل","textChars":12,"textLines":1,"bbox":[389.33,335,113.67,24]}
+{"kind":"shape","id":"sh/e5cnm9gz","slide":10,"bbox":[92,396,421,145]}
+{"kind":"shape","id":"sh/f6l4fuxk","slide":10,"bbox":[92,396,421,34]}
+{"kind":"textbox","id":"sh/07u5ozy5","slide":10,"text":"العنصر","textPreview":"العنصر","textChars":6,"textLines":1,"bbox":[363,405,110,16]}
+{"kind":"textbox","id":"sh/18nmh4fq","slide":10,"text":"التفاصيل","textPreview":"التفاصيل","textChars":8,"textLines":1,"bbox":[213,405,110,16]}
+{"kind":"textbox","id":"sh/u9s3a5gv","slide":10,"text":"الحالة","textPreview":"الحالة","textChars":6,"textLines":1,"bbox":[122,405,110,16]}
+{"kind":"textbox","id":"sh/va143axg","slide":10,"text":"ملف الوحدات","textPreview":"ملف الوحدات","textChars":11,"textLines":1,"bbox":[353,435,120,16]}
+{"kind":"textbox","id":"sh/b6tk76p4","slide":10,"text":"تم الاستيراد","textPreview":"تم الاستيراد","textChars":12,"textLines":1,"bbox":[208,435,120,16]}
+{"kind":"shape","id":"sh/a5kje18j","slide":10,"bbox":[116,432,88,22]}
+{"kind":"textbox","id":"sh/x8b29w7a","slide":10,"text":"إجراء متاح","textPreview":"إجراء متاح","textChars":10,"textLines":1,"bbox":[121,437,78,12]}
+{"kind":"textbox","id":"sh/w721gbqp","slide":10,"text":"ملف العقود","textPreview":"ملف العقود","textChars":10,"textLines":1,"bbox":[353,469,120,16]}
+{"kind":"textbox","id":"sh/jatkb6pg","slide":10,"text":"3 أخطاء","textPreview":"3 أخطاء","textChars":7,"textLines":1,"bbox":[208,469,120,16]}
+{"kind":"shape","id":"sh/y9kji18v","slide":10,"bbox":[116,466,88,22]}
+{"kind":"textbox","id":"sh/lwb2dg76","slide":10,"text":"متابعة","textPreview":"متابعة","textChars":6,"textLines":1,"bbox":[121,471,78,12]}
+{"kind":"textbox","id":"sh/kv21kbq1","slide":10,"text":"النموذج","textPreview":"النموذج","textChars":7,"textLines":1,"bbox":[353,503,120,16]}
+{"kind":"textbox","id":"sh/7ydkfqpc","slide":10,"text":"جاهز للتحميل","textPreview":"جاهز للتحميل","textChars":12,"textLines":1,"bbox":[208,503,120,16]}
+{"kind":"shape","id":"sh/6x43ml8r","slide":10,"bbox":[116,500,88,22]}
+{"kind":"textbox","id":"sh/43m1cv65","slide":10,"text":"متابعة","textPreview":"متابعة","textChars":6,"textLines":1,"bbox":[121,505,78,12]}
+{"kind":"textbox","id":"sh/p4fi50nq","slide":10,"text":"الأكشنز في الشاشة","textPreview":"الأكشنز في الشاشة","textChars":17,"textLines":1,"bbox":[735,170,400,32]}
+{"kind":"shape","id":"sh/214jaloz","slide":10,"bbox":[934,215,185,48]}
+{"kind":"textbox","id":"sh/32d03q5k","slide":10,"text":"تحميل النموذج","textPreview":"تحميل النموذج","textChars":13,"textLines":1,"bbox":[944,228,165,22]}
+{"kind":"shape","id":"sh/gzm18b6t","slide":10,"bbox":[735,215,185,48]}
+{"kind":"textbox","id":"sh/h0vi1gne","slide":10,"text":"رفع ملف Excel","textPreview":"رفع ملف Excel","textChars":13,"textLines":1,"bbox":[745,228,165,22]}
+{"kind":"shape","id":"sh/ux4j61o3","slide":10,"bbox":[934,275,185,48]}
+{"kind":"textbox","id":"sh/fyd0z658","slide":10,"text":"استيراد الوحدات","textPreview":"استيراد الوحدات","textChars":15,"textLines":1,"bbox":[944,288,165,22]}
+{"kind":"shape","id":"sh/8b214b6x","slide":10,"bbox":[735,275,185,48]}
+{"kind":"textbox","id":"sh/twvixgni","slide":10,"text":"استيراد العقود","textPreview":"استيراد العقود","textChars":14,"textLines":1,"bbox":[745,288,165,22]}
+{"kind":"shape","id":"sh/9g3ql8bu","slide":10,"bbox":[934,335,185,48]}
+{"kind":"textbox","id":"sh/ofupc3u9","slide":10,"text":"عرض الأخطاء","textPreview":"عرض الأخطاء","textChars":11,"textLines":1,"bbox":[944,348,165,22]}
+{"kind":"shape","id":"sh/ne18jyt4","slide":10,"bbox":[735,335,185,48]}
+{"kind":"textbox","id":"sh/mts7atcj","slide":10,"text":"مراجعة عدد السجلات الناجحة","textPreview":"مراجعة عدد السجلات الناجحة","textChars":26,"textLines":1,"bbox":[745,348,165,22]}
+{"kind":"textbox","id":"sh/1sjqhoby","slide":10,"text":"وحدات الإيجار | 10","textPreview":"وحدات الإيجار | 10","textChars":18,"textLines":1,"bbox":[70,670,180,22]}
+{"kind":"notes","id":"nt/nvnzec","slide":10,"text":"عرض تسليم غير تقني يشرح الشاشات والإجراءات اليومية.\n\n[Sources]\nsrc/messages/ar/*.json: أسماء الشاشات والأزرار والحالات المستخدمة في واجهة النظام.\nREADME.md: نطاق النظام العام وصفحات التشغيل."}
+{"kind":"slide","id":"sl/u49awu","slide":11,"title":"المستخدمون والصلاحيات","textShapes":44}
+{"kind":"textbox","id":"sh/fa1832ts","slide":11,"text":"المستخدمون والصلاحيات","textPreview":"المستخدمون والصلاحيات","textChars":21,"textLines":1,"bbox":[70,45,1050,54]}
+{"kind":"textbox","id":"sh/gbapw7ad","slide":11,"text":"تحديد من يقدر يعدل ومن يقدر يشاهد فقط.","textPreview":"تحديد من يقدر يعدل ومن يقدر يشاهد فقط.","textChars":38,"textLines":1,"bbox":[70,98,1050,34]}
+{"kind":"shape","id":"sh/hcjq5cby","slide":11,"bbox":[70,150,620,430]}
+{"kind":"shape","id":"sh/6l87qxsb","slide":11,"bbox":[535,150,155,430]}
+{"kind":"shape","id":"sh/7mh8zitw","slide":11,"bbox":[549,168,30,30]}
+{"kind":"textbox","id":"sh/snqpsnah","slide":11,"text":"م","textPreview":"م","textChars":1,"textLines":1,"bbox":[549,173,30,20]}
+{"kind":"textbox","id":"sh/tojq1sb2","slide":11,"text":"وحدات الإيجار","textPreview":"وحدات الإيجار","textChars":13,"textLines":1,"bbox":[585,170,88,24]}
+{"kind":"textbox","id":"sh/ih87mdsf","slide":11,"text":"لوحة التحكم","textPreview":"لوحة التحكم","textChars":11,"textLines":1,"bbox":[557,224,111,16]}
+{"kind":"textbox","id":"sh/jihovit0","slide":11,"text":"المواقع","textPreview":"المواقع","textChars":7,"textLines":1,"bbox":[557,254,111,16]}
+{"kind":"textbox","id":"sh/fu90vatg","slide":11,"text":"الوحدات","textPreview":"الوحدات","textChars":7,"textLines":1,"bbox":[557,284,111,16]}
+{"kind":"textbox","id":"sh/et0zm5cv","slide":11,"text":"العقود","textPreview":"العقود","textChars":6,"textLines":1,"bbox":[557,314,111,16]}
+{"kind":"textbox","id":"sh/1grix0b6","slide":11,"text":"مستحق الآن","textPreview":"مستحق الآن","textChars":10,"textLines":1,"bbox":[557,344,111,16]}
+{"kind":"textbox","id":"sh/0fi1oful","slide":11,"text":"الفواتير","textPreview":"الفواتير","textChars":8,"textLines":1,"bbox":[557,374,111,16]}
+{"kind":"textbox","id":"sh/nit0zatc","slide":11,"text":"المدفوعات","textPreview":"المدفوعات","textChars":9,"textLines":1,"bbox":[557,404,111,16]}
+{"kind":"textbox","id":"sh/2hkjq5cr","slide":11,"text":"التقارير","textPreview":"التقارير","textChars":8,"textLines":1,"bbox":[557,434,111,16]}
+{"kind":"textbox","id":"sh/pkbi1kbi","slide":11,"text":"الاستيراد","textPreview":"الاستيراد","textChars":9,"textLines":1,"bbox":[557,464,111,16]}
+{"kind":"shape","id":"sh/oj21sfux","slide":11,"bbox":[547,490,131,24]}
+{"kind":"textbox","id":"sh/3mp0nqd8","slide":11,"text":"المستخدمون","textPreview":"المستخدمون","textChars":10,"textLines":1,"bbox":[557,494,111,16]}
+{"kind":"textbox","id":"sh/ilgzelcn","slide":11,"text":"المستخدمون","textPreview":"المستخدمون","textChars":10,"textLines":1,"bbox":[92,176,260,32]}
+{"kind":"textbox","id":"sh/mho3mtwb","slide":11,"text":"متابعة وإدارة البيانات اليومية","textPreview":"متابعة وإدارة البيانات اليومية","textChars":30,"textLines":1,"bbox":[92,210,260,20]}
+{"kind":"shape","id":"sh/7ix4vydg","slide":11,"bbox":[398,178,110,34]}
+{"kind":"textbox","id":"sh/8j6loje1","slide":11,"text":"إنشاء مستخدم","textPreview":"إنشاء مستخدم","textChars":12,"textLines":1,"bbox":[403,187,100,16]}
+{"kind":"shape","id":"sh/9kfmxovm","slide":11,"bbox":[92,250,421,34]}
+{"kind":"textbox","id":"sh/yd43i9wz","slide":11,"text":"بحث أو تصفية...","textPreview":"بحث أو تصفية...","textChars":15,"textLines":1,"bbox":[104,258,397,16]}
+{"kind":"shape","id":"sh/zedkredk","slide":11,"bbox":[92,300,133.67,72]}
+{"kind":"textbox","id":"sh/kfmlkje5","slide":11,"text":"مدير / محرر","textPreview":"مدير / محرر","textChars":11,"textLines":1,"bbox":[102,313,113.67,16]}
+{"kind":"textbox","id":"sh/lgf2tovq","slide":11,"text":"وصول كامل","textPreview":"وصول كامل","textChars":9,"textLines":1,"bbox":[102,335,113.67,24]}
+{"kind":"shape","id":"sh/a943e9w3","slide":11,"bbox":[235.67,300,133.67,72]}
+{"kind":"textbox","id":"sh/badknedo","slide":11,"text":"مشاهد","textPreview":"مشاهد","textChars":5,"textLines":1,"bbox":[245.67,313,113.67,16]}
+{"kind":"textbox","id":"sh/dg3e9wj2","slide":11,"text":"عرض فقط","textPreview":"عرض فقط","textChars":7,"textLines":1,"bbox":[245.67,335,113.67,24]}
+{"kind":"shape","id":"sh/cfuxgr2x","slide":11,"bbox":[379.33,300,133.67,72]}
+{"kind":"textbox","id":"sh/relw761c","slide":11,"text":"مستخدم جديد","textPreview":"مستخدم جديد","textChars":11,"textLines":1,"bbox":[389.33,313,113.67,16]}
+{"kind":"textbox","id":"sh/qdcfe1kr","slide":11,"text":"كلمة مرور مؤقتة","textPreview":"كلمة مرور مؤقتة","textChars":15,"textLines":1,"bbox":[389.33,335,113.67,24]}
+{"kind":"shape","id":"sh/pc3e5wj6","slide":11,"bbox":[92,396,421,145]}
+{"kind":"shape","id":"sh/4baxcr2l","slide":11,"bbox":[92,396,421,34]}
+{"kind":"textbox","id":"sh/3a1w3m10","slide":11,"text":"العنصر","textPreview":"العنصر","textChars":6,"textLines":1,"bbox":[363,405,110,16]}
+{"kind":"textbox","id":"sh/2psfahkf","slide":11,"text":"التفاصيل","textPreview":"التفاصيل","textChars":8,"textLines":1,"bbox":[213,405,110,16]}
+{"kind":"textbox","id":"sh/hoje1cju","slide":11,"text":"الحالة","textPreview":"الحالة","textChars":6,"textLines":1,"bbox":[122,405,110,16]}
+{"kind":"textbox","id":"sh/gnax872p","slide":11,"text":"مدير / محرر","textPreview":"مدير / محرر","textChars":11,"textLines":1,"bbox":[353,435,120,16]}
+{"kind":"textbox","id":"sh/wfixsry9","slide":11,"text":"وصول كامل","textPreview":"وصول كامل","textChars":9,"textLines":1,"bbox":[208,435,120,16]}
+{"kind":"shape","id":"sh/xgrelwfu","slide":11,"bbox":[116,432,88,22]}
+{"kind":"textbox","id":"sh/ad0fqhg3","slide":11,"text":"إجراء متاح","textPreview":"إجراء متاح","textChars":10,"textLines":1,"bbox":[121,437,78,12]}
+{"kind":"textbox","id":"sh/ve9wjmxo","slide":11,"text":"مشاهد","textPreview":"مشاهد","textChars":5,"textLines":1,"bbox":[353,469,120,16]}
+{"kind":"textbox","id":"sh/432xwryl","slide":11,"text":"عرض فقط","textPreview":"عرض فقط","textChars":7,"textLines":1,"bbox":[208,469,120,16]}
+{"kind":"shape","id":"sh/54bepwfq","slide":11,"bbox":[116,466,88,22]}
+{"kind":"textbox","id":"sh/ih0fu1gf","slide":11,"text":"متابعة","textPreview":"متابعة","textChars":6,"textLines":1,"bbox":[121,471,78,12]}
+{"kind":"textbox","id":"sh/j2twn6x0","slide":11,"text":"مستخدم جديد","textPreview":"مستخدم جديد","textChars":11,"textLines":1,"bbox":[353,503,120,16]}
+{"kind":"textbox","id":"sh/07ydk7y1","slide":11,"text":"كلمة مرور مؤقتة","textPreview":"كلمة مرور مؤقتة","textChars":15,"textLines":1,"bbox":[208,503,120,16]}
+{"kind":"shape","id":"sh/l87etcfm","slide":11,"bbox":[116,500,88,22]}
+{"kind":"textbox","id":"sh/32x0zah4","slide":11,"text":"متابعة","textPreview":"متابعة","textChars":6,"textLines":1,"bbox":[121,505,78,12]}
+{"kind":"textbox","id":"sh/21ozq50j","slide":11,"text":"الأكشنز في الشاشة","textPreview":"الأكشنز في الشاشة","textChars":17,"textLines":1,"bbox":[735,170,400,32]}
+{"kind":"shape","id":"sh/p4fi1kza","slide":11,"bbox":[934,215,185,48]}
+{"kind":"textbox","id":"sh/o36hsfip","slide":11,"text":"إنشاء مستخدم","textPreview":"إنشاء مستخدم","textChars":12,"textLines":1,"bbox":[944,228,165,22]}
+{"kind":"shape","id":"sh/fyd0vqh8","slide":11,"bbox":[735,215,185,48]}
+{"kind":"textbox","id":"sh/ex4zm50n","slide":11,"text":"تحديث الصلاحية","textPreview":"تحديث الصلاحية","textChars":14,"textLines":1,"bbox":[745,228,165,22]}
+{"kind":"shape","id":"sh/10vix0zy","slide":11,"bbox":[934,275,185,48]}
+{"kind":"textbox","id":"sh/gzmhovit","slide":11,"text":"تعيين مدير / محرر","textPreview":"تعيين مدير / محرر","textChars":17,"textLines":1,"bbox":[944,288,165,22]}
+{"kind":"shape","id":"sh/radgrqhw","slide":11,"bbox":[735,275,185,48]}
+{"kind":"textbox","id":"sh/69kzil0b","slide":11,"text":"تعيين مشاهد","textPreview":"تعيين مشاهد","textChars":11,"textLines":1,"bbox":[745,288,165,22]}
+{"kind":"shape","id":"sh/u5kjulkj","slide":11,"bbox":[934,335,185,48]}
+{"kind":"textbox","id":"sh/v6t03ql4","slide":11,"text":"مراجعة بريد المستخدم","textPreview":"مراجعة بريد المستخدم","textChars":20,"textLines":1,"bbox":[944,348,165,22]}
+{"kind":"shape","id":"sh/w721wv29","slide":11,"bbox":[735,335,185,48]}
+{"kind":"textbox","id":"sh/h8bi503u","slide":11,"text":"عرض تاريخ الإنشاء","textPreview":"عرض تاريخ الإنشاء","textChars":17,"textLines":1,"bbox":[745,348,165,22]}
+{"kind":"textbox","id":"sh/i9kjylkf","slide":11,"text":"وحدات الإيجار | 11","textPreview":"وحدات الإيجار | 11","textChars":18,"textLines":1,"bbox":[70,670,180,22]}
+{"kind":"notes","id":"nt/u49awu","slide":11,"text":"عرض تسليم غير تقني يشرح الشاشات والإجراءات اليومية.\n\n[Sources]\nsrc/messages/ar/*.json: أسماء الشاشات والأزرار والحالات المستخدمة في واجهة النظام.\nREADME.md: نطاق النظام العام وصفحات التشغيل."}
+{"kind":"slide","id":"sl/36gvp2","slide":12,"title":"طريقة العمل اليومية","textShapes":25}
+{"kind":"textbox","id":"sh/wjedkfi5","slide":12,"text":"طريقة العمل اليومية","textPreview":"طريقة العمل اليومية","textChars":19,"textLines":1,"bbox":[70,45,1050,54]}
+{"kind":"textbox","id":"sh/vi5wra1k","slide":12,"text":"هذه هي دورة الاستخدام المقترحة لفريق الشركة.","textPreview":"هذه هي دورة الاستخدام المقترحة لفريق الشركة.","textChars":44,"textLines":1,"bbox":[70,98,1050,34]}
+{"kind":"shape","id":"sh/uxwvi50f","slide":12,"bbox":[610,300,80,120]}
+{"kind":"textbox","id":"sh/5o7exkz2","slide":12,"text":"1","textPreview":"1","textChars":1,"textLines":1,"bbox":[622,320,56,30]}
+{"kind":"textbox","id":"sh/4nydofih","slide":12,"text":"المواقع","textPreview":"المواقع","textChars":7,"textLines":1,"bbox":[620,365,60,34]}
+{"kind":"shape","id":"sh/jmpwvuhw","slide":12,"bbox":[520,300,80,120]}
+{"kind":"textbox","id":"sh/ilgvmp0b","slide":12,"text":"2","textPreview":"2","textChars":1,"textLines":1,"bbox":[532,320,56,30]}
+{"kind":"textbox","id":"sh/lsnel0ji","slide":12,"text":"الوحدات","textPreview":"الوحدات","textChars":7,"textLines":1,"bbox":[530,365,60,34]}
+{"kind":"shape","id":"sh/krudcvix","slide":12,"bbox":[430,300,80,120]}
+{"kind":"textbox","id":"sh/edcjqp8b","slide":12,"text":"3","textPreview":"3","textChars":1,"textLines":1,"bbox":[442,320,56,30]}
+{"kind":"textbox","id":"sh/fel0zu9w","slide":12,"text":"العقود","textPreview":"العقود","textChars":6,"textLines":1,"bbox":[440,365,60,34]}
+{"kind":"shape","id":"sh/0fu1szq1","slide":12,"bbox":[340,300,80,120]}
+{"kind":"textbox","id":"sh/1g3i14rm","slide":12,"text":"4","textPreview":"4","textChars":1,"textLines":1,"bbox":[352,320,56,30]}
+{"kind":"textbox","id":"sh/2hwju987","slide":12,"text":"المستحق","textPreview":"المستحق","textChars":7,"textLines":1,"bbox":[350,365,60,34]}
+{"kind":"shape","id":"sh/n25k3e9s","slide":12,"bbox":[250,300,80,120]}
+{"kind":"textbox","id":"sh/o3e1wjqd","slide":12,"text":"5","textPreview":"5","textChars":1,"textLines":1,"bbox":[262,320,56,30]}
+{"kind":"textbox","id":"sh/p4n254ry","slide":12,"text":"الفاتورة","textPreview":"الفاتورة","textChars":8,"textLines":1,"bbox":[260,365,60,34]}
+{"kind":"shape","id":"sh/a5wjy98j","slide":12,"bbox":[160,300,80,120]}
+{"kind":"textbox","id":"sh/b65k7e9o","slide":12,"text":"6","textPreview":"6","textChars":1,"textLines":1,"bbox":[172,320,56,30]}
+{"kind":"textbox","id":"sh/7ap0ve5w","slide":12,"text":"الدفعة","textPreview":"الدفعة","textChars":6,"textLines":1,"bbox":[170,365,60,34]}
+{"kind":"shape","id":"sh/69gzmtob","slide":12,"bbox":[70,300,80,120]}
+{"kind":"textbox","id":"sh/tc7ixon2","slide":12,"text":"7","textPreview":"7","textChars":1,"textLines":1,"bbox":[82,320,56,30]}
+{"kind":"textbox","id":"sh/8by1oj6h","slide":12,"text":"التقرير","textPreview":"التقرير","textChars":7,"textLines":1,"bbox":[80,365,60,34]}
+{"kind":"textbox","id":"sh/j650re50","slide":12,"text":"الأكشنز في الشاشة","textPreview":"الأكشنز في الشاشة","textChars":17,"textLines":1,"bbox":[735,170,400,32]}
+{"kind":"shape","id":"sh/y5wzi9of","slide":12,"bbox":[934,215,185,48]}
+{"kind":"textbox","id":"sh/l87iton6","slide":12,"text":"أضف الموقع","textPreview":"أضف الموقع","textChars":10,"textLines":1,"bbox":[944,228,165,22]}
+{"kind":"shape","id":"sh/k7ehkj6l","slide":12,"bbox":[735,215,185,48]}
+{"kind":"textbox","id":"sh/bi50nupo","slide":12,"text":"أضف الوحدات","textPreview":"أضف الوحدات","textChars":11,"textLines":1,"bbox":[745,228,165,22]}
+{"kind":"shape","id":"sh/ahwzepoj","slide":12,"bbox":[934,275,185,48]}
+{"kind":"textbox","id":"sh/0naxovm1","slide":12,"text":"أنشئ العقد","textPreview":"أنشئ العقد","textChars":10,"textLines":1,"bbox":[944,288,165,22]}
+{"kind":"shape","id":"sh/1ojyx03m","slide":12,"bbox":[735,275,185,48]}
+{"kind":"textbox","id":"sh/elsfm54b","slide":12,"text":"راجع المستحق","textPreview":"راجع المستحق","textChars":12,"textLines":1,"bbox":[745,288,165,22]}
+{"kind":"shape","id":"sh/fm1wvqlg","slide":12,"bbox":[934,335,185,48]}
+{"kind":"textbox","id":"sh/obuxsfmd","slide":12,"text":"أصدر الفاتورة","textPreview":"أصدر الفاتورة","textChars":13,"textLines":1,"bbox":[944,348,165,22]}
+{"kind":"shape","id":"sh/pc3y1k3y","slide":12,"bbox":[735,335,185,48]}
+{"kind":"textbox","id":"sh/2pcfq547","slide":12,"text":"سجل الدفعة","textPreview":"سجل الدفعة","textChars":10,"textLines":1,"bbox":[745,348,165,22]}
+{"kind":"shape","id":"sh/nalgzals","slide":12,"bbox":[934,395,185,48]}
+{"kind":"textbox","id":"sh/4fqxgbmt","slide":12,"text":"راجع التقرير","textPreview":"راجع التقرير","textChars":12,"textLines":1,"bbox":[944,408,165,22]}
+{"kind":"textbox","id":"sh/5gzepgne","slide":12,"text":"وحدات الإيجار | 12","textPreview":"وحدات الإيجار | 12","textChars":18,"textLines":1,"bbox":[70,670,180,22]}
+{"kind":"notes","id":"nt/36gvp2","slide":12,"text":"عرض تسليم غير تقني يشرح الشاشات والإجراءات اليومية.\n\n[Sources]\nsrc/messages/ar/*.json: أسماء الشاشات والأزرار والحالات المستخدمة في واجهة النظام.\nREADME.md: نطاق النظام العام وصفحات التشغيل."}

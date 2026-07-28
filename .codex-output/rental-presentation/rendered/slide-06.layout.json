@@ -1,0 +1,515 @@
+{
+  "schema": "openai.presentation.layout/v4",
+  "unit": "px",
+  "slide": {
+    "aid": "sl/i48qjq",
+    "id": "i48qjq",
+    "slide": 6,
+    "layoutId": "12692877-4c09-4053-a3e3-ef5f36fb5024",
+    "layoutName": "Title Slide",
+    "layoutType": "title",
+    "masterLayoutId": "1aaf639f-9d99-43c4-b62f-f7c0019d28a4",
+    "masterLayoutName": "Master",
+    "backgroundColor": "#F8FAFC",
+    "frame": {
+      "left": 0,
+      "top": 0,
+      "width": 1280,
+      "height": 720
+    }
+  },
+  "theme": {
+    "colorSchemeName": "ChatGPT",
+    "colors": {
+      "accent1": "#156082",
+      "accent2": "#E97132",
+      "accent3": "#196B24",
+      "accent4": "#0F9ED5",
+      "accent5": "#A02B93",
+      "accent6": "#4EA72E",
+      "bg1": "#FFFFFF",
+      "bg2": "#000000",
+      "tx1": "#1F1F1F",
+      "tx2": "#FFFFFF",
+      "dk1": "#000000",
+      "lt1": "#FFFFFF",
+      "dk2": "#0E2841",
+      "lt2": "#E8E8E8",
+      "hlink": "#467886",
+      "folHlink": "#96607D"
+    },
+    "typefaces": [
+      "+mn-lt"
+    ]
+  },
+  "inheritedLayers": [
+    {
+      "scope": "layout",
+      "id": "12692877-4c09-4053-a3e3-ef5f36fb5024",
+      "name": "Title Slide",
+      "type": "title",
+      "parentLayoutId": "1aaf639f-9d99-43c4-b62f-f7c0019d28a4",
+      "elements": []
+    },
+    {
+      "scope": "master",
+      "id": "1aaf639f-9d99-43c4-b62f-f7c0019d28a4",
+      "name": "Master",
+      "type": "master",
+      "elements": []
+    }
+  ],
+  "elements": [
+    {
+      "order": 1,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/zqdw7yhk",
+      "id": "1",
+      "bbox": [
+        70,
+        42,
+        1040,
+        52
+      ],
+      "geometry": "rect",
+      "text": "رحلة العقد إلى الفاتورة واضحة",
+      "textPreview": "رحلة العقد إلى الفاتورة واضحة",
+      "resolvedFontSize": 38,
+      "resolvedTextStyle": {
+        "fontSize": 38,
+        "typeface": "+mn-lt",
+        "color": "#0F172A",
+        "bold": true,
+        "alignment": "right",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "رحلة العقد إلى الفاتورة واضحة"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "رحلة العقد إلى الفاتورة واضحة",
+          "resolvedTextStyle": {
+            "fontSize": 38,
+            "color": "#0F172A",
+            "bold": true,
+            "alignment": "right"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "رحلة العقد إلى الفاتورة واضحة",
+              "fontSize": 38,
+              "color": "#0F172A",
+              "bold": true,
+              "alignment": "right"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 2,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/krmx03i5",
+      "id": "2",
+      "bbox": [
+        70,
+        96,
+        1040,
+        34
+      ],
+      "geometry": "rect",
+      "text": "كل عقد يطلع مستحقات حسب دورة الدفع، وكل دفعة تحدث حالة الفاتورة.",
+      "textPreview": "كل عقد يطلع مستحقات حسب دورة الدفع، وكل دفعة تحدث حالة الفاتورة.",
+      "resolvedFontSize": 20,
+      "resolvedTextStyle": {
+        "fontSize": 20,
+        "typeface": "+mn-lt",
+        "color": "#64748B",
+        "alignment": "right",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "كل عقد يطلع مستحقات حسب دورة الدفع، وكل دفعة تحدث حالة الفاتورة."
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "كل عقد يطلع مستحقات حسب دورة الدفع، وكل دفعة تحدث حالة الفاتورة.",
+          "resolvedTextStyle": {
+            "fontSize": 20,
+            "color": "#64748B",
+            "alignment": "right"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "كل عقد يطلع مستحقات حسب دورة الدفع، وكل دفعة تحدث حالة الفاتورة.",
+              "fontSize": 20,
+              "color": "#64748B",
+              "alignment": "right"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 3,
+      "kind": "image",
+      "scope": "slide",
+      "aid": "im/wzepgbq9",
+      "id": "3",
+      "bbox": [
+        80,
+        150,
+        760,
+        420
+      ],
+      "geometry": "roundRect",
+      "alt": "صورة شاشة العقود والفواتير",
+      "contentType": "image/jpeg",
+      "imageFit": "cover",
+      "imageMask": {
+        "geometry": "roundRect",
+        "adjustmentList": [
+          {
+            "name": "adj",
+            "formula": "val 4286"
+          }
+        ]
+      },
+      "asset": {
+        "assetId": "0b2efc0c-843c-4363-9308-b948063a8811",
+        "contentType": "image/jpeg",
+        "byteLength": 5667
+      }
+    },
+    {
+      "order": 4,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/a1kfut0n",
+      "id": "4",
+      "bbox": [
+        532,
+        274,
+        20,
+        20
+      ],
+      "geometry": "ellipse",
+      "fillColor": "#2563EB",
+      "lineColor": "#FFFFFF",
+      "lineWidth": 2
+    },
+    {
+      "order": 5,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/b2tw3y18",
+      "id": "5",
+      "bbox": [
+        770,
+        160,
+        370,
+        104
+      ],
+      "geometry": "roundRect",
+      "fillColor": "#FFFFFF",
+      "lineColor": "#2563EB",
+      "lineWidth": 1
+    },
+    {
+      "order": 6,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/cn2xw3it",
+      "id": "6",
+      "bbox": [
+        549.07,
+        212,
+        220.93,
+        64.93
+      ],
+      "verticalFlip": true,
+      "geometry": "bentConnector5",
+      "lineColor": "#2563EB",
+      "lineWidth": 2
+    },
+    {
+      "order": 7,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/xobe58je",
+      "id": "7",
+      "bbox": [
+        786,
+        174,
+        338,
+        76
+      ],
+      "geometry": "rect",
+      "text": "دورة الدفع تحدد مبلغ الفترة: شهري، ربع سنوي، نصف سنوي، أو سنوي",
+      "textPreview": "دورة الدفع تحدد مبلغ الفترة: شهري، ربع سنوي، نصف سنوي، أو سنوي",
+      "resolvedFontSize": 18,
+      "resolvedTextStyle": {
+        "fontSize": 18,
+        "typeface": "+mn-lt",
+        "color": "#0F172A",
+        "bold": true,
+        "alignment": "right",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "دورة الدفع تحدد مبلغ الفترة: شهري، ربع سنوي،"
+          },
+          {
+            "index": 2,
+            "text": "نصف سنوي، أو سنوي"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "دورة الدفع تحدد مبلغ الفترة: شهري، ربع سنوي، نصف سنوي، أو سنوي",
+          "resolvedTextStyle": {
+            "fontSize": 18,
+            "color": "#0F172A",
+            "bold": true,
+            "alignment": "right"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "دورة الدفع تحدد مبلغ الفترة: شهري، ربع سنوي، نصف سنوي، أو سنوي",
+              "fontSize": 18,
+              "color": "#0F172A",
+              "bold": true,
+              "alignment": "right"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 8,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/uxof6d07",
+      "id": "8",
+      "bbox": [
+        230,
+        500,
+        20,
+        20
+      ],
+      "geometry": "ellipse",
+      "fillColor": "#16A34A",
+      "lineColor": "#FFFFFF",
+      "lineWidth": 2
+    },
+    {
+      "order": 9,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/vyxgfihs",
+      "id": "9",
+      "bbox": [
+        760,
+        330,
+        380,
+        110
+      ],
+      "geometry": "roundRect",
+      "fillColor": "#FFFFFF",
+      "lineColor": "#16A34A",
+      "lineWidth": 1
+    },
+    {
+      "order": 10,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/3i54z2x4",
+      "id": "10",
+      "bbox": [
+        247.07,
+        385,
+        512.93,
+        117.93
+      ],
+      "verticalFlip": true,
+      "geometry": "bentConnector5",
+      "lineColor": "#16A34A",
+      "lineWidth": 2
+    },
+    {
+      "order": 11,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/ihw3qxwj",
+      "id": "11",
+      "bbox": [
+        776,
+        344,
+        348,
+        82
+      ],
+      "geometry": "rect",
+      "text": "حالة الفاتورة تتغير حسب المدفوع: صادرة، جزئية، كاملة، أو متأخرة",
+      "textPreview": "حالة الفاتورة تتغير حسب المدفوع: صادرة، جزئية، كاملة، أو متأخرة",
+      "resolvedFontSize": 18,
+      "resolvedTextStyle": {
+        "fontSize": 18,
+        "typeface": "+mn-lt",
+        "color": "#0F172A",
+        "bold": true,
+        "alignment": "right",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "حالة الفاتورة تتغير حسب المدفوع: صادرة، جزئية،"
+          },
+          {
+            "index": 2,
+            "text": "كاملة، أو متأخرة"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "حالة الفاتورة تتغير حسب المدفوع: صادرة، جزئية، كاملة، أو متأخرة",
+          "resolvedTextStyle": {
+            "fontSize": 18,
+            "color": "#0F172A",
+            "bold": true,
+            "alignment": "right"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "حالة الفاتورة تتغير حسب المدفوع: صادرة، جزئية، كاملة، أو متأخرة",
+              "fontSize": 18,
+              "color": "#0F172A",
+              "bold": true,
+              "alignment": "right"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 12,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/5knm1cfa",
+      "id": "12",
+      "bbox": [
+        70,
+        670,
+        180,
+        24
+      ],
+      "geometry": "rect",
+      "text": "وحدات الإيجار | 6",
+      "textPreview": "وحدات الإيجار | 6",
+      "resolvedFontSize": 16,
+      "resolvedTextStyle": {
+        "fontSize": 16,
+        "typeface": "+mn-lt",
+        "color": "#64748B",
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "وحدات الإيجار | 6"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "وحدات الإيجار | 6",
+          "resolvedTextStyle": {
+            "fontSize": 16,
+            "color": "#64748B",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "وحدات الإيجار | 6",
+              "fontSize": 16,
+              "color": "#64748B",
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    }
+  ],
+  "composeRuns": []
+}

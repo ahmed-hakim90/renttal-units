@@ -1,0 +1,868 @@
+{
+  "schema": "openai.presentation.layout/v4",
+  "unit": "px",
+  "slide": {
+    "aid": "sl/y1ldz7",
+    "id": "y1ldz7",
+    "slide": 5,
+    "layoutId": "12692877-4c09-4053-a3e3-ef5f36fb5024",
+    "layoutName": "Title Slide",
+    "layoutType": "title",
+    "masterLayoutId": "1aaf639f-9d99-43c4-b62f-f7c0019d28a4",
+    "masterLayoutName": "Master",
+    "backgroundColor": "#F8FAFC",
+    "frame": {
+      "left": 0,
+      "top": 0,
+      "width": 1280,
+      "height": 720
+    }
+  },
+  "theme": {
+    "colorSchemeName": "ChatGPT",
+    "colors": {
+      "accent1": "#156082",
+      "accent2": "#E97132",
+      "accent3": "#196B24",
+      "accent4": "#0F9ED5",
+      "accent5": "#A02B93",
+      "accent6": "#4EA72E",
+      "bg1": "#FFFFFF",
+      "bg2": "#000000",
+      "tx1": "#1F1F1F",
+      "tx2": "#FFFFFF",
+      "dk1": "#000000",
+      "lt1": "#FFFFFF",
+      "dk2": "#0E2841",
+      "lt2": "#E8E8E8",
+      "hlink": "#467886",
+      "folHlink": "#96607D"
+    },
+    "typefaces": [
+      "+mn-lt"
+    ]
+  },
+  "inheritedLayers": [
+    {
+      "scope": "layout",
+      "id": "12692877-4c09-4053-a3e3-ef5f36fb5024",
+      "name": "Title Slide",
+      "type": "title",
+      "parentLayoutId": "1aaf639f-9d99-43c4-b62f-f7c0019d28a4",
+      "elements": []
+    },
+    {
+      "scope": "master",
+      "id": "1aaf639f-9d99-43c4-b62f-f7c0019d28a4",
+      "name": "Master",
+      "type": "master",
+      "elements": []
+    }
+  ],
+  "elements": [
+    {
+      "order": 1,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/9832hoba",
+      "id": "1",
+      "bbox": [
+        70,
+        42,
+        1040,
+        52
+      ],
+      "geometry": "rect",
+      "text": "كيف يمشي الطلب داخل النظام؟",
+      "textPreview": "كيف يمشي الطلب داخل النظام؟",
+      "resolvedFontSize": 38,
+      "resolvedTextStyle": {
+        "fontSize": 38,
+        "typeface": "+mn-lt",
+        "color": "#0F172A",
+        "bold": true,
+        "alignment": "right",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "كيف يمشي الطلب داخل النظام؟"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "كيف يمشي الطلب داخل النظام؟",
+          "resolvedTextStyle": {
+            "fontSize": 38,
+            "color": "#0F172A",
+            "bold": true,
+            "alignment": "right"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "كيف يمشي الطلب داخل النظام؟",
+              "fontSize": 38,
+              "color": "#0F172A",
+              "bold": true,
+              "alignment": "right"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 2,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/m5c3mtcj",
+      "id": "2",
+      "bbox": [
+        70,
+        96,
+        1040,
+        34
+      ],
+      "geometry": "rect",
+      "text": "الواجهة ما تكلم قاعدة البيانات مباشرة؛ فيه طبقات واضحة تحفظ المنطق والصلاحيات.",
+      "textPreview": "الواجهة ما تكلم قاعدة البيانات مباشرة؛ فيه طبقات واضحة تحفظ المنطق والصلاحيات.",
+      "resolvedFontSize": 20,
+      "resolvedTextStyle": {
+        "fontSize": 20,
+        "typeface": "+mn-lt",
+        "color": "#64748B",
+        "alignment": "right",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "الواجهة ما تكلم قاعدة البيانات مباشرة؛ فيه طبقات واضحة تحفظ المنطق والصلاحيات."
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "الواجهة ما تكلم قاعدة البيانات مباشرة؛ فيه طبقات واضحة تحفظ المنطق والصلاحيات.",
+          "resolvedTextStyle": {
+            "fontSize": 20,
+            "color": "#64748B",
+            "alignment": "right"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "الواجهة ما تكلم قاعدة البيانات مباشرة؛ فيه طبقات واضحة تحفظ المنطق والصلاحيات.",
+              "fontSize": 20,
+              "color": "#64748B",
+              "alignment": "right"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 3,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/76lkfyt4",
+      "id": "3",
+      "bbox": [
+        900,
+        245,
+        170,
+        84
+      ],
+      "geometry": "roundRect",
+      "fillColor": "#DBEAFE",
+      "lineColor": "#CBD5E1",
+      "lineWidth": 1
+    },
+    {
+      "order": 4,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/k3u1kjud",
+      "id": "4",
+      "bbox": [
+        914,
+        269,
+        142,
+        32
+      ],
+      "geometry": "rect",
+      "text": "المتصفح",
+      "textPreview": "المتصفح",
+      "resolvedFontSize": 20,
+      "resolvedTextStyle": {
+        "fontSize": 20,
+        "typeface": "+mn-lt",
+        "color": "#0F172A",
+        "bold": true,
+        "alignment": "center",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "المتصفح"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "المتصفح",
+          "resolvedTextStyle": {
+            "fontSize": 20,
+            "color": "#0F172A",
+            "bold": true,
+            "alignment": "center"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "المتصفح",
+              "fontSize": 20,
+              "color": "#0F172A",
+              "bold": true,
+              "alignment": "center"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 5,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/l432doby",
+      "id": "5",
+      "bbox": [
+        690,
+        245,
+        170,
+        84
+      ],
+      "geometry": "roundRect",
+      "fillColor": "#FFFFFF",
+      "lineColor": "#CBD5E1",
+      "lineWidth": 1
+    },
+    {
+      "order": 6,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/y1sji9cn",
+      "id": "6",
+      "bbox": [
+        704,
+        269,
+        142,
+        32
+      ],
+      "geometry": "rect",
+      "text": "Server Actions",
+      "textPreview": "Server Actions",
+      "resolvedFontSize": 20,
+      "resolvedTextStyle": {
+        "fontSize": 20,
+        "typeface": "+mn-lt",
+        "color": "#0F172A",
+        "bold": true,
+        "alignment": "center",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Server"
+          },
+          {
+            "index": 2,
+            "text": "Actions"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Server Actions",
+          "resolvedTextStyle": {
+            "fontSize": 20,
+            "color": "#0F172A",
+            "bold": true,
+            "alignment": "center"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Server Actions",
+              "fontSize": 20,
+              "color": "#0F172A",
+              "bold": true,
+              "alignment": "center"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 7,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/z21kbed8",
+      "id": "7",
+      "bbox": [
+        480,
+        245,
+        170,
+        84
+      ],
+      "geometry": "roundRect",
+      "fillColor": "#FFFFFF",
+      "lineColor": "#CBD5E1",
+      "lineWidth": 1
+    },
+    {
+      "order": 8,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/4zelwnux",
+      "id": "8",
+      "bbox": [
+        494,
+        269,
+        142,
+        32
+      ],
+      "geometry": "rect",
+      "text": "Services",
+      "textPreview": "Services",
+      "resolvedFontSize": 20,
+      "resolvedTextStyle": {
+        "fontSize": 20,
+        "typeface": "+mn-lt",
+        "color": "#0F172A",
+        "bold": true,
+        "alignment": "center",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Services"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Services",
+          "resolvedTextStyle": {
+            "fontSize": 20,
+            "color": "#0F172A",
+            "bold": true,
+            "alignment": "center"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Services",
+              "fontSize": 20,
+              "color": "#0F172A",
+              "bold": true,
+              "alignment": "center"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 9,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/50n2p8bi",
+      "id": "9",
+      "bbox": [
+        270,
+        245,
+        170,
+        84
+      ],
+      "geometry": "roundRect",
+      "fillColor": "#FFFFFF",
+      "lineColor": "#CBD5E1",
+      "lineWidth": 1
+    },
+    {
+      "order": 10,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/tw7q50ru",
+      "id": "10",
+      "bbox": [
+        284,
+        269,
+        142,
+        32
+      ],
+      "geometry": "rect",
+      "text": "Repositories",
+      "textPreview": "Repositories",
+      "resolvedFontSize": 20,
+      "resolvedTextStyle": {
+        "fontSize": 20,
+        "typeface": "+mn-lt",
+        "color": "#0F172A",
+        "bold": true,
+        "alignment": "center",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Repositories"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Repositories",
+          "resolvedTextStyle": {
+            "fontSize": 20,
+            "color": "#0F172A",
+            "bold": true,
+            "alignment": "center"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Repositories",
+              "fontSize": 20,
+              "color": "#0F172A",
+              "bold": true,
+              "alignment": "center"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 11,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/sby9wvq9",
+      "id": "11",
+      "bbox": [
+        80,
+        245,
+        170,
+        84
+      ],
+      "geometry": "roundRect",
+      "fillColor": "#FFFFFF",
+      "lineColor": "#16A34A",
+      "lineWidth": 1
+    },
+    {
+      "order": 12,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/rap83q9o",
+      "id": "12",
+      "bbox": [
+        94,
+        269,
+        142,
+        32
+      ],
+      "geometry": "rect",
+      "text": "Supabase",
+      "textPreview": "Supabase",
+      "resolvedFontSize": 20,
+      "resolvedTextStyle": {
+        "fontSize": 20,
+        "typeface": "+mn-lt",
+        "color": "#0F172A",
+        "bold": true,
+        "alignment": "center",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Supabase"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Supabase",
+          "resolvedTextStyle": {
+            "fontSize": 20,
+            "color": "#0F172A",
+            "bold": true,
+            "alignment": "center"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Supabase",
+              "fontSize": 20,
+              "color": "#0F172A",
+              "bold": true,
+              "alignment": "center"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 13,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/69grul83",
+      "id": "13",
+      "bbox": [
+        860,
+        287,
+        40,
+        0
+      ],
+      "horizontalFlip": true,
+      "geometry": "straightConnector1",
+      "lineColor": "#2563EB",
+      "lineWidth": 2
+    },
+    {
+      "order": 14,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/587q1gri",
+      "id": "14",
+      "bbox": [
+        650,
+        287,
+        40,
+        0
+      ],
+      "horizontalFlip": true,
+      "geometry": "straightConnector1",
+      "lineColor": "#2563EB",
+      "lineWidth": 2
+    },
+    {
+      "order": 15,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/47y9svqx",
+      "id": "15",
+      "bbox": [
+        440,
+        287,
+        40,
+        0
+      ],
+      "horizontalFlip": true,
+      "geometry": "straightConnector1",
+      "lineColor": "#2563EB",
+      "lineWidth": 2
+    },
+    {
+      "order": 16,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/j6p8zq9s",
+      "id": "16",
+      "bbox": [
+        250,
+        287,
+        20,
+        0
+      ],
+      "horizontalFlip": true,
+      "geometry": "straightConnector1",
+      "lineColor": "#2563EB",
+      "lineWidth": 2
+    },
+    {
+      "order": 17,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/i5wrql87",
+      "id": "17",
+      "bbox": [
+        160,
+        400,
+        960,
+        98
+      ],
+      "geometry": "rect",
+      "text": "المستخدم يضغط إجراء في الواجهة، Server Action يستقبل الطلب، Service يتحقق من الصلاحيات والبيانات، Repository ينفذ الاستعلام، و Supabase يطبق RLS ويحفظ السجل.",
+      "textPreview": "المستخدم يضغط إجراء في الواجهة، Server Action يستقبل الطلب، Service يتحقق من الصلاحيات والبيانات، Repository ينفذ الاستعلام، و Supabase ي...",
+      "resolvedFontSize": 24,
+      "resolvedTextStyle": {
+        "fontSize": 24,
+        "typeface": "+mn-lt",
+        "color": "#64748B",
+        "alignment": "center",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "المستخدم يضغط إجراء في الواجهة، Server Action يستقبل الطلب، Service يتحقق من الصلاحيات والبيانات،"
+          },
+          {
+            "index": 2,
+            "text": "Repository ينفذ الاستعلام، و Supabase يطبق RLS ويحفظ السجل."
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "المستخدم يضغط إجراء في الواجهة، Server Action يستقبل الطلب، Service يتحقق من الصلاحيات والبيانات، Repository ينفذ الاستعلام، و Supabase يطبق RLS ويحفظ السجل.",
+          "resolvedTextStyle": {
+            "fontSize": 24,
+            "color": "#64748B",
+            "alignment": "center"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "المستخدم يضغط إجراء في الواجهة، Server Action يستقبل الطلب، Service يتحقق من الصلاحيات والبيانات، Repository ينفذ الاستعلام، و Supabase يطبق RLS ويحفظ السجل.",
+              "fontSize": 24,
+              "color": "#64748B",
+              "alignment": "center"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 18,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/p4radkr2",
+      "id": "18",
+      "bbox": [
+        240,
+        535,
+        800,
+        70
+      ],
+      "geometry": "roundRect",
+      "fillColor": "#EFF6FF",
+      "lineColor": "#93C5FD",
+      "lineWidth": 1
+    },
+    {
+      "order": 19,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/o3i94fqh",
+      "id": "19",
+      "bbox": [
+        275,
+        556,
+        730,
+        34
+      ],
+      "geometry": "rect",
+      "text": "النتيجة: تشغيل مرتب، أخطاء أقل، وسهولة في التتبع عن طريق correlation id و audit logs.",
+      "textPreview": "النتيجة: تشغيل مرتب، أخطاء أقل، وسهولة في التتبع عن طريق correlation id و audit logs.",
+      "resolvedFontSize": 22,
+      "resolvedTextStyle": {
+        "fontSize": 22,
+        "typeface": "+mn-lt",
+        "color": "#2563EB",
+        "bold": true,
+        "alignment": "center",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "النتيجة: تشغيل مرتب، أخطاء أقل، وسهولة في التتبع عن طريق correlation id و audit"
+          },
+          {
+            "index": 2,
+            "text": "logs."
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "النتيجة: تشغيل مرتب، أخطاء أقل، وسهولة في التتبع عن طريق correlation id و audit logs.",
+          "resolvedTextStyle": {
+            "fontSize": 22,
+            "color": "#2563EB",
+            "bold": true,
+            "alignment": "center"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "النتيجة: تشغيل مرتب، أخطاء أقل، وسهولة في التتبع عن طريق correlation id و audit logs.",
+              "fontSize": 22,
+              "color": "#2563EB",
+              "bold": true,
+              "alignment": "center"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 20,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/8jalwn2p",
+      "id": "20",
+      "bbox": [
+        70,
+        670,
+        180,
+        24
+      ],
+      "geometry": "rect",
+      "text": "وحدات الإيجار | 5",
+      "textPreview": "وحدات الإيجار | 5",
+      "resolvedFontSize": 16,
+      "resolvedTextStyle": {
+        "fontSize": 16,
+        "typeface": "+mn-lt",
+        "color": "#64748B",
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "وحدات الإيجار | 5"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "وحدات الإيجار | 5",
+          "resolvedTextStyle": {
+            "fontSize": 16,
+            "color": "#64748B",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "وحدات الإيجار | 5",
+              "fontSize": 16,
+              "color": "#64748B",
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    }
+  ],
+  "composeRuns": []
+}

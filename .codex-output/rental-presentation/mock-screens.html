@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=1280, initial-scale=1" />
+  <title>Rental Units Mock Screens</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; width: 1280px; height: 720px; font-family: Arial, Tahoma, sans-serif; direction: rtl; background: #f8fafc; color: #0f172a; overflow: hidden; }
+    .wrap { width: 1280px; height: 720px; position: relative; background: #f8fafc; }
+    .sidebar { position: absolute; right: 0; top: 0; width: 245px; height: 720px; background: white; border-left: 1px solid #e5e7eb; padding: 22px 18px; }
+    .brand { display: flex; gap: 12px; align-items: center; font-weight: 800; font-size: 22px; margin-bottom: 30px; }
+    .mark { width: 38px; height: 38px; border-radius: 12px; background: linear-gradient(135deg, #2563eb, #1d4ed8); position: relative; }
+    .mark:before { content: ""; position: absolute; right: 10px; bottom: 9px; width: 7px; height: 19px; border-radius: 3px; background: white; }
+    .mark:after { content: ""; position: absolute; left: 10px; bottom: 9px; width: 8px; height: 27px; border-radius: 3px; background: white; }
+    .nav div { height: 40px; border-radius: 12px; display: flex; align-items: center; gap: 10px; padding: 0 12px; margin: 5px 0; color: #64748b; font-size: 16px; }
+    .nav .active { background: #dbeafe; color: #1d4ed8; font-weight: 700; }
+    .dot { width: 11px; height: 11px; border-radius: 50%; background: currentColor; }
+    .main { position: absolute; right: 245px; top: 0; left: 0; height: 720px; padding: 34px 38px; }
+    .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+    .title { font-size: 34px; font-weight: 850; }
+    .sub { font-size: 17px; color: #64748b; margin-top: 7px; }
+    .search { width: 310px; height: 44px; border: 1px solid #e2e8f0; border-radius: 12px; background: white; color: #94a3b8; display: flex; align-items: center; padding: 0 18px; }
+    .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+    .card { background: white; border: 1px solid #e2e8f0; border-radius: 16px; padding: 20px; box-shadow: 0 10px 25px rgba(15,23,42,.05); }
+    .k { font-size: 15px; color: #64748b; }
+    .v { font-size: 31px; font-weight: 850; margin-top: 12px; }
+    .green { color: #16a34a; }
+    .blue { color: #2563eb; }
+    .amber { color: #d97706; }
+    .table { margin-top: 24px; background: white; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; }
+    .row { display: grid; grid-template-columns: 1.2fr 1fr 1fr 1fr; align-items: center; min-height: 52px; padding: 0 20px; border-top: 1px solid #eef2f7; font-size: 16px; }
+    .row.head { background: #f1f5f9; border-top: 0; color: #475569; font-weight: 750; }
+    .badge { display: inline-flex; width: max-content; border-radius: 999px; padding: 6px 12px; font-size: 14px; font-weight: 700; }
+    .bblue { background: #dbeafe; color: #1d4ed8; }
+    .bgreen { background: #dcfce7; color: #166534; }
+    .byellow { background: #fef3c7; color: #92400e; }
+    .terminal { direction: ltr; text-align: left; background: #0b1220; color: #d1fae5; border-radius: 18px; padding: 22px; font-family: Menlo, Consolas, monospace; font-size: 20px; line-height: 1.55; box-shadow: 0 24px 70px rgba(15,23,42,.25); white-space: pre-wrap; }
+    .panel { background: white; border: 1px solid #e2e8f0; border-radius: 18px; padding: 22px; }
+    .small { font-size: 14px; color: #64748b; margin-top: 4px; font-weight: 500; }
+  </style>
+</head>
+<body>
+  <div id="screen"></div>
+  <script>
+    const kind = new URLSearchParams(location.search).get("kind") || "dashboard";
+    const sidebar = (active) => `<aside class="sidebar"><div class="brand"><div class="mark"></div><div>وحدات الإيجار</div></div><div class="nav">${["لوحة التحكم","المواقع","الوحدات","العقود","مستحق الآن","سجل المدفوعات","التقارير","المستخدمون والصلاحيات"].map(x => `<div class="${x===active?'active':''}"><span class="dot"></span>${x}</div>`).join("")}</div></aside>`;
+    const dashboard = `<div class="wrap">${sidebar("لوحة التحكم")}<main class="main"><div class="top"><div><div class="title">لوحة التحكم</div><div class="sub">نظرة عامة على محفظة الإيجارات</div></div><div class="search">بحث عن وحدة أو فاتورة...</div></div><section class="cards"><div class="card"><div class="k">مستحق الآن</div><div class="v amber">18</div><div class="small">مستحقات هذا الشهر</div></div><div class="card"><div class="k">في انتظار الدفع</div><div class="v blue">42</div><div class="small">فواتير صادرة</div></div><div class="card"><div class="k">مدفوعات جزئية</div><div class="v amber">9</div><div class="small">تحتاج متابعة</div></div><div class="card"><div class="k">مدفوع بالكامل</div><div class="v green">128</div><div class="small">مكتملة</div></div></section><div class="table"><div class="row head"><div>الفاتورة</div><div>الوحدة</div><div>المبلغ</div><div>الحالة</div></div><div class="row"><div>INV-1042</div><div>الرياض 12A</div><div>4,500 ر.س</div><div><span class="badge bblue">تم إصدار الفاتورة</span></div></div><div class="row"><div>INV-1043</div><div>جدة 08</div><div>2,800 ر.س</div><div><span class="badge byellow">مدفوع جزئياً</span></div></div><div class="row"><div>INV-1044</div><div>الدمام 22</div><div>6,200 ر.س</div><div><span class="badge bgreen">مدفوع بالكامل</span></div></div></div></main></div>`;
+    const contracts = `<div class="wrap">${sidebar("العقود")}<main class="main"><div class="top"><div><div class="title">العقود والفواتير</div><div class="sub">من عقد الإيجار إلى إصدار الفواتير والتحصيل</div></div><div style="height:46px;border-radius:12px;background:#2563eb;color:white;padding:13px 18px;font-weight:800">+ إضافة عقد</div></div><div class="panel"><div style="display:grid;grid-template-columns:1fr 1fr;gap:18px"><div><div class="k">بيانات العقد</div><div class="v" style="font-size:25px">CON-2026-017</div><div class="small">وحدة 12A، مستأجر: شركة الرياض</div></div><div><div class="k">دورة الدفع</div><div class="v blue" style="font-size:25px">ربع سنوي</div><div class="small">ينشئ المستحقات حسب فترة العقد</div></div></div></div><div class="table"><div class="row head"><div>الفترة</div><div>تاريخ الاستحقاق</div><div>المبلغ</div><div>الحالة</div></div><div class="row"><div>يناير - مارس</div><div>2026-01-01</div><div>13,500 ر.س</div><div><span class="badge bgreen">مدفوع بالكامل</span></div></div><div class="row"><div>أبريل - يونيو</div><div>2026-04-01</div><div>13,500 ر.س</div><div><span class="badge byellow">مدفوع جزئياً</span></div></div><div class="row"><div>يوليو - سبتمبر</div><div>2026-07-01</div><div>13,500 ر.س</div><div><span class="badge bblue">تم إصدار الفاتورة</span></div></div></div></main></div>`;
+    const setup = `<div class="wrap" style="padding:46px;background:#f8fafc"><div class="title">تشغيل النظام محلياً</div><div class="sub">خطوات التجهيز الأساسية قبل الاستخدام</div><div style="display:grid;grid-template-columns:1.1fr .9fr;gap:28px;margin-top:34px"><div class="terminal">$ npm install
+$ cp .env.local.example .env.local
+$ supabase link --project-ref YOUR_PROJECT_REF
+$ supabase db push
+$ npm run dev
+
+▲ Next.js 16.2.7
+✓ Ready on http://localhost:3000</div><div class="panel" style="height:390px"><div class="k">ملفات مهمة</div><div class="v" style="font-size:25px">.env.local + supabase/migrations</div><div style="margin-top:25px;font-size:19px;line-height:1.8;color:#334155">ضع مفاتيح Supabase، ادفع الجداول والسياسات، بعدها افتح الرابط العربي: <b>/ar/dashboard</b>.</div><div style="margin-top:24px;border-top:1px solid #e2e8f0;padding-top:18px;color:#64748b;font-size:16px">بعد إنشاء أول مستخدم، رقّه إلى <b>admin_editor</b> من جدول profiles.</div></div></div></div>`;
+    document.getElementById("screen").innerHTML = kind === "contracts" ? contracts : kind === "setup" ? setup : dashboard;
+  </script>
+</body>
+</html>

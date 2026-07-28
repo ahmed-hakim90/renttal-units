@@ -1,0 +1,375 @@
+{
+  "schema": "openai.presentation.layout/v4",
+  "unit": "px",
+  "slide": {
+    "aid": "sl/gkh1j7",
+    "id": "gkh1j7",
+    "slide": 1,
+    "layoutId": "12692877-4c09-4053-a3e3-ef5f36fb5024",
+    "layoutName": "Title Slide",
+    "layoutType": "title",
+    "masterLayoutId": "1aaf639f-9d99-43c4-b62f-f7c0019d28a4",
+    "masterLayoutName": "Master",
+    "backgroundColor": "#F8FAFC",
+    "frame": {
+      "left": 0,
+      "top": 0,
+      "width": 1280,
+      "height": 720
+    }
+  },
+  "theme": {
+    "colorSchemeName": "ChatGPT",
+    "colors": {
+      "accent1": "#156082",
+      "accent2": "#E97132",
+      "accent3": "#196B24",
+      "accent4": "#0F9ED5",
+      "accent5": "#A02B93",
+      "accent6": "#4EA72E",
+      "bg1": "#FFFFFF",
+      "bg2": "#000000",
+      "tx1": "#1F1F1F",
+      "tx2": "#FFFFFF",
+      "dk1": "#000000",
+      "lt1": "#FFFFFF",
+      "dk2": "#0E2841",
+      "lt2": "#E8E8E8",
+      "hlink": "#467886",
+      "folHlink": "#96607D"
+    },
+    "typefaces": [
+      "+mn-lt"
+    ]
+  },
+  "inheritedLayers": [
+    {
+      "scope": "layout",
+      "id": "12692877-4c09-4053-a3e3-ef5f36fb5024",
+      "name": "Title Slide",
+      "type": "title",
+      "parentLayoutId": "1aaf639f-9d99-43c4-b62f-f7c0019d28a4",
+      "elements": []
+    },
+    {
+      "scope": "master",
+      "id": "1aaf639f-9d99-43c4-b62f-f7c0019d28a4",
+      "name": "Master",
+      "type": "master",
+      "elements": []
+    }
+  ],
+  "elements": [
+    {
+      "order": 1,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/grm50bap",
+      "id": "1",
+      "bbox": [
+        110,
+        92,
+        980,
+        70
+      ],
+      "geometry": "rect",
+      "text": "وحدات الإيجار",
+      "textPreview": "وحدات الإيجار",
+      "resolvedFontSize": 58,
+      "resolvedTextStyle": {
+        "fontSize": 58,
+        "typeface": "+mn-lt",
+        "color": "#0F172A",
+        "bold": true,
+        "alignment": "right",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "وحدات الإيجار"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "وحدات الإيجار",
+          "resolvedTextStyle": {
+            "fontSize": 58,
+            "color": "#0F172A",
+            "bold": true,
+            "alignment": "right"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "وحدات الإيجار",
+              "fontSize": 58,
+              "color": "#0F172A",
+              "bold": true,
+              "alignment": "right"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 2,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/fqd4r694",
+      "id": "2",
+      "bbox": [
+        110,
+        184,
+        860,
+        95
+      ],
+      "geometry": "rect",
+      "text": "عرض سريع يشرح كيف نأسس النظام، نشغله، وكيف تمشي دورة العمل من الوحدة إلى التحصيل والتقارير.",
+      "textPreview": "عرض سريع يشرح كيف نأسس النظام، نشغله، وكيف تمشي دورة العمل من الوحدة إلى التحصيل والتقارير.",
+      "resolvedFontSize": 26,
+      "resolvedTextStyle": {
+        "fontSize": 26,
+        "typeface": "+mn-lt",
+        "color": "#64748B",
+        "alignment": "right",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "عرض سريع يشرح كيف نأسس النظام، نشغله، وكيف تمشي دورة العمل من الوحدة إلى التحصيل"
+          },
+          {
+            "index": 2,
+            "text": "والتقارير."
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "عرض سريع يشرح كيف نأسس النظام، نشغله، وكيف تمشي دورة العمل من الوحدة إلى التحصيل والتقارير.",
+          "resolvedTextStyle": {
+            "fontSize": 26,
+            "color": "#64748B",
+            "alignment": "right"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "عرض سريع يشرح كيف نأسس النظام، نشغله، وكيف تمشي دورة العمل من الوحدة إلى التحصيل والتقارير.",
+              "fontSize": 26,
+              "color": "#64748B",
+              "alignment": "right"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 3,
+      "kind": "image",
+      "scope": "slide",
+      "aid": "im/769cjqxo",
+      "id": "3",
+      "bbox": [
+        90,
+        318,
+        820,
+        320
+      ],
+      "geometry": "roundRect",
+      "alt": "صورة لوحة التحكم",
+      "contentType": "image/jpeg",
+      "imageFit": "cover",
+      "imageMask": {
+        "geometry": "roundRect",
+        "adjustmentList": [
+          {
+            "name": "adj",
+            "formula": "val 5625"
+          }
+        ]
+      },
+      "asset": {
+        "assetId": "c21ac2e7-37be-47cb-98e5-2831bb06a9ac",
+        "contentType": "image/jpeg",
+        "byteLength": 5667
+      }
+    },
+    {
+      "order": 4,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/pwfmxgrm",
+      "id": "4",
+      "bbox": [
+        850,
+        350,
+        300,
+        160
+      ],
+      "geometry": "roundRect",
+      "fillColor": "#DBEAFE",
+      "lineColor": "#93C5FD",
+      "lineWidth": 1
+    },
+    {
+      "order": 5,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/4vm54ba1",
+      "id": "5",
+      "bbox": [
+        875,
+        382,
+        250,
+        92
+      ],
+      "geometry": "rect",
+      "text": "الفكرة ببساطة: مكان واحد يشوف الوحدات، العقود، الفواتير، والتحصيل بدون ملفات متفرقة.",
+      "textPreview": "الفكرة ببساطة: مكان واحد يشوف الوحدات، العقود، الفواتير، والتحصيل بدون ملفات متفرقة.",
+      "resolvedFontSize": 24,
+      "resolvedTextStyle": {
+        "fontSize": 24,
+        "typeface": "+mn-lt",
+        "color": "#0F172A",
+        "bold": true,
+        "alignment": "right",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 4,
+        "lines": [
+          {
+            "index": 1,
+            "text": "الفكرة ببساطة: مكان واحد"
+          },
+          {
+            "index": 2,
+            "text": "يشوف الوحدات، العقود،"
+          },
+          {
+            "index": 3,
+            "text": "الفواتير، والتحصيل بدون"
+          },
+          {
+            "index": 4,
+            "text": "ملفات متفرقة."
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "الفكرة ببساطة: مكان واحد يشوف الوحدات، العقود، الفواتير، والتحصيل بدون ملفات متفرقة.",
+          "resolvedTextStyle": {
+            "fontSize": 24,
+            "color": "#0F172A",
+            "bold": true,
+            "alignment": "right"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "الفكرة ببساطة: مكان واحد يشوف الوحدات، العقود، الفواتير، والتحصيل بدون ملفات متفرقة.",
+              "fontSize": 24,
+              "color": "#0F172A",
+              "bold": true,
+              "alignment": "right"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 6,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/3ud4v69g",
+      "id": "6",
+      "bbox": [
+        70,
+        670,
+        180,
+        24
+      ],
+      "geometry": "rect",
+      "text": "وحدات الإيجار | 1",
+      "textPreview": "وحدات الإيجار | 1",
+      "resolvedFontSize": 16,
+      "resolvedTextStyle": {
+        "fontSize": 16,
+        "typeface": "+mn-lt",
+        "color": "#64748B",
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "وحدات الإيجار | 1"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "وحدات الإيجار | 1",
+          "resolvedTextStyle": {
+            "fontSize": 16,
+            "color": "#64748B",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "وحدات الإيجار | 1",
+              "fontSize": 16,
+              "color": "#64748B",
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    }
+  ],
+  "composeRuns": []
+}

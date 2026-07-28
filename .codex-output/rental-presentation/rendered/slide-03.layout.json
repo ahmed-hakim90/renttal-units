@@ -1,0 +1,623 @@
+{
+  "schema": "openai.presentation.layout/v4",
+  "unit": "px",
+  "slide": {
+    "aid": "sl/u40moq",
+    "id": "u40moq",
+    "slide": 3,
+    "layoutId": "12692877-4c09-4053-a3e3-ef5f36fb5024",
+    "layoutName": "Title Slide",
+    "layoutType": "title",
+    "masterLayoutId": "1aaf639f-9d99-43c4-b62f-f7c0019d28a4",
+    "masterLayoutName": "Master",
+    "backgroundColor": "#F8FAFC",
+    "frame": {
+      "left": 0,
+      "top": 0,
+      "width": 1280,
+      "height": 720
+    }
+  },
+  "theme": {
+    "colorSchemeName": "ChatGPT",
+    "colors": {
+      "accent1": "#156082",
+      "accent2": "#E97132",
+      "accent3": "#196B24",
+      "accent4": "#0F9ED5",
+      "accent5": "#A02B93",
+      "accent6": "#4EA72E",
+      "bg1": "#FFFFFF",
+      "bg2": "#000000",
+      "tx1": "#1F1F1F",
+      "tx2": "#FFFFFF",
+      "dk1": "#000000",
+      "lt1": "#FFFFFF",
+      "dk2": "#0E2841",
+      "lt2": "#E8E8E8",
+      "hlink": "#467886",
+      "folHlink": "#96607D"
+    },
+    "typefaces": [
+      "+mn-lt"
+    ]
+  },
+  "inheritedLayers": [
+    {
+      "scope": "layout",
+      "id": "12692877-4c09-4053-a3e3-ef5f36fb5024",
+      "name": "Title Slide",
+      "type": "title",
+      "parentLayoutId": "1aaf639f-9d99-43c4-b62f-f7c0019d28a4",
+      "elements": []
+    },
+    {
+      "scope": "master",
+      "id": "1aaf639f-9d99-43c4-b62f-f7c0019d28a4",
+      "name": "Master",
+      "type": "master",
+      "elements": []
+    }
+  ],
+  "elements": [
+    {
+      "order": 1,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/8zu14f2d",
+      "id": "1",
+      "bbox": [
+        70,
+        42,
+        1040,
+        52
+      ],
+      "geometry": "rect",
+      "text": "التأسيس يبدأ من أربع خطوات",
+      "textPreview": "التأسيس يبدأ من أربع خطوات",
+      "resolvedFontSize": 38,
+      "resolvedTextStyle": {
+        "fontSize": 38,
+        "typeface": "+mn-lt",
+        "color": "#0F172A",
+        "bold": true,
+        "alignment": "right",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "التأسيس يبدأ من أربع خطوات"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "التأسيس يبدأ من أربع خطوات",
+          "resolvedTextStyle": {
+            "fontSize": 38,
+            "color": "#0F172A",
+            "bold": true,
+            "alignment": "right"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "التأسيس يبدأ من أربع خطوات",
+              "fontSize": 38,
+              "color": "#0F172A",
+              "bold": true,
+              "alignment": "right"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 2,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/7yl0vals",
+      "id": "2",
+      "bbox": [
+        70,
+        96,
+        1040,
+        34
+      ],
+      "geometry": "rect",
+      "text": "إذا هذي الأشياء جاهزة، النظام يقوم معك بدون تعقيد.",
+      "textPreview": "إذا هذي الأشياء جاهزة، النظام يقوم معك بدون تعقيد.",
+      "resolvedFontSize": 20,
+      "resolvedTextStyle": {
+        "fontSize": 20,
+        "typeface": "+mn-lt",
+        "color": "#64748B",
+        "alignment": "right",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "إذا هذي الأشياء جاهزة، النظام يقوم معك بدون تعقيد."
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "إذا هذي الأشياء جاهزة، النظام يقوم معك بدون تعقيد.",
+          "resolvedTextStyle": {
+            "fontSize": 20,
+            "color": "#64748B",
+            "alignment": "right"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "إذا هذي الأشياء جاهزة، النظام يقوم معك بدون تعقيد.",
+              "fontSize": 20,
+              "color": "#64748B",
+              "alignment": "right"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 3,
+      "kind": "image",
+      "scope": "slide",
+      "aid": "im/fmhg7alg",
+      "id": "3",
+      "bbox": [
+        78,
+        150,
+        760,
+        420
+      ],
+      "geometry": "roundRect",
+      "alt": "شاشة أوامر تشغيل النظام",
+      "contentType": "image/jpeg",
+      "imageFit": "cover",
+      "imageMask": {
+        "geometry": "roundRect",
+        "adjustmentList": [
+          {
+            "name": "adj",
+            "formula": "val 4286"
+          }
+        ]
+      },
+      "asset": {
+        "assetId": "2eb87cdd-e8dc-4bcd-9d35-8e9ac3f578b7",
+        "contentType": "image/jpeg",
+        "byteLength": 5667
+      }
+    },
+    {
+      "order": 4,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/lwjit032",
+      "id": "4",
+      "bbox": [
+        430,
+        232,
+        20,
+        20
+      ],
+      "geometry": "ellipse",
+      "fillColor": "#2563EB",
+      "lineColor": "#FFFFFF",
+      "lineWidth": 2
+    },
+    {
+      "order": 5,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/kva10v2h",
+      "id": "5",
+      "bbox": [
+        800,
+        160,
+        330,
+        76
+      ],
+      "geometry": "roundRect",
+      "fillColor": "#FFFFFF",
+      "lineColor": "#2563EB",
+      "lineWidth": 1
+    },
+    {
+      "order": 6,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/ju10ralw",
+      "id": "6",
+      "bbox": [
+        447.07,
+        198,
+        352.93,
+        36.93
+      ],
+      "verticalFlip": true,
+      "geometry": "bentConnector5",
+      "lineColor": "#2563EB",
+      "lineWidth": 2
+    },
+    {
+      "order": 7,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/ytsjy5kb",
+      "id": "7",
+      "bbox": [
+        816,
+        174,
+        298,
+        48
+      ],
+      "geometry": "rect",
+      "text": "ثبت الحزم أولاً: npm install",
+      "textPreview": "ثبت الحزم أولاً: npm install",
+      "resolvedFontSize": 18,
+      "resolvedTextStyle": {
+        "fontSize": 18,
+        "typeface": "+mn-lt",
+        "color": "#0F172A",
+        "bold": true,
+        "alignment": "right",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "ثبت الحزم أولاً: npm install"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "ثبت الحزم أولاً: npm install",
+          "resolvedTextStyle": {
+            "fontSize": 18,
+            "color": "#0F172A",
+            "bold": true,
+            "alignment": "right"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "ثبت الحزم أولاً: npm install",
+              "fontSize": 18,
+              "color": "#0F172A",
+              "bold": true,
+              "alignment": "right"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 8,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/5sn25436",
+      "id": "8",
+      "bbox": [
+        438,
+        278,
+        20,
+        20
+      ],
+      "geometry": "ellipse",
+      "fillColor": "#D97706",
+      "lineColor": "#FFFFFF",
+      "lineWidth": 2
+    },
+    {
+      "order": 9,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/4re1cz2l",
+      "id": "9",
+      "bbox": [
+        790,
+        280,
+        340,
+        86
+      ],
+      "geometry": "roundRect",
+      "fillColor": "#FFFFFF",
+      "lineColor": "#D97706",
+      "lineWidth": 1
+    },
+    {
+      "order": 10,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/ihg321sr",
+      "id": "10",
+      "bbox": [
+        455.07,
+        295.07,
+        334.93,
+        27.93
+      ],
+      "geometry": "bentConnector5",
+      "lineColor": "#D97706",
+      "lineWidth": 2
+    },
+    {
+      "order": 11,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/jipkvmtc",
+      "id": "11",
+      "bbox": [
+        806,
+        294,
+        308,
+        58
+      ],
+      "geometry": "rect",
+      "text": "انسخ env وحط مفاتيح Supabase",
+      "textPreview": "انسخ env وحط مفاتيح Supabase",
+      "resolvedFontSize": 18,
+      "resolvedTextStyle": {
+        "fontSize": 18,
+        "typeface": "+mn-lt",
+        "color": "#0F172A",
+        "bold": true,
+        "alignment": "right",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "انسخ env وحط مفاتيح Supabase"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "انسخ env وحط مفاتيح Supabase",
+          "resolvedTextStyle": {
+            "fontSize": 18,
+            "color": "#0F172A",
+            "bold": true,
+            "alignment": "right"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "انسخ env وحط مفاتيح Supabase",
+              "fontSize": 18,
+              "color": "#0F172A",
+              "bold": true,
+              "alignment": "right"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 12,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/4jyl4rah",
+      "id": "12",
+      "bbox": [
+        428,
+        374,
+        20,
+        20
+      ],
+      "geometry": "ellipse",
+      "fillColor": "#16A34A",
+      "lineColor": "#FFFFFF",
+      "lineWidth": 2
+    },
+    {
+      "order": 13,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/5kr2xwb2",
+      "id": "13",
+      "bbox": [
+        790,
+        415,
+        340,
+        96
+      ],
+      "geometry": "roundRect",
+      "fillColor": "#FFFFFF",
+      "lineColor": "#16A34A",
+      "lineWidth": 1
+    },
+    {
+      "order": 14,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/udg3yhsf",
+      "id": "14",
+      "bbox": [
+        445.07,
+        391.07,
+        344.93,
+        71.93
+      ],
+      "geometry": "bentConnector5",
+      "lineColor": "#16A34A",
+      "lineWidth": 2
+    },
+    {
+      "order": 15,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/vepkrmt0",
+      "id": "15",
+      "bbox": [
+        806,
+        429,
+        308,
+        68
+      ],
+      "geometry": "rect",
+      "text": "ادفع migrations عشان الجداول والسياسات تتطبق",
+      "textPreview": "ادفع migrations عشان الجداول والسياسات تتطبق",
+      "resolvedFontSize": 18,
+      "resolvedTextStyle": {
+        "fontSize": 18,
+        "typeface": "+mn-lt",
+        "color": "#0F172A",
+        "bold": true,
+        "alignment": "right",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "ادفع migrations عشان الجداول والسياسات"
+          },
+          {
+            "index": 2,
+            "text": "تتطبق"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "ادفع migrations عشان الجداول والسياسات تتطبق",
+          "resolvedTextStyle": {
+            "fontSize": 18,
+            "color": "#0F172A",
+            "bold": true,
+            "alignment": "right"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "ادفع migrations عشان الجداول والسياسات تتطبق",
+              "fontSize": 18,
+              "color": "#0F172A",
+              "bold": true,
+              "alignment": "right"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 16,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/wfyl0ral",
+      "id": "16",
+      "bbox": [
+        70,
+        670,
+        180,
+        24
+      ],
+      "geometry": "rect",
+      "text": "وحدات الإيجار | 3",
+      "textPreview": "وحدات الإيجار | 3",
+      "resolvedFontSize": 16,
+      "resolvedTextStyle": {
+        "fontSize": 16,
+        "typeface": "+mn-lt",
+        "color": "#64748B",
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "وحدات الإيجار | 3"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "وحدات الإيجار | 3",
+          "resolvedTextStyle": {
+            "fontSize": 16,
+            "color": "#64748B",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "وحدات الإيجار | 3",
+              "fontSize": 16,
+              "color": "#64748B",
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    }
+  ],
+  "composeRuns": []
+}
