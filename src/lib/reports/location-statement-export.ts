@@ -29,6 +29,8 @@ export interface LocationStatementExportLabels {
   invoiceTotal: string;
   paidTotal: string;
   remainingTotal: string;
+  odooInvoices: string;
+  odooFailed: string;
   grandTotal: string;
 }
 
@@ -88,6 +90,8 @@ export async function exportLocationStatementExcel(input: {
     [input.labels.totalInvoicesAmount, totals.invoiceTotal],
     [input.labels.totalPaid, totals.paidTotal],
     [input.labels.totalRemaining, totals.remainingTotal],
+    [input.labels.odooInvoices, totals.odooInvoiceCount],
+    [input.labels.odooFailed, totals.odooFailedCount],
   ];
 
   const detailRows: Row[] = [
@@ -106,6 +110,8 @@ export async function exportLocationStatementExcel(input: {
       input.labels.invoiceTotal,
       input.labels.paidTotal,
       input.labels.remainingTotal,
+      input.labels.odooInvoices,
+      input.labels.odooFailed,
     ],
   ];
 
@@ -122,6 +128,8 @@ export async function exportLocationStatementExcel(input: {
       unit.invoiceTotal,
       unit.paidTotal,
       unit.remainingTotal,
+      unit.odooInvoiceNames.join(', '),
+      unit.odooFailedCount,
     ]);
   }
 
@@ -137,12 +145,14 @@ export async function exportLocationStatementExcel(input: {
     totals.invoiceTotal,
     totals.paidTotal,
     totals.remainingTotal,
+    totals.odooInvoiceCount,
+    totals.odooFailedCount,
   ]);
 
   summarySheet.addRows(summaryRows);
   detailSheet.addRows(detailRows);
   setColumnWidths(summarySheet, [28, 18]);
-  setColumnWidths(detailSheet, [14, 14, 22, 18, 24, 16, 14, 14, 16, 16, 16]);
+  setColumnWidths(detailSheet, [14, 14, 22, 18, 24, 16, 14, 14, 16, 16, 16, 24, 14]);
 
   const buffer = await workbook.xlsx.writeBuffer();
   downloadWorkbook(buffer, `location-statement-${input.generatedIso}.xlsx`);

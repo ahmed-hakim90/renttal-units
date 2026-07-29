@@ -32,7 +32,15 @@ function getInvoiceNumber(payment: Payment) {
   return payment.invoice?.invoice_number ?? payment.invoice_id;
 }
 
-export function PaymentsTable({ payments, locale }: { payments: Payment[]; locale: string }) {
+export function PaymentsTable({
+  payments,
+  locale,
+  canExport = false,
+}: {
+  payments: Payment[];
+  locale: string;
+  canExport?: boolean;
+}) {
   const t = useTranslations('payments');
   const tc = useTranslations('common');
   const loc = locale as Locale;
@@ -83,6 +91,7 @@ export function PaymentsTable({ payments, locale }: { payments: Payment[]; local
   const paginatedPayments = filteredPayments.slice((page - 1) * pageSize, page * pageSize);
 
   async function exportExcel() {
+    if (!canExport) return;
     const { default: ExcelJS } = await import('exceljs');
     const rows: Array<Record<string, string | number>> = filteredPayments.map((payment) => ({
       [t('invoice')]: getInvoiceNumber(payment),
@@ -229,10 +238,12 @@ export function PaymentsTable({ payments, locale }: { payments: Payment[]; local
             <Button type="button" variant="outline" onClick={resetFilters}>
               {t('resetFilters')}
             </Button>
-            <Button type="button" onClick={exportExcel} disabled={filteredPayments.length === 0}>
-              <Download className="h-4 w-4" />
-              {t('exportExcel')}
-            </Button>
+            {canExport && (
+              <Button type="button" onClick={exportExcel} disabled={filteredPayments.length === 0}>
+                <Download className="h-4 w-4" />
+                {t('exportExcel')}
+              </Button>
+            )}
           </div>
         </div>
       </Card>

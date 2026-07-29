@@ -45,10 +45,12 @@ export function DebtAgingReport({
   invoices,
   locations,
   locale,
+  canExport = false,
 }: {
   invoices: Invoice[];
   locations: Location[];
   locale: string;
+  canExport?: boolean;
 }) {
   const t = useTranslations('reports');
   const tc = useTranslations('common');
@@ -56,14 +58,32 @@ export function DebtAgingReport({
   const loc = locale as Locale;
   const asOfDate = useMemo(() => new Date(), []);
   const [locationId, setLocationId] = useState('');
+  const [unitId, setUnitId] = useState('');
   const [bucketFilter, setBucketFilter] = useState('');
+
+  const units = useMemo(() => {
+    const unitsById = new Map<string, { id: string; unitNumber: string }>();
+
+    for (const invoice of invoices) {
+      if (!invoice.unit || (locationId && invoice.unit.location_id !== locationId)) continue;
+      unitsById.set(invoice.unit_id, {
+        id: invoice.unit_id,
+        unitNumber: invoice.unit.unit_number,
+      });
+    }
+
+    return [...unitsById.values()].sort((a, b) => (
+      a.unitNumber.localeCompare(b.unitNumber, locale, { numeric: true })
+    ));
+  }, [invoices, locale, locationId]);
 
   const rows = useMemo(() => {
     return buildAgingRows(invoices, asOfDate)
       .filter((row) => !locationId || row.invoice.unit?.location_id === locationId)
+      .filter((row) => !unitId || row.invoice.unit_id === unitId)
       .filter((row) => !bucketFilter || row.bucket === bucketFilter)
       .sort((a, b) => b.daysOverdue - a.daysOverdue || (a.invoice.unit?.unit_number ?? '').localeCompare(b.invoice.unit?.unit_number ?? ''));
-  }, [asOfDate, bucketFilter, invoices, locationId]);
+  }, [asOfDate, bucketFilter, invoices, locationId, unitId]);
 
   const bucketSummary = useMemo(() => buildBucketSummary(rows), [rows]);
   const unitSummary = useMemo(
@@ -83,6 +103,7 @@ export function DebtAgingReport({
   }, [rows]);
 
   async function exportExcel() {
+    if (!canExport) return;
     await exportDebtAgingExcel({
       labels: {
         reportTitle: t('debtAging'),
@@ -145,12 +166,16 @@ export function DebtAgingReport({
           <p className="mt-1 text-sm text-muted-foreground">{t('debtAgingNote')}</p>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-3">
             <div>
-              <label className="text-sm font-medium">{t('filterByLocation')}</label>
+              <label htmlFor="debt-aging-location" className="text-sm font-medium">{t('filterByLocation')}</label>
               <select
+                id="debt-aging-location"
                 value={locationId}
-                onChange={(event) => setLocationId(event.target.value)}
+                onChange={(event) => {
+                  setLocationId(event.target.value);
+                  setUnitId('');
+                }}
                 className="mt-1.5 flex h-10 w-full rounded-xl border border-border bg-card px-3 text-sm"
               >
                 <option value="">{t('allLocations')}</option>
@@ -162,8 +187,25 @@ export function DebtAgingReport({
               </select>
             </div>
             <div>
-              <label className="text-sm font-medium">{t('bucket')}</label>
+              <label htmlFor="debt-aging-unit" className="text-sm font-medium">{t('filterByUnit')}</label>
               <select
+                id="debt-aging-unit"
+                value={unitId}
+                onChange={(event) => setUnitId(event.target.value)}
+                className="mt-1.5 flex h-10 w-full rounded-xl border border-border bg-card px-3 text-sm"
+              >
+                <option value="">{t('allUnits')}</option>
+                {units.map((unit) => (
+                  <option key={unit.id} value={unit.id}>
+                    {unit.unitNumber}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="debt-aging-bucket" className="text-sm font-medium">{t('bucket')}</label>
+              <select
+                id="debt-aging-bucket"
                 value={bucketFilter}
                 onChange={(event) => setBucketFilter(event.target.value)}
                 className="mt-1.5 flex h-10 w-full rounded-xl border border-border bg-card px-3 text-sm"
@@ -175,10 +217,12 @@ export function DebtAgingReport({
               </select>
             </div>
           </div>
-          <Button type="button" onClick={exportExcel} disabled={rows.length === 0}>
-            <Download className="h-4 w-4" />
-            {t('exportReport')}
-          </Button>
+          {canExport && (
+            <Button type="button" onClick={exportExcel} disabled={rows.length === 0}>
+              <Download className="h-4 w-4" />
+              {t('exportReport')}
+            </Button>
+          )}
         </div>
       </div>
 

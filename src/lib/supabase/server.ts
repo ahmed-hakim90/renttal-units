@@ -1,7 +1,12 @@
 import { createServerClient } from '@supabase/ssr';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { hasSystemDataAccess } from '@/lib/supabase/system-context';
 
-export async function createClient() {
+export async function createClient(): Promise<SupabaseClient> {
+  if (hasSystemDataAccess()) return createAdminClient();
+
   const cookieStore = await cookies();
 
   return createServerClient(

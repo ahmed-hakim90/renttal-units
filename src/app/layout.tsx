@@ -1,13 +1,20 @@
 import type { Metadata, Viewport } from 'next';
-import { Cairo } from 'next/font/google';
+import { Alexandria, Tajawal } from 'next/font/google';
 import { headers } from 'next/headers';
 import { getDirection, routing, type Locale } from '@/lib/i18n/routing';
 import { PwaProvider } from '@/components/pwa/pwa-provider';
 import './globals.css';
 
-const cairo = Cairo({
-  variable: '--font-cairo',
-  subsets: ['latin', 'arabic'],
+const alexandria = Alexandria({
+  variable: '--font-alexandria',
+  subsets: ['latin'],
+  display: 'swap',
+});
+
+const tajawal = Tajawal({
+  variable: '--font-tajawal',
+  subsets: ['arabic', 'latin'],
+  weight: ['300', '400', '500', '700', '800'],
   display: 'swap',
 });
 
@@ -30,7 +37,7 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#2563eb' },
+    { media: '(prefers-color-scheme: light)', color: '#1d4ed8' },
     { media: '(prefers-color-scheme: dark)', color: '#1d4ed8' },
   ],
   width: 'device-width',
@@ -47,7 +54,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   return (
     <html lang={locale} dir={dir}>
-      <body className={`${cairo.variable} font-sans antialiased`}>
+      <body className={`${alexandria.variable} ${tajawal.variable} font-sans antialiased`}>
         <PwaProvider />
         {children}
       </body>

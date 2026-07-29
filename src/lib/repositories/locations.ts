@@ -28,6 +28,8 @@ export const locationsRepository = {
     address?: string | null;
     city?: string | null;
     region?: string | null;
+    odoo_analytic_account_id?: number | null;
+    odoo_analytic_account_name?: string | null;
   }, ctx: LogContext): Promise<Location> {
     const supabase = await createClient();
     const { data, error } = await supabase.from('locations').insert({
@@ -36,12 +38,22 @@ export const locationsRepository = {
       address: input.address ?? null,
       city: input.city ?? null,
       region: input.region ?? null,
+      odoo_analytic_account_id: input.odoo_analytic_account_id ?? null,
+      odoo_analytic_account_name: input.odoo_analytic_account_name ?? null,
     }).select().single();
     if (error) throw error;
     return data;
   },
 
-  async update(id: string, input: Partial<Location>, ctx: LogContext): Promise<Location> {
+  async update(id: string, input: {
+    name_en?: string;
+    name_ar?: string;
+    address?: string | null;
+    city?: string | null;
+    region?: string | null;
+    odoo_analytic_account_id?: number | null;
+    odoo_analytic_account_name?: string | null;
+  }, ctx: LogContext): Promise<Location> {
     const supabase = await createClient();
     const { data, error } = await supabase.from('locations').update(input).eq('id', id).select().single();
     if (error) throw error;

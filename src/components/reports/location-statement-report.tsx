@@ -9,6 +9,7 @@ import { Card, CardDescription, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { formatCurrency, formatDate, formatNumber } from '@/lib/i18n/format';
 import { exportLocationStatementExcel } from '@/lib/reports/location-statement-export';
+import { LoadingRegion, ReportResultsSkeleton } from '@/components/ui/skeleton';
 import type { Locale } from '@/lib/i18n/routing';
 import type { Location, LocationStatement, LocationStatementUnit } from '@/types/database';
 
@@ -29,11 +30,13 @@ export function LocationStatementReport({
   initialLocationId,
   initialStatement,
   locale,
+  canExport = false,
 }: {
   locations: Location[];
   initialLocationId: string;
   initialStatement: LocationStatement | null;
   locale: string;
+  canExport?: boolean;
 }) {
   const t = useTranslations('reports');
   const tc = useTranslations('common');
@@ -41,23 +44,30 @@ export function LocationStatementReport({
   const loc = locale as Locale;
   const [locationId, setLocationId] = useState(initialLocationId);
   const [statement, setStatement] = useState<LocationStatement | null>(initialStatement);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   function handleLocationChange(nextLocationId: string) {
     setLocationId(nextLocationId);
+    setFetchError(null);
     if (!nextLocationId) {
       setStatement(null);
       return;
     }
 
+    setStatement(null);
     startTransition(async () => {
-      const nextStatement = await getLocationStatement(locale, nextLocationId);
-      setStatement(nextStatement);
+      try {
+        const nextStatement = await getLocationStatement(locale, nextLocationId);
+        setStatement(nextStatement);
+      } catch {
+        setFetchError(t('locationStatementFetchFailed'));
+      }
     });
   }
 
   async function exportExcel() {
-    if (!statement) return;
+    if (!canExport || !statement) return;
     await exportLocationStatementExcel({
       labels: {
         reportTitle: t('locationStatement'),
@@ -85,6 +95,8 @@ export function LocationStatementReport({
         invoiceTotal: t('invoiceTotal'),
         paidTotal: t('paidTotal'),
         remainingTotal: t('remainingTotal'),
+        odooInvoices: t('odooInvoices'),
+        odooFailed: t('odooFailed'),
         grandTotal: t('grandTotal'),
       },
       statement,
@@ -111,6 +123,8 @@ export function LocationStatementReport({
         { key: 'totalInvoicesAmount', label: t('totalInvoicesAmount'), value: formatCurrency(totals.invoiceTotal, loc) },
         { key: 'totalPaid', label: t('totalPaid'), value: formatCurrency(totals.paidTotal, loc) },
         { key: 'totalRemaining', label: t('totalRemaining'), value: formatCurrency(totals.remainingTotal, loc) },
+        { key: 'odooInvoices', label: t('odooInvoices'), value: formatNumber(totals.odooInvoiceCount, loc) },
+        { key: 'odooFailed', label: t('odooFailed'), value: formatNumber(totals.odooFailedCount, loc) },
       ]
     : [];
 
@@ -133,15 +147,26 @@ export function LocationStatementReport({
           </select>
         </div>
 
-        <Button type="button" onClick={exportExcel} disabled={!statement || isPending}>
-          <Download className="h-4 w-4" />
-          {t('exportReport')}
-        </Button>
+        {canExport && (
+          <Button type="button" onClick={exportExcel} disabled={!statement || isPending}>
+            <Download className="h-4 w-4" />
+            {t('exportReport')}
+          </Button>
+        )}
       </div>
 
-      {isPending && <p className="text-sm text-muted-foreground">{tc('loading')}</p>}
+      {isPending && (
+        <LoadingRegion label={tc('loading')}>
+          <ReportResultsSkeleton summaryCount={12} rows={5} />
+        </LoadingRegion>
+      )}
+      {fetchError && (
+        <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          {fetchError}
+        </p>
+      )}
 
-      {statement && totals && (
+      {!isPending && statement && totals && (
         <>
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {summaryCards.map((card) => (
@@ -163,8 +188,65 @@ export function LocationStatementReport({
             {statement.units.length === 0 ? (
               <p className="p-6 text-muted-foreground">{t('noData')}</p>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[1100px] text-sm">
+              <>
+                <div className="grid gap-3 p-3 md:hidden">
+                  {statement.units.map((unit) => (
+                    <article key={unit.unitId} className="mobile-card">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="font-semibold" dir="auto">{unit.unitNumber}</p>
+                          <p className="mt-1 truncate text-sm text-muted-foreground" dir="auto">{unit.tenantName ?? '—'}</p>
+                        </div>
+                        <Badge status={unit.status} label={ts(unit.status)} />
+                      </div>
+                      <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                        <div>
+                          <dt className="text-xs text-muted-foreground">{t('activeContract')}</dt>
+                          <dd className="mt-0.5" dir="auto">{unit.activeContractNumber ?? '—'}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-xs text-muted-foreground">{t('period')}</dt>
+                          <dd className="mt-0.5 text-xs">{formatContractPeriod(unit, loc)}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-xs text-muted-foreground">{t('contractValue')}</dt>
+                          <dd className="mt-0.5 tabular-nums">{formatCurrency(unit.activeContractValue, loc)}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-xs text-muted-foreground">{t('contractCount')}</dt>
+                          <dd className="mt-0.5 tabular-nums">{formatNumber(unit.contractCount, loc)}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-xs text-muted-foreground">{t('invoiceCount')}</dt>
+                          <dd className="mt-0.5 tabular-nums">{formatNumber(unit.invoiceCount, loc)}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-xs text-muted-foreground">{t('invoiceTotal')}</dt>
+                          <dd className="mt-0.5 tabular-nums">{formatCurrency(unit.invoiceTotal, loc)}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-xs text-muted-foreground">{t('paidTotal')}</dt>
+                          <dd className="mt-0.5 tabular-nums">{formatCurrency(unit.paidTotal, loc)}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-xs text-muted-foreground">{t('remainingTotal')}</dt>
+                          <dd className="mt-0.5 font-semibold tabular-nums">{formatCurrency(unit.remainingTotal, loc)}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-xs text-muted-foreground">{t('odooInvoices')}</dt>
+                          <dd className="mt-0.5 tabular-nums">{formatNumber(unit.odooInvoiceCount, loc)}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-xs text-muted-foreground">{t('odooFailed')}</dt>
+                          <dd className="mt-0.5 tabular-nums">{formatNumber(unit.odooFailedCount, loc)}</dd>
+                        </div>
+                      </dl>
+                    </article>
+                  ))}
+                </div>
+
+                <div className="hidden overflow-x-auto md:block">
+                  <table className="w-full min-w-[1100px] text-sm">
                   <thead className="bg-muted/50">
                     <tr>
                       <th className="px-4 py-3 text-start">{t('unit')}</th>
@@ -178,6 +260,8 @@ export function LocationStatementReport({
                       <th className="px-4 py-3 text-end">{t('invoiceTotal')}</th>
                       <th className="px-4 py-3 text-end">{t('paidTotal')}</th>
                       <th className="px-4 py-3 text-end">{t('remainingTotal')}</th>
+                      <th className="px-4 py-3 text-end">{t('odooInvoices')}</th>
+                      <th className="px-4 py-3 text-end">{t('odooFailed')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -196,6 +280,8 @@ export function LocationStatementReport({
                         <td className="px-4 py-3 text-end tabular-nums">{formatCurrency(unit.invoiceTotal, loc)}</td>
                         <td className="px-4 py-3 text-end tabular-nums">{formatCurrency(unit.paidTotal, loc)}</td>
                         <td className="px-4 py-3 text-end tabular-nums font-medium">{formatCurrency(unit.remainingTotal, loc)}</td>
+                        <td className="px-4 py-3 text-end tabular-nums">{formatNumber(unit.odooInvoiceCount, loc)}</td>
+                        <td className="px-4 py-3 text-end tabular-nums">{formatNumber(unit.odooFailedCount, loc)}</td>
                       </tr>
                     ))}
                     <tr className="border-t-2 border-border bg-muted/30 font-semibold">
@@ -208,10 +294,13 @@ export function LocationStatementReport({
                       <td className="px-4 py-3 text-end tabular-nums">{formatCurrency(totals.invoiceTotal, loc)}</td>
                       <td className="px-4 py-3 text-end tabular-nums">{formatCurrency(totals.paidTotal, loc)}</td>
                       <td className="px-4 py-3 text-end tabular-nums">{formatCurrency(totals.remainingTotal, loc)}</td>
+                      <td className="px-4 py-3 text-end tabular-nums">{formatNumber(totals.odooInvoiceCount, loc)}</td>
+                      <td className="px-4 py-3 text-end tabular-nums">{formatNumber(totals.odooFailedCount, loc)}</td>
                     </tr>
                   </tbody>
-                </table>
-              </div>
+                  </table>
+                </div>
+              </>
             )}
           </Card>
         </>

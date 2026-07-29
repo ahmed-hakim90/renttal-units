@@ -1,4 +1,5 @@
 import type { AuthContext, Invoice, InvoiceStatus, ServiceResult } from '@/types/database';
+import { hasPermission } from '@/lib/auth/permissions';
 import { invoicesRepository } from '@/lib/repositories/invoices';
 import { auditService } from './audit-service';
 import { validationService } from './validation-service';
@@ -6,6 +7,11 @@ import { withSpan, type LogContext } from '@/lib/observability';
 import { unitsRepository } from '@/lib/repositories/units';
 import { rentalService } from './rental-service';
 import { computeInvoiceStatus } from '@/lib/rental/invoice-status';
+import { getOdooSettings } from '@/lib/odoo/settings';
+import { odooOutboxService } from '@/lib/odoo/outbox-service';
+import { shouldSyncIssuedInvoiceToOdoo } from '@/lib/features/guards';
+import { loadFeatureFlags } from '@/lib/features/load-feature-flags';
+import { settingsRepository } from '@/lib/repositories/settings';
 
 export { computeInvoiceStatus } from '@/lib/rental/invoice-status';
 
@@ -48,7 +54,7 @@ export const invoiceService = {
     },
     ctx: LogContext
   ): Promise<ServiceResult<Invoice>> {
-    if (!auth.isAdminEditor) return { success: false, error: 'Unauthorized', errorCode: 'FORBIDDEN' };
+    if (!hasPermission(auth, 'invoices.update')) return { success: false, error: 'Unauthorized', errorCode: 'FORBIDDEN' };
 
     return withSpan('invoiceService.issueInvoice', { ...ctx, service: 'invoice', user_id: auth.userId }, async () => {
       const validation = validationService.validateInvoice(input);
@@ -103,12 +109,34 @@ export const invoiceService = {
     invoiceNumber: string,
     ctx: LogContext
   ): Promise<ServiceResult<Invoice>> {
-    if (!auth.isAdminEditor) return { success: false, error: 'Unauthorized', errorCode: 'FORBIDDEN' };
+    if (!hasPermission(auth, 'invoices.update')) return { success: false, error: 'Unauthorized', errorCode: 'FORBIDDEN' };
     if (!invoiceNumber.trim()) return { success: false, error: 'invoiceNumberRequired', errorCode: 'VALIDATION' };
 
     return withSpan('invoiceService.issueDueInvoice', { ...ctx, service: 'invoice', user_id: auth.userId }, async () => {
       const old = await invoicesRepository.findById(id, ctx);
       if (!old) return { success: false, error: 'Invoice not found', errorCode: 'NOT_FOUND' };
+      const featureFlags = await loadFeatureFlags(ctx);
+      const odooDocumentsEnabled = shouldSyncIssuedInvoiceToOdoo(featureFlags.odoo_invoices_documents);
+      const odooSettings = await getOdooSettings(ctx);
+      if (odooDocumentsEnabled && odooSettings.enabled && old.contract_id && !old.unit?.odoo_product_id) {
+        return { success: false, error: 'unitNotLinkedToOdoo', errorCode: 'ODOO_UNIT_NOT_LINKED' };
+      }
+      if (
+        odooDocumentsEnabled
+        && odooSettings.enabled
+        && old.contract_id
+        && old.lines?.some((line) => !line.odoo_product_id && line.line_type === 'service')
+      ) {
+        return { success: false, error: 'serviceProductInvalid', errorCode: 'ODOO_SERVICE_PRODUCT_INVALID' };
+      }
+      if (
+        odooDocumentsEnabled
+        && odooSettings.enabled
+        && old.lines?.some((line) => Number(line.tax_rate) > 0)
+        && !odooSettings.vatTaxId
+      ) {
+        return { success: false, error: 'odooVatTaxMissing', errorCode: 'ODOO_VAT_TAX_MISSING' };
+      }
 
       let invoice: Invoice;
       try {
@@ -127,12 +155,25 @@ export const invoiceService = {
         ctx
       );
 
+      if (odooDocumentsEnabled && old.contract_id) {
+        const odooResult = await odooOutboxService.enqueueAndProcessInvoice(auth, id, ctx);
+        if (!odooResult.success) {
+          invoice = await invoicesRepository.findById(id, ctx) ?? invoice;
+          return {
+            success: false,
+            data: invoice,
+            error: odooResult.error ?? 'odooSyncFailed',
+            errorCode: 'ODOO_SYNC_FAILED',
+          };
+        }
+      }
+
       return { success: true, data: invoice };
     });
   },
 
   async updateStatus(auth: AuthContext, id: string, ctx: LogContext): Promise<ServiceResult<Invoice>> {
-    if (!auth.isAdminEditor) return { success: false, error: 'Unauthorized', errorCode: 'FORBIDDEN' };
+    if (!hasPermission(auth, 'invoices.update')) return { success: false, error: 'Unauthorized', errorCode: 'FORBIDDEN' };
 
     const invoice = await invoicesRepository.findById(id, ctx);
     if (!invoice) return { success: false, error: 'Not found', errorCode: 'NOT_FOUND' };
@@ -146,8 +187,10 @@ export const invoiceService = {
   },
 
   async getDashboardCounts(auth: AuthContext, ctx: LogContext) {
+    const reminderSetting = await settingsRepository.findByKey('due_reminder_days', ctx);
+    const reminderDays = Math.min(90, Math.max(0, Number(reminderSetting?.value ?? 7)));
     const [dueInvoices, awaitingPayment, partialPayments, fullyPaid, upcoming] = await Promise.all([
-      invoicesRepository.findDueThisMonth(ctx),
+      invoicesRepository.findDueThisMonth(ctx, reminderDays),
       invoicesRepository.countByStatus('invoice_issued', ctx),
       invoicesRepository.countByStatus('partially_paid', ctx),
       invoicesRepository.countByStatus('fully_paid', ctx),

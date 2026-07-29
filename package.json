@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test:odoo": "node --test --experimental-strip-types tests/*.test.mjs",
     "generate:icons": "node scripts/generate-pwa-icons.mjs"
   },
   "dependencies": {
@@ -16,6 +17,7 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.4.0",
     "exceljs": "^4.4.0",
+    "fast-xml-parser": "^5.10.1",
     "lucide-react": "^1.17.0",
     "next": "16.2.7",
     "next-intl": "^4.13.0",

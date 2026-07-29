@@ -1,4 +1,5 @@
 import type { AuthContext, ServiceResult } from '@/types/database';
+import { hasPermission } from '@/lib/auth/permissions';
 import { contractsRepository } from '@/lib/repositories/contracts';
 import { invoicesRepository } from '@/lib/repositories/invoices';
 import { withSpan, type LogContext } from '@/lib/observability';
@@ -12,18 +13,24 @@ import {
   calculateUnitRentPeriod,
   getCycleMonths,
 } from '@/lib/rental/calculations';
-import { buildDueInvoiceNumber } from '@/lib/rental/due-invoice-number';
+import { settingsRepository } from '@/lib/repositories/settings';
 
 export const rentalService = {
   async generateDueInvoices(auth: AuthContext, ctx: LogContext): Promise<ServiceResult<{ created: number }>> {
-    if (!auth.isAdminEditor) return { success: false, error: 'Unauthorized', errorCode: 'FORBIDDEN' };
+    if (!hasPermission(auth, 'invoices.create')) return { success: false, error: 'Unauthorized', errorCode: 'FORBIDDEN' };
 
     return withSpan('rentalService.generateDueInvoices', { ...ctx, service: 'rental', user_id: auth.userId }, async () => {
       const contracts = await contractsRepository.findActive(ctx);
       let created = 0;
 
       for (const contract of contracts) {
-        const periods = calculateContractPaymentSchedule(contract);
+        if (!contract.unit_id || !contract.start_date || !contract.end_date) continue;
+        const periods = calculateContractPaymentSchedule({
+          start_date: contract.start_date,
+          end_date: contract.end_date,
+          payment_cycle: contract.payment_cycle,
+          total_amount: Number(contract.total_amount),
+        });
 
         for (const { periodStart, periodEnd, amount } of periods) {
           const existing = await invoicesRepository.findByUnitAndPeriod(contract.unit_id, periodStart, periodEnd, ctx, contract.id);
@@ -31,7 +38,6 @@ export const rentalService = {
 
           try {
             await invoicesRepository.create({
-              invoice_number: buildDueInvoiceNumber(contract.id, periodStart),
               contract_id: contract.id,
               unit_id: contract.unit_id,
               tenant_id: null,
@@ -57,7 +63,16 @@ export const rentalService = {
   },
 
   async getDueThisMonth(auth: AuthContext, ctx: LogContext) {
-    return invoicesRepository.findDueThisMonth(ctx);
+    const setting = await settingsRepository.findByKey('due_reminder_days', ctx);
+    const days = Math.min(90, Math.max(0, Number(setting?.value ?? 7)));
+    return invoicesRepository.findDueThisMonth(ctx, days);
+  },
+
+  async countDueThisMonth(auth: AuthContext, ctx: LogContext) {
+    if (!hasPermission(auth, 'invoices.view')) return 0;
+    const setting = await settingsRepository.findByKey('due_reminder_days', ctx);
+    const days = Math.min(90, Math.max(0, Number(setting?.value ?? 7)));
+    return invoicesRepository.countDueThisMonth(ctx, days);
   },
 
   calculatePeriodAmount,

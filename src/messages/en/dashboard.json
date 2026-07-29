@@ -19,5 +19,17 @@
   "totalContractsValue": "Total Contract Value",
   "activeContracts": "{count} active",
   "upcomingPayments": "Due in 30 Days",
-  "upcomingPaymentsDesc": "Issued invoices due within the next 30 days"
+  "upcomingPaymentsDesc": "Issued invoices due within the next 30 days",
+  "locationOccupancyTitle": "Location Occupancy",
+  "locationOccupancySubtitle": "Operational occupancy by site",
+  "locationOccupancySummary": "{occupied} occupied from {total} units - open a location for details",
+  "locationUnitsSummary": "{total} total units in this location",
+  "locationFilter": "Location filter",
+  "allLocations": "All locations",
+  "location": "Location",
+  "vacantUnits": "Vacant",
+  "occupiedUnits": "Occupied",
+  "maintenanceUnits": "Maintenance",
+  "locationOccupancyEmptyTitle": "No occupancy data yet",
+  "locationOccupancyEmptyDescription": "Add locations and units to see occupancy by site."
 }

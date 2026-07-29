@@ -4,16 +4,16 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     id: '/',
     name: 'Rental Units | وحدات الإيجار',
-    short_name: 'Rental Units',
-    description: 'Bilingual rental units management dashboard for Saudi Arabia',
+    short_name: 'Rental | الإيجار',
+    description: 'Rental units management | إدارة وحدات الإيجار',
     start_url: '/',
     scope: '/',
     display: 'standalone',
-    orientation: 'portrait-primary',
-    background_color: '#fafafa',
-    theme_color: '#2563eb',
-    lang: 'en',
-    dir: 'ltr',
+    background_color: '#f7f8fa',
+    theme_color: '#1d4ed8',
+    prefer_related_applications: false,
+    // Language and direction are intentionally omitted because this shared manifest
+    // serves both locale routes; each rendered document supplies the correct values.
     categories: ['business', 'finance', 'productivity'],
     icons: [
       {
@@ -33,20 +33,6 @@ export default function manifest(): MetadataRoute.Manifest {
         sizes: '512x512',
         type: 'image/png',
         purpose: 'maskable',
-      },
-    ],
-    shortcuts: [
-      {
-        name: 'Dashboard',
-        short_name: 'Dashboard',
-        url: '/en/dashboard',
-        icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }],
-      },
-      {
-        name: 'Units',
-        short_name: 'Units',
-        url: '/en/units',
-        icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }],
       },
     ],
   };

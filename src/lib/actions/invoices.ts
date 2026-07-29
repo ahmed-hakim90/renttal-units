@@ -1,6 +1,6 @@
 'use server';
 
-import { requireAuth, requireAdminEditor } from '@/lib/auth/session';
+import { requireAuth, requirePermission } from '@/lib/auth/session';
 import { getCorrelationId } from '@/lib/observability/correlation-id';
 import { invoiceService } from '@/lib/services/invoice-service';
 import { paymentService } from '@/lib/services/payment-service';
@@ -13,7 +13,7 @@ async function getCtx() {
 }
 
 export async function getInvoices(locale: string, filters?: { status?: InvoiceStatus | InvoiceStatus[]; locationId?: string }) {
-  const auth = await requireAuth(locale, await getCtx());
+  const auth = await requirePermission(locale, 'invoices.view', await getCtx());
   return invoiceService.list(auth, { ...await getCtx(), user_id: auth.userId, role: auth.role }, filters);
 }
 
@@ -30,7 +30,7 @@ export async function issueInvoice(locale: string, data: {
   due_date: string;
   notes?: string;
 }) {
-  const auth = await requireAdminEditor(locale, await getCtx());
+  const auth = await requirePermission(locale, 'invoices.update', await getCtx());
   const result = await invoiceService.issueInvoice(auth, data, { ...await getCtx(), user_id: auth.userId, role: auth.role });
   if (result.success) {
     revalidatePath(`/${locale}/invoices`);
@@ -40,12 +40,12 @@ export async function issueInvoice(locale: string, data: {
 }
 
 export async function getDueThisMonth(locale: string) {
-  const auth = await requireAuth(locale, await getCtx());
+  const auth = await requirePermission(locale, 'invoices.view', await getCtx());
   return rentalService.getDueThisMonth(auth, { ...await getCtx(), user_id: auth.userId, role: auth.role });
 }
 
 export async function syncDueInvoices(locale: string) {
-  const auth = await requireAdminEditor(locale, await getCtx());
+  const auth = await requirePermission(locale, 'invoices.create', await getCtx());
   const result = await rentalService.generateDueInvoices(auth, { ...await getCtx(), user_id: auth.userId, role: auth.role });
   if (result.success) {
     revalidatePath(`/${locale}/due-this-month`);
@@ -57,7 +57,7 @@ export async function syncDueInvoices(locale: string) {
 }
 
 export async function issueDueInvoice(locale: string, invoiceId: string, invoiceNumber: string) {
-  const auth = await requireAdminEditor(locale, await getCtx());
+  const auth = await requirePermission(locale, 'invoices.update', await getCtx());
   const result = await invoiceService.issueDueInvoice(auth, invoiceId, invoiceNumber, { ...await getCtx(), user_id: auth.userId, role: auth.role });
   if (result.success) {
     revalidatePath(`/${locale}/due-this-month`);
@@ -75,7 +75,7 @@ export async function recordPayment(locale: string, data: {
   reference_number?: string;
   notes?: string;
 }) {
-  const auth = await requireAdminEditor(locale, await getCtx());
+  const auth = await requirePermission(locale, 'payments.record', await getCtx());
   const result = await paymentService.recordPayment(auth, data, { ...await getCtx(), user_id: auth.userId, role: auth.role });
   if (result.success) {
     revalidatePath(`/${locale}/payments`);
@@ -88,6 +88,6 @@ export async function recordPayment(locale: string, data: {
 }
 
 export async function getPayments(locale: string, filters?: { invoiceId?: string }) {
-  const auth = await requireAuth(locale, await getCtx());
+  const auth = await requirePermission(locale, 'payments.view', await getCtx());
   return paymentService.list(auth, { ...await getCtx(), user_id: auth.userId, role: auth.role }, filters);
 }

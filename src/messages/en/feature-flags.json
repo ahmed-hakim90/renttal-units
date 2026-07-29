@@ -1,0 +1,70 @@
+{
+  "title": "Feature Flags",
+  "subtitle": "Control which optional features are visible and executable in the application",
+  "enabled": "Enabled",
+  "disabled": "Disabled",
+  "saved": "Feature flags saved successfully",
+  "saveFailed": "Feature flags could not be saved",
+  "featureDisabled": "This feature is currently disabled",
+  "unsavedChanges": "You have unsaved changes",
+  "categories": {
+    "contracts": "Contracts",
+    "odoo": "Odoo",
+    "imports": "Imports",
+    "reports": "Reports",
+    "operations": "Operations",
+    "admin": "Admin tools"
+  },
+  "contractsOpeningBalance": {
+    "title": "Contract opening balance",
+    "description": "Allow paid-through date and opening paid amount when creating or importing contracts."
+  },
+  "contractsMultiLine": {
+    "title": "Multi-line contracts",
+    "description": "Allow contracts with multiple rental units and service lines."
+  },
+  "odooImportCenter": {
+    "title": "Odoo import center",
+    "description": "Show and allow Odoo invoice import preview and commit on the Import page."
+  },
+  "unitsCreateOdooProduct": {
+    "title": "Create Odoo product from unit",
+    "description": "Allow creating a new Odoo product from a local unit."
+  },
+  "unitsLinkOdooProduct": {
+    "title": "Link unit to Odoo product",
+    "description": "Allow linking a local unit to an existing Odoo product."
+  },
+  "unitsOdooCatalogButton": {
+    "title": "Load Odoo Products button",
+    "description": "Show the Odoo product catalog button on the Units page."
+  },
+  "odooCronSync": {
+    "title": "Odoo automatic sync",
+    "description": "Allow the scheduled Odoo cron job to process outbound sync and incremental import."
+  },
+  "odooInvoicesDocuments": {
+    "title": "Odoo invoices and documents",
+    "description": "Show Odoo invoice documents and allow Odoo invoice sync retries. Local invoice issue and payments stay available."
+  },
+  "importExcelContracts": {
+    "title": "Excel contract import",
+    "description": "Allow importing contracts from Excel or CSV on the Import page."
+  },
+  "reportsOperational": {
+    "title": "Operational reports",
+    "description": "Show Debt Aging and Location Statement report pages."
+  },
+  "invoicesPaymentStatusPages": {
+    "title": "Partial and fully paid pages",
+    "description": "Show the Partial Payments and Fully Paid invoice pages."
+  },
+  "masterDataMutations": {
+    "title": "Unit and location editing",
+    "description": "Allow creating, editing, deleting, and Excel-importing units and locations. Viewing remains available when disabled."
+  },
+  "adminExperimental": {
+    "title": "Experimental Odoo admin tools",
+    "description": "Show advanced Odoo setup actions in Settings such as loading choices and creating a test draft invoice. Feature Flags stays available."
+  }
+}

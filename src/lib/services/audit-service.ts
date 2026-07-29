@@ -12,7 +12,7 @@ export const auditService = {
     newValues: Record<string, unknown> | unknown | null,
     ctx: LogContext
   ): Promise<void> {
-    if (!auth.isAdminEditor) return;
+    if (!auth.userId) return;
 
     try {
       await auditLogsRepository.create({

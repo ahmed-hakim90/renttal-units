@@ -1,27 +1,54 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { PageHeader } from '@/components/layout/page-header';
-import { requireAdminEditor } from '@/lib/auth/session';
+import { requirePermission } from '@/lib/auth/session';
+import { canMutateModule, hasPermission } from '@/lib/auth/permissions';
 import { getCorrelationId } from '@/lib/observability/correlation-id';
+import { redirect } from '@/lib/i18n/navigation';
 import { ImportUnitsClient } from '@/components/import/import-units-client';
 import { ImportContractsClient } from '@/components/import/import-contracts-client';
+import { ImportOdooCenterClient } from '@/components/import/import-odoo-center-client';
+import { getUnits } from '@/lib/actions/units';
+import { loadFeatureFlags } from '@/lib/features/load-feature-flags';
 
 export default async function ImportPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   setRequestLocale(locale);
-  const t = await getTranslations('common');
+  const ctx = { correlation_id: await getCorrelationId() };
+  const auth = await requirePermission(locale, 'imports.manage', ctx);
   const tu = await getTranslations('units');
-  await requireAdminEditor(locale, { correlation_id: await getCorrelationId() });
+  const [units, featureFlags] = await Promise.all([
+    getUnits(locale),
+    loadFeatureFlags({ ...ctx, user_id: auth.userId, role: auth.role }),
+  ]);
+
+  const showOdooImport = featureFlags.odoo_import_center && hasPermission(auth, 'odoo.manage');
+  const showUnitsImport = featureFlags.master_data_mutations;
+  const showContractsImport = featureFlags.import_excel_contracts;
+
+  if (!showOdooImport && !showUnitsImport && !showContractsImport) {
+    redirect({ href: '/dashboard', locale });
+  }
 
   return (
     <div className="space-y-10">
-      <div>
-        <PageHeader title={t('nav.import')} />
-        <ImportUnitsClient locale={locale} canEdit />
-      </div>
-      <div>
-        <h2 className="text-xl font-semibold mb-4">{tu('importContracts')}</h2>
-        <ImportContractsClient locale={locale} canEdit />
-      </div>
+      {showOdooImport && (
+        <div>
+          <PageHeader title={tu('odooImportCenter')} />
+          <ImportOdooCenterClient locale={locale} units={units} />
+        </div>
+      )}
+      {showUnitsImport && (
+        <div>
+          <h2 className="mb-4 text-xl font-semibold">{tu('importUnits')}</h2>
+          <ImportUnitsClient locale={locale} canEdit={canMutateModule(auth, 'units')} />
+        </div>
+      )}
+      {showContractsImport && (
+        <div>
+          <h2 className="mb-4 text-xl font-semibold">{tu('importContracts')}</h2>
+          <ImportContractsClient locale={locale} canEdit={canMutateModule(auth, 'contracts')} />
+        </div>
+      )}
     </div>
   );
 }

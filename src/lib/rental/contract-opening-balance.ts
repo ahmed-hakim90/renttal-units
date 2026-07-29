@@ -7,15 +7,15 @@ export interface ContractOpeningBalanceInput {
   opening_paid_amount?: number | null;
 }
 
-export interface SettledContractPeriod extends ContractPaymentPeriod {
+export type SettledContractPeriod<T extends ContractPaymentPeriod = ContractPaymentPeriod> = T & {
   paid_amount: number;
   status: InvoiceStatus;
-}
+};
 
-export function applyOpeningBalanceToSchedule(
-  schedule: ContractPaymentPeriod[],
+export function applyOpeningBalanceToSchedule<T extends ContractPaymentPeriod>(
+  schedule: T[],
   input?: ContractOpeningBalanceInput,
-): SettledContractPeriod[] {
+): SettledContractPeriod<T>[] {
   const paidThrough = input?.paid_through_date?.trim() || null;
   const openingPaid = Math.max(0, Number(input?.opening_paid_amount ?? 0));
   let openingApplied = false;

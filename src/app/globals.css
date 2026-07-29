@@ -1,36 +1,138 @@
 @import "tailwindcss";
 
 @theme inline {
-  --color-background: #fafafa;
-  --color-foreground: #0a0a0a;
+  --color-background: #f7f8fa;
+  --color-foreground: #111827;
   --color-card: #ffffff;
-  --color-card-foreground: #0a0a0a;
-  --color-primary: #2563eb;
+  --color-card-foreground: #111827;
+  --color-primary: #1d4ed8;
   --color-primary-foreground: #ffffff;
-  --color-secondary: #f4f4f5;
-  --color-secondary-foreground: #18181b;
-  --color-muted: #f4f4f5;
-  --color-muted-foreground: #71717a;
-  --color-accent: #f4f4f5;
-  --color-accent-foreground: #18181b;
-  --color-destructive: #ef4444;
-  --color-border: #e4e4e7;
-  --color-ring: #2563eb;
-  --color-success: #22c55e;
-  --color-warning: #f59e0b;
+  --color-secondary: #eef2f7;
+  --color-secondary-foreground: #1f2937;
+  --color-muted: #f1f5f9;
+  --color-muted-foreground: #64748b;
+  --color-accent: #f1f5f9;
+  --color-accent-foreground: #0f172a;
+  --color-destructive: #dc2626;
+  --color-destructive-foreground: #ffffff;
+  --color-success: #059669;
+  --color-success-foreground: #ffffff;
+  --color-warning: #d97706;
+  --color-warning-foreground: #ffffff;
+  --color-border: #e2e8f0;
+  --color-ring: #1d4ed8;
   --radius-lg: 16px;
   --radius-md: 12px;
   --radius-sm: 8px;
-  --font-sans: var(--font-cairo), 'Cairo', system-ui, sans-serif;
-  --font-mono: var(--font-cairo), 'Cairo', ui-monospace, monospace;
+  --font-sans: var(--font-alexandria), 'Alexandria', system-ui, sans-serif;
+  --font-mono: var(--font-alexandria), 'Alexandria', ui-monospace, monospace;
+}
+
+html[lang='ar'] {
+  --font-sans: var(--font-tajawal), 'Tajawal', system-ui, sans-serif;
+  --font-mono: var(--font-tajawal), 'Tajawal', ui-monospace, monospace;
 }
 
 body {
+  min-width: 320px;
+  min-height: 100dvh;
   background: var(--color-background);
   color: var(--color-foreground);
   font-family: var(--font-sans);
+  overscroll-behavior-y: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 * {
   border-color: var(--color-border);
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (max-width: 767px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+::selection {
+  background: color-mix(in srgb, var(--color-primary) 18%, transparent);
+}
+
+@layer components {
+  .surface-panel {
+    @apply overflow-hidden rounded-2xl border border-border bg-card shadow-sm;
+  }
+
+  .toolbar {
+    @apply mb-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between;
+  }
+
+  .filter-group {
+    @apply inline-flex flex-wrap items-center gap-1 rounded-xl border border-border bg-card p-1 shadow-sm;
+  }
+
+  .table-shell {
+    @apply hidden overflow-x-auto rounded-2xl border border-border bg-card shadow-sm md:block;
+    scrollbar-gutter: stable;
+  }
+
+  .table-shell > table {
+    @apply w-full;
+    font-size: 0.8125rem;
+  }
+
+  .table-shell > table > thead {
+    @apply border-b border-border bg-muted/70;
+  }
+
+  .table-shell > table > thead th {
+    @apply whitespace-nowrap px-4 py-3 text-start text-xs font-semibold tracking-wide text-foreground/70;
+  }
+
+  .table-shell > table > tbody > tr > td {
+    @apply px-4 py-3 align-middle;
+  }
+
+  .table-shell > table > tbody > tr {
+    @apply border-t border-border transition-colors hover:bg-muted/30;
+  }
+
+  .dashboard-content table {
+    font-size: 0.8125rem;
+  }
+
+  .mobile-card {
+    @apply min-w-0 overflow-hidden rounded-2xl border border-border bg-card p-4 shadow-sm;
+  }
+
+  .row-actions {
+    @apply inline-flex flex-nowrap items-center justify-end gap-1 whitespace-nowrap;
+  }
+
+  .field-control {
+    @apply mt-1.5 flex h-10 w-full rounded-xl border border-border bg-card px-3 text-sm shadow-sm transition-[border-color,box-shadow,background-color] focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/25 disabled:cursor-not-allowed disabled:bg-muted/60 disabled:opacity-70;
+  }
+
+  .form-actions {
+    @apply flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:justify-end sm:gap-3;
+  }
+
+  .form-actions > button {
+    @apply w-full sm:w-auto;
+  }
+
+  .icon-tile {
+    @apply inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl;
+  }
 }

@@ -35,7 +35,7 @@ export default async function ChangePasswordPage({
           <div className="space-y-3">
             <Logo size="lg" />
             <div>
-              <p className="font-medium">{t('changePasswordTitle')}</p>
+              <h1 className="text-xl font-semibold tracking-tight">{t('changePasswordTitle')}</h1>
               <p className="text-sm text-muted-foreground">{t('changePasswordHint')}</p>
             </div>
           </div>

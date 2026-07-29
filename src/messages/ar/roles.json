@@ -1,0 +1,99 @@
+{
+  "title": "الأدوار والصلاحيات",
+  "subtitle": "أنشئ أدواراً وحدد الإجراءات المسموح بها لكل دور",
+  "create": "إنشاء دور",
+  "edit": "تعديل الدور",
+  "created": "تم إنشاء الدور بنجاح",
+  "updated": "تم تحديث الدور بنجاح",
+  "deleted": "تم حذف الدور بنجاح",
+  "empty": "لا توجد أدوار",
+  "nameEn": "الاسم (إنجليزي)",
+  "nameAr": "الاسم (عربي)",
+  "descriptionEn": "الوصف (إنجليزي)",
+  "descriptionAr": "الوصف (عربي)",
+  "noDescription": "بدون وصف",
+  "permissionCount": "{count} صلاحية",
+  "userCount": "{count} مستخدم",
+  "systemOwner": "مالك النظام",
+  "systemRole": "نظامي",
+  "ownerLocked": "لا يمكن تعديل دور مالك النظام",
+  "confirmDeleteTitle": "حذف الدور؟",
+  "confirmDeleteDescription": "سيتم حذف الدور نهائياً. يجب إعادة تعيين المستخدمين أولاً.",
+  "categories": {
+    "locations": "المواقع",
+    "units": "الوحدات",
+    "tenants": "المستأجرون",
+    "contracts": "العقود",
+    "invoices": "الفواتير",
+    "payments": "المدفوعات",
+    "reports": "التقارير",
+    "imports": "مركز الاستيراد",
+    "odoo": "أودو",
+    "users": "المستخدمون",
+    "roles": "الأدوار",
+    "settings": "الإعدادات",
+    "feature_flags": "خصائص النظام",
+    "audit": "سجل التدقيق"
+  },
+  "permissions": {
+    "locations": {
+      "view": "عرض المواقع",
+      "create": "إنشاء المواقع",
+      "update": "تعديل المواقع",
+      "delete": "حذف المواقع"
+    },
+    "units": {
+      "view": "عرض الوحدات",
+      "create": "إنشاء الوحدات",
+      "update": "تعديل الوحدات",
+      "delete": "حذف الوحدات"
+    },
+    "tenants": {
+      "view": "عرض المستأجرين",
+      "create": "إنشاء المستأجرين",
+      "update": "تعديل المستأجرين",
+      "delete": "حذف المستأجرين"
+    },
+    "contracts": {
+      "view": "عرض العقود",
+      "create": "إنشاء العقود",
+      "update": "تعديل العقود",
+      "delete": "حذف العقود"
+    },
+    "invoices": {
+      "view": "عرض الفواتير",
+      "create": "إنشاء الفواتير",
+      "update": "تعديل الفواتير",
+      "delete": "حذف الفواتير"
+    },
+    "payments": {
+      "view": "عرض المدفوعات",
+      "record": "تسجيل المدفوعات"
+    },
+    "reports": {
+      "view": "عرض التقارير",
+      "export": "تصدير التقارير"
+    },
+    "imports": {
+      "manage": "إدارة الاستيراد"
+    },
+    "odoo": {
+      "manage": "إدارة تكامل أودو"
+    },
+    "users": {
+      "manage": "إدارة المستخدمين"
+    },
+    "roles": {
+      "manage": "إدارة الأدوار"
+    },
+    "settings": {
+      "manage": "إدارة الإعدادات"
+    },
+    "feature_flags": {
+      "manage": "إدارة خصائص النظام"
+    },
+    "audit": {
+      "view": "عرض سجل التدقيق"
+    }
+  }
+}

@@ -1,10 +1,12 @@
+import { normalizeArabicDigits } from '@/lib/i18n/numbers';
+
 /**
  * Saudi national ID / Iqama checksum (10 digits, type 1 or 2).
  * Empty/null is treated as absent (valid when optional).
  */
 export function isValidSaudiNationalId(value: string | null | undefined): boolean {
   if (value == null) return true;
-  const id = value.trim();
+  const id = normalizeArabicDigits(value).trim();
   if (!id) return true;
   if (!/^[12]\d{9}$/.test(id)) return false;
 
@@ -22,6 +24,6 @@ export function isValidSaudiNationalId(value: string | null | undefined): boolea
 
 export function normalizeNationalId(value: string | null | undefined): string | null {
   if (value == null) return null;
-  const trimmed = value.trim();
+  const trimmed = normalizeArabicDigits(value).trim();
   return trimmed.length > 0 ? trimmed : null;
 }

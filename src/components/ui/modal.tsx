@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useId, useRef, type ReactNode } from 'react';
+import { useTranslations } from 'next-intl';
 import { X } from 'lucide-react';
 import { Button } from './button';
 import { cn } from '@/lib/utils';
@@ -14,14 +15,36 @@ interface ModalProps {
 }
 
 export function Modal({ open, onClose, title, children, className }: ModalProps) {
+  const t = useTranslations('common');
+  const titleId = useId();
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const onCloseRef = useRef(onClose);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
   useEffect(() => {
     if (!open) return;
 
     const originalOverflow = document.body.style.overflow;
+    const previouslyFocused = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+
     document.body.style.overflow = 'hidden';
+    closeButtonRef.current?.focus();
+
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') onCloseRef.current();
+    }
+
+    document.addEventListener('keydown', closeOnEscape);
 
     return () => {
       document.body.style.overflow = originalOverflow;
+      document.removeEventListener('keydown', closeOnEscape);
+      previouslyFocused?.focus();
     };
   }, [open]);
 
@@ -33,7 +56,7 @@ export function Modal({ open, onClose, title, children, className }: ModalProps)
       <div
         role="dialog"
         aria-modal="true"
-        aria-labelledby="modal-title"
+        aria-labelledby={titleId}
         className={cn(
           'relative z-50 flex w-full max-w-lg flex-col',
           'max-h-[92dvh] sm:max-h-[85dvh]',
@@ -44,12 +67,12 @@ export function Modal({ open, onClose, title, children, className }: ModalProps)
         )}
       >
         <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-4 sm:px-6">
-          <h2 id="modal-title" className="text-lg font-semibold">{title}</h2>
-          <Button variant="ghost" size="sm" onClick={onClose} aria-label="Close">
-            <X className="h-4 w-4" />
+          <h2 id={titleId} className="text-lg font-semibold tracking-tight">{title}</h2>
+          <Button ref={closeButtonRef} variant="ghost" size="icon-sm" onClick={onClose} aria-label={t('close')}>
+            <X />
           </Button>
         </div>
-        <div className="overflow-y-auto overscroll-contain px-4 py-4 sm:px-6">
+        <div className="overflow-y-auto overscroll-contain px-4 py-5 sm:px-6">
           {children}
         </div>
       </div>

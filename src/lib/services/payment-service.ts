@@ -1,4 +1,5 @@
 import type { AuthContext, Payment, PaymentMethod, ServiceResult } from '@/types/database';
+import { hasPermission } from '@/lib/auth/permissions';
 import { paymentsRepository } from '@/lib/repositories/payments';
 import { invoicesRepository } from '@/lib/repositories/invoices';
 import { auditService } from './audit-service';
@@ -42,7 +43,7 @@ export const paymentService = {
     },
     ctx: LogContext
   ): Promise<ServiceResult<Payment>> {
-    if (!auth.isAdminEditor) return { success: false, error: 'Unauthorized', errorCode: 'FORBIDDEN' };
+    if (!hasPermission(auth, 'payments.record')) return { success: false, error: 'Unauthorized', errorCode: 'FORBIDDEN' };
 
     return withSpan('paymentService.recordPayment', { ...ctx, service: 'payment', user_id: auth.userId }, async () => {
       const validation = validationService.validatePayment(input);

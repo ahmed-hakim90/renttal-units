@@ -23,6 +23,13 @@ import { toast } from 'sonner';
 import type { Invoice, PaymentMethod } from '@/types/database';
 import type { Locale } from '@/lib/i18n/routing';
 
+function getDaysUntilDue(dueDate: string) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const due = new Date(`${dueDate}T00:00:00`);
+  return Math.ceil((due.getTime() - today.getTime()) / (24 * 60 * 60 * 1000));
+}
+
 export function RecentActivity({
   dueInvoices,
   awaitingInvoices,
@@ -50,6 +57,22 @@ export function RecentActivity({
   const [paymentMode, setPaymentMode] = useState<'full' | 'partial'>('full');
   const { isSubmitting, runOnce } = useSingleSubmit();
 
+  function getIssueErrorMessage(error: string) {
+    if (error === 'unitNotLinkedToOdoo') return ti('unitNotLinkedToOdoo');
+    if (error === 'odooSyncFailed') return ti('odooSyncFailed');
+    if (error === 'odooInvoiceNeedsReview') return ti('odooInvoiceNeedsReview');
+    if (error === 'invoiceNumberRequired') return ti('invoiceNumberRequired');
+    if (error === 'duplicateNumber') return ti('duplicateNumber');
+    if (error === 'invalidInvoiceStatus') return ti('invalidInvoiceStatus');
+    return tCommon('error');
+  }
+
+  function getPaymentErrorMessage(error: string) {
+    if (error === 'exceedsBalance') return tp('exceedsBalance');
+    if (error === 'cannotPayFullyPaid') return tp('cannotPayFullyPaid');
+    return tCommon('error');
+  }
+
   async function handleIssue(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!selectedInvoice) return;
@@ -62,7 +85,8 @@ export function RecentActivity({
       setIssueOpen(false);
       setSelectedInvoice(null);
     } else {
-      toast.error('error' in result ? String(result.error) : tCommon('error'));
+      const error = 'error' in result ? String(result.error) : '';
+      toast.error(getIssueErrorMessage(error));
     }
     });
   }
@@ -88,7 +112,7 @@ export function RecentActivity({
       setPayOpen(false);
       setSelectedInvoice(null);
     } else {
-      toast.error('error' in result ? String(result.error) : tCommon('error'));
+      toast.error(getPaymentErrorMessage('error' in result ? String(result.error) : ''));
     }
     });
   }
@@ -112,6 +136,7 @@ export function RecentActivity({
               ) : (
                 section.invoices.slice(0, 4).map((inv) => {
                   const daysOverdue = getInvoiceDaysOverdue(inv.due_date);
+                  const daysUntilDue = getDaysUntilDue(inv.due_date);
                   const isOldDue = isOldOutstandingDue(inv.due_date, inv.status);
 
                   return (
@@ -131,6 +156,11 @@ export function RecentActivity({
                             {ti('daysOverdueLabel', { days: formatNumber(daysOverdue, loc) })}
                           </span>
                         )}
+                        {inv.status === 'due' && daysUntilDue >= 0 && daysUntilDue <= 3 && (
+                          <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-medium text-sky-800">
+                            {daysUntilDue === 0 ? ti('dueToday') : ti('dueSoonLabel', { days: formatNumber(daysUntilDue, loc) })}
+                          </span>
+                        )}
                       </div>
                     </div>
                     <p className="mt-2 text-sm font-medium">{formatCurrency(Number(inv.amount) - Number(inv.paid_amount), loc)}</p>
@@ -141,7 +171,7 @@ export function RecentActivity({
                         variant="issue"
                         onClick={() => { setSelectedInvoice(inv); setIssueOpen(true); }}
                       >
-                        <FileText className="h-4 w-4" />
+                        <FileText />
                         {ti('issueInvoice')}
                       </Button>
                     )}
@@ -152,7 +182,7 @@ export function RecentActivity({
                         variant="payment"
                         onClick={() => { setSelectedInvoice(inv); setPaymentMode('full'); setPayOpen(true); }}
                       >
-                        <CreditCard className="h-4 w-4" />
+                        <CreditCard />
                         {ti('recordPayment')}
                       </Button>
                     )}
@@ -168,7 +198,7 @@ export function RecentActivity({
       <Modal open={issueOpen} onClose={() => !isSubmitting && setIssueOpen(false)} title={ti('issueInvoice')}>
         <form onSubmit={handleIssue} className="space-y-4">
           <Input name="invoice_number" label={ti('invoiceNumber')} required />
-          <div className="flex justify-end gap-3">
+          <div className="form-actions">
             <Button variant="outline" type="button" disabled={isSubmitting} onClick={() => setIssueOpen(false)}>{tCommon('cancel')}</Button>
             <Button variant="issue" type="submit" disabled={isSubmitting}>{isSubmitting ? tCommon('loading') : ti('issueInvoice')}</Button>
           </div>
@@ -198,14 +228,14 @@ export function RecentActivity({
             <Input name="payment_date" label={tp('paymentDate')} type="date" required defaultValue={new Date().toISOString().split('T')[0]} />
             <div>
               <label className="text-sm font-medium">{tp('paymentMethod')}</label>
-              <select name="payment_method" className="mt-1.5 flex h-10 w-full rounded-xl border border-border bg-card px-3 text-sm">
+              <select name="payment_method" className="field-control">
                 {(['cash', 'bank_transfer', 'check', 'other'] as const).map((m) => (
                   <option key={m} value={m}>{tCommon(`paymentMethod.${m}`)}</option>
                 ))}
               </select>
             </div>
             <Input name="reference_number" label={tp('referenceNumber')} />
-            <div className="flex justify-end gap-3">
+            <div className="form-actions">
               <Button variant="outline" type="button" disabled={isSubmitting} onClick={() => setPayOpen(false)}>{tCommon('cancel')}</Button>
               <Button variant="payment" type="submit" disabled={isSubmitting}>{isSubmitting ? tCommon('loading') : tp('create')}</Button>
             </div>

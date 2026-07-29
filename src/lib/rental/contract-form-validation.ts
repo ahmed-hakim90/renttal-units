@@ -1,13 +1,15 @@
 import { isReasonableContractDate } from '@/lib/dates/contract-dates';
 import {
-  calculateContractPaymentSchedule,
+  calculateContractBillingSchedule,
+  type ContractBillingPeriod,
   MAX_CONTRACT_PERIODS,
 } from '@/lib/rental/calculations';
 import {
   applyOpeningBalanceToSchedule,
   type SettledContractPeriod,
 } from '@/lib/rental/contract-opening-balance';
-import type { PaymentCycle } from '@/types/database';
+import type { ContractLineType, PaymentCycle } from '@/types/database';
+import { normalizeNumberInputValue } from '@/lib/i18n/numbers';
 import { isValidSaudiNationalId, normalizeNationalId } from '@/lib/validation/saudi-national-id';
 
 export type ContractFormField =
@@ -19,10 +21,12 @@ export type ContractFormField =
   | 'payment_cycle'
   | 'paid_through_date'
   | 'opening_paid_amount'
+  | 'last_payment_date'
   | 'tenant_name'
   | 'tenant_email'
   | 'tenant_national_id'
-  | 'schedule';
+  | 'schedule'
+  | 'lines';
 
 export type ContractFormErrorCode =
   | 'unitRequired'
@@ -40,11 +44,30 @@ export type ContractFormErrorCode =
   | 'paidThroughOutOfRange'
   | 'openingPaidNegative'
   | 'openingPaidExceedsPeriod'
+  | 'lastPaymentInvalid'
+  | 'lastPaymentOutOfRange'
   | 'tenantEmailInvalid'
   | 'tooManyPeriods'
-  | 'scheduleFailed';
+  | 'scheduleFailed'
+  | 'linesRequired'
+  | 'rentalLineRequired'
+  | 'duplicateUnits'
+  | 'lineAmountPositive'
+  | 'serviceProductRequired'
+  | 'taxRateInvalid';
 
 export type ContractFormFieldErrors = Partial<Record<ContractFormField, ContractFormErrorCode>>;
+
+export interface ContractFormLineValues {
+  key: string;
+  line_type: ContractLineType;
+  unit_id: string;
+  description: string;
+  amount: string;
+  odoo_product_id: string;
+  odoo_product_name: string;
+  tax_rate: string;
+}
 
 export interface ContractFormValues {
   unit_id: string;
@@ -55,9 +78,12 @@ export interface ContractFormValues {
   payment_cycle: PaymentCycle;
   paid_through_date: string;
   opening_paid_amount: string;
+  last_payment_date: string;
+  opening_notes: string;
   tenant_name: string;
   tenant_email: string;
   tenant_national_id: string;
+  lines: ContractFormLineValues[];
 }
 
 export interface ContractInvoicePreview {
@@ -67,33 +93,98 @@ export interface ContractInvoicePreview {
   partiallyPaidCount: number;
   dueCount: number;
   totalAmount: number;
-  periods: SettledContractPeriod[];
+  totalUntaxed: number;
+  totalTax: number;
+  periods: SettledContractPeriod<ContractBillingPeriod>[];
   error?: ContractFormErrorCode;
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-function parseAmount(value: string): number | null {
-  const trimmed = value.trim();
+function parseAmount(value: string | undefined): number | null {
+  const trimmed = value?.trim() ?? '';
   if (!trimmed) return null;
-  const amount = Number(trimmed);
+  const amount = Number(normalizeNumberInputValue(trimmed));
   if (!Number.isFinite(amount)) return null;
   return amount;
 }
 
+export function sumContractLineAmounts(lines: ContractFormLineValues[]): number {
+  return lines.reduce((sum, line) => sum + (parseAmount(line.amount) ?? 0), 0);
+}
+
 export function validateContractForm(
   values: ContractFormValues,
-  options?: { requireUnit?: boolean },
+  options?: { requireUnit?: boolean; mode?: 'strict' | 'draft' },
 ): ContractFormFieldErrors {
   const errors: ContractFormFieldErrors = {};
   const requireUnit = options?.requireUnit ?? true;
-
-  if (requireUnit && !values.unit_id.trim()) {
-    errors.unit_id = 'unitRequired';
-  }
+  const draftMode = options?.mode === 'draft';
+  const lines = values.lines ?? [];
 
   if (!values.contract_number.trim()) {
     errors.contract_number = 'contractNumberRequired';
+  }
+
+  if (draftMode) {
+    const unitIds = lines
+      .filter((line) => line.line_type === 'rental')
+      .map((line) => line.unit_id)
+      .filter(Boolean);
+    if (new Set(unitIds).size !== unitIds.length) {
+      errors.lines = 'duplicateUnits';
+    }
+    if (values.tenant_email.trim() && !EMAIL_RE.test(values.tenant_email.trim())) {
+      errors.tenant_email = 'tenantEmailInvalid';
+    }
+    const nationalId = normalizeNationalId(values.tenant_national_id);
+    if (nationalId && !isValidSaudiNationalId(nationalId)) {
+      errors.tenant_national_id = 'nationalIdInvalid';
+    }
+    if (values.start_date.trim() && !isReasonableContractDate(values.start_date)) {
+      errors.start_date = 'startDateInvalid';
+    }
+    if (values.end_date.trim() && !isReasonableContractDate(values.end_date)) {
+      errors.end_date = 'endDateInvalid';
+    } else if (
+      values.start_date.trim()
+      && values.end_date.trim()
+      && isReasonableContractDate(values.start_date)
+      && isReasonableContractDate(values.end_date)
+      && values.end_date < values.start_date
+    ) {
+      errors.end_date = 'endBeforeStart';
+    }
+    return errors;
+  }
+
+  if (lines.length === 0) {
+    errors.lines = 'linesRequired';
+  } else {
+    const rentalLines = lines.filter((line) => line.line_type === 'rental');
+    if (rentalLines.length === 0) {
+      errors.lines = 'rentalLineRequired';
+    }
+    const unitIds = rentalLines.map((line) => line.unit_id).filter(Boolean);
+    if (requireUnit && unitIds.length !== rentalLines.length) {
+      errors.unit_id = 'unitRequired';
+    }
+    if (new Set(unitIds).size !== unitIds.length) {
+      errors.lines = 'duplicateUnits';
+    }
+    if (lines.some((line) => (parseAmount(line.amount) ?? 0) <= 0)) {
+      errors.lines = 'lineAmountPositive';
+    }
+    if (lines.some((line) => line.line_type === 'service' && !line.odoo_product_id?.trim())) {
+      errors.lines = 'serviceProductRequired';
+    }
+    if (lines.some((line) => {
+      if (line.tax_rate == null) return false;
+      const taxRate = parseAmount(line.tax_rate);
+      return taxRate == null || taxRate < 0 || taxRate > 100;
+    })) {
+      errors.lines = 'taxRateInvalid';
+    }
   }
 
   if (!values.tenant_name.trim()) {
@@ -122,10 +213,8 @@ export function validateContractForm(
     errors.end_date = 'endBeforeStart';
   }
 
-  const amount = parseAmount(values.total_amount);
-  if (amount == null) {
-    errors.total_amount = 'amountRequired';
-  } else if (amount <= 0) {
+  const amount = sumContractLineAmounts(lines);
+  if (amount <= 0) {
     errors.total_amount = 'amountPositive';
   }
 
@@ -151,6 +240,19 @@ export function validateContractForm(
     }
   }
 
+  const lastPaymentDate = values.last_payment_date?.trim() ?? '';
+  if (lastPaymentDate) {
+    if (!isReasonableContractDate(lastPaymentDate)) {
+      errors.last_payment_date = 'lastPaymentInvalid';
+    } else if (
+      isReasonableContractDate(values.start_date)
+      && isReasonableContractDate(values.end_date)
+      && (lastPaymentDate < values.start_date || lastPaymentDate > values.end_date)
+    ) {
+      errors.last_payment_date = 'lastPaymentOutOfRange';
+    }
+  }
+
   const tenantEmail = values.tenant_email.trim();
   if (tenantEmail && !EMAIL_RE.test(tenantEmail)) {
     errors.tenant_email = 'tenantEmailInvalid';
@@ -162,8 +264,9 @@ export function validateContractForm(
     && !errors.total_amount
     && !errors.paid_through_date
     && !errors.opening_paid_amount
+    && !errors.lines
   ) {
-    const preview = buildInvoicePreview(values, amount ?? 0, openingPaid);
+    const preview = buildInvoicePreview(values, amount, openingPaid);
     if (preview.error === 'tooManyPeriods') {
       errors.schedule = 'tooManyPeriods';
     } else if (preview.error === 'scheduleFailed') {
@@ -177,7 +280,7 @@ export function validateContractForm(
 }
 
 export function previewContractInvoices(values: ContractFormValues): ContractInvoicePreview {
-  const amount = parseAmount(values.total_amount);
+  const amount = sumContractLineAmounts(values.lines ?? []);
   const openingPaidRaw = values.opening_paid_amount.trim();
   const openingPaid = openingPaidRaw ? parseAmount(openingPaidRaw) : null;
 
@@ -185,7 +288,6 @@ export function previewContractInvoices(values: ContractFormValues): ContractInv
     !isReasonableContractDate(values.start_date)
     || !isReasonableContractDate(values.end_date)
     || values.end_date < values.start_date
-    || amount == null
     || amount <= 0
   ) {
     return {
@@ -195,6 +297,8 @@ export function previewContractInvoices(values: ContractFormValues): ContractInv
       partiallyPaidCount: 0,
       dueCount: 0,
       totalAmount: 0,
+      totalUntaxed: 0,
+      totalTax: 0,
       periods: [],
     };
   }
@@ -224,6 +328,8 @@ function emptyPreview(error: ContractFormErrorCode): ContractInvoicePreview {
     partiallyPaidCount: 0,
     dueCount: 0,
     totalAmount: 0,
+    totalUntaxed: 0,
+    totalTax: 0,
     periods: [],
     error,
   };
@@ -235,11 +341,20 @@ function buildInvoicePreview(
   openingPaid: number | null,
 ): ContractInvoicePreview {
   try {
-    const schedule = calculateContractPaymentSchedule({
+    const schedule = calculateContractBillingSchedule({
       start_date: values.start_date,
       end_date: values.end_date,
       payment_cycle: values.payment_cycle,
-      total_amount: amount,
+      lines: values.lines.map((line, index) => ({
+        lineType: line.line_type,
+        unitId: line.line_type === 'rental' ? line.unit_id : null,
+        description: line.description,
+        odooProductId: line.odoo_product_id ? Number(line.odoo_product_id) : null,
+        odooProductName: line.odoo_product_name || null,
+        amount: Number(line.amount),
+        taxRate: line.tax_rate == null ? 15 : Number(line.tax_rate),
+        sortOrder: index,
+      })),
     });
 
     if (schedule.length > MAX_CONTRACT_PERIODS) {
@@ -259,6 +374,8 @@ function buildInvoicePreview(
           partiallyPaidCount: 0,
           dueCount: 0,
           totalAmount: amount,
+          totalUntaxed: schedule.reduce((sum, period) => sum + period.amountUntaxed, 0),
+          totalTax: schedule.reduce((sum, period) => sum + period.amountTax, 0),
           periods: [],
           error: 'openingPaidExceedsPeriod',
         };
@@ -276,7 +393,9 @@ function buildInvoicePreview(
       fullyPaidCount: settled.filter((p) => p.status === 'fully_paid').length,
       partiallyPaidCount: settled.filter((p) => p.status === 'partially_paid').length,
       dueCount: settled.filter((p) => p.status === 'due' || p.status === 'overdue').length,
-      totalAmount: amount,
+      totalAmount: settled.reduce((sum, period) => sum + period.amountTotal, 0),
+      totalUntaxed: settled.reduce((sum, period) => sum + period.amountUntaxed, 0),
+      totalTax: settled.reduce((sum, period) => sum + period.amountTax, 0),
       periods: settled,
     };
   } catch (error) {

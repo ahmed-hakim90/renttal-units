@@ -1,6 +1,7 @@
 'use server';
 
-import { requireAuth, requireAdminEditor } from '@/lib/auth/session';
+import { requireAuth, requirePermission } from '@/lib/auth/session';
+import { rolesRepository } from '@/lib/repositories/roles';
 import { getCorrelationId } from '@/lib/observability/correlation-id';
 import { reportingService } from '@/lib/services/reporting-service';
 import { usersRepository } from '@/lib/repositories/users';
@@ -13,14 +14,26 @@ import { validationService } from '@/lib/services/validation-service';
 import { contractService } from '@/lib/services/contract-service';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
-import type { UserRole, UnitStatus, PaymentCycle } from '@/types/database';
+import type { UnitStatus, PaymentCycle } from '@/types/database';
 import ExcelJS from 'exceljs';
 import { Readable } from 'node:stream';
 import { isReasonableContractDate } from '@/lib/dates/contract-dates';
 import { validateContractOpeningBalance } from '@/lib/rental/validate-opening-balance';
+import { normalizeNumberInputValue } from '@/lib/i18n/numbers';
 import { validateStaffPassword } from '@/lib/validation/password-policy';
+import { z } from 'zod';
+import {
+  FEATURE_FLAG_KEYS,
+  featureFlagSettingKey,
+  isFeatureFlagKey,
+  resolveFeatureFlags,
+  revalidatePathsForFlag,
+  type FeatureFlagKey,
+} from '@/lib/features';
+import { loadFeatureFlags, requireFeatureEnabled } from '@/lib/features/load-feature-flags';
 import {
   buildRateLimitKey,
+  clearRateLimit,
   isRateLimited,
   recordRateLimitFailure,
 } from '@/lib/security/rate-limit';
@@ -30,6 +43,11 @@ const MAX_IMPORT_ROWS = 1000;
 const IMPORT_RATE_LIMIT_ATTEMPTS = 10;
 const IMPORT_RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
 const GENERIC_IMPORT_RATE_LIMIT_ERROR = 'Too many import attempts. Try again later.';
+const USER_SECURITY_RATE_LIMIT_ATTEMPTS = 5;
+const USER_SECURITY_RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
+const userIdSchema = z.string().uuid();
+const staffEmailSchema = z.string().trim().toLowerCase().email().max(254);
+const staffFullNameSchema = z.string().trim().min(1).max(120);
 const ALLOWED_IMPORT_EXTENSIONS = new Set(['.xlsx', '.csv']);
 const ALLOWED_IMPORT_MIME_TYPES = new Set([
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -149,8 +167,10 @@ async function readImportRows(file: File): Promise<Array<Record<string, unknown>
 }
 
 export async function getDebtAgingReport(locale: string, filters?: { locationId?: string }) {
-  const auth = await requireAuth(locale, await getCtx());
+  const auth = await requirePermission(locale, 'reports.view', await getCtx());
   const ctx = { ...await getCtx(), user_id: auth.userId, role: auth.role };
+  const disabled = await requireFeatureEnabled(ctx, 'reports_operational');
+  if (disabled) return [];
   return reportingService.getDebtAgingInvoices(auth, ctx, filters);
 }
 
@@ -159,24 +179,42 @@ export async function getPortfolioSummary(locale: string) {
   return reportingService.getPortfolioSummary(auth, { ...await getCtx(), user_id: auth.userId, role: auth.role });
 }
 
+export async function getLocationsOccupancy(locale: string) {
+  const auth = await requireAuth(locale, await getCtx());
+  return reportingService.getLocationsOccupancy(auth, { ...await getCtx(), user_id: auth.userId, role: auth.role });
+}
+
 export async function getLocationStatement(locale: string, locationId: string) {
-  const auth = await requireAdminEditor(locale, await getCtx());
+  const auth = await requirePermission(locale, 'reports.view', await getCtx());
   const ctx = { ...await getCtx(), user_id: auth.userId, role: auth.role };
+  const disabled = await requireFeatureEnabled(ctx, 'reports_operational');
+  if (disabled) return null;
   return reportingService.getLocationStatement(auth, ctx, locationId);
 }
 
 export async function getUsers(locale: string) {
-  const auth = await requireAdminEditor(locale, await getCtx());
+  const auth = await requirePermission(locale, 'users.manage', await getCtx());
   return usersRepository.findAll({ ...await getCtx(), user_id: auth.userId, role: auth.role });
+}
+
+export async function getAssignableRoles(locale: string) {
+  const auth = await requirePermission(locale, 'users.manage', await getCtx());
+  return rolesRepository.findAssignable({
+    ...await getCtx(),
+    user_id: auth.userId,
+    role: auth.role,
+    // Only system owners may assign the system-owner role.
+    excludeSystemOwner: !auth.isAdminEditor,
+  });
 }
 
 export async function createUser(locale: string, data: {
   full_name: string;
   email: string;
   temporary_password: string;
-  role: UserRole;
+  role_id: string;
 }) {
-  const auth = await requireAdminEditor(locale, await getCtx());
+  const auth = await requirePermission(locale, 'users.manage', await getCtx());
   const ctx = { ...(await getCtx()), user_id: auth.userId, role: auth.role };
 
   const fullName = data.full_name.trim();
@@ -188,7 +226,12 @@ export async function createUser(locale: string, data: {
   if (!email) return { success: false, error: 'Email is required' };
   const passwordError = validateStaffPassword(temporaryPassword);
   if (passwordError) return { success: false, error: passwordError };
-  if (!['admin_editor', 'viewer'].includes(data.role)) return { success: false, error: 'Invalid role' };
+
+  const role = await rolesRepository.findById(data.role_id, ctx);
+  if (!role) return { success: false, error: 'Invalid role' };
+  if (role.is_system_owner && !auth.isAdminEditor) {
+    return { success: false, error: 'Cannot assign the system owner role' };
+  }
 
   const supabaseAdmin = createAdminClient();
   const { data: created, error } = await supabaseAdmin.auth.admin.createUser({
@@ -208,7 +251,7 @@ export async function createUser(locale: string, data: {
     id: created.user.id,
     email,
     full_name: fullName,
-    role: data.role,
+    role_id: role.id,
     must_change_password: true,
   }, ctx);
 
@@ -218,13 +261,14 @@ export async function createUser(locale: string, data: {
     'profile',
     profile.id,
     {
-      old_role: null,
+      old_role_id: null,
     },
     {
       created_by: auth.userId,
       target_user_id: profile.id,
-      old_role: null,
-      new_role: profile.role,
+      old_role_id: null,
+      new_role_id: profile.role_id,
+      new_role_slug: role.slug,
       timestamp: new Date().toISOString(),
     },
     ctx
@@ -234,39 +278,305 @@ export async function createUser(locale: string, data: {
   return { success: true, data: profile };
 }
 
-export async function updateUserRole(locale: string, userId: string, role: UserRole) {
-  const auth = await requireAdminEditor(locale, await getCtx());
+export async function updateUserRole(locale: string, userId: string, roleId: string) {
+  const auth = await requirePermission(locale, 'users.manage', await getCtx());
   const ctx = { ...(await getCtx()), user_id: auth.userId, role: auth.role };
+
+  if (!userId || !roleId) return { success: false, error: 'Invalid role assignment' };
+
+  const role = await rolesRepository.findById(roleId, ctx);
+  if (!role) return { success: false, error: 'Invalid role' };
+  if (role.is_system_owner && !auth.isAdminEditor) {
+    return { success: false, error: 'Cannot assign the system owner role' };
+  }
+
   const old = await usersRepository.findById(userId, ctx);
-  const profile = await usersRepository.updateRole(userId, role, ctx);
+  if (!old) return { success: false, error: 'User not found' };
+
+  const wasOwner = Boolean(old.assigned_role?.is_system_owner);
+  if (wasOwner && !role.is_system_owner) {
+    const owners = (await rolesRepository.findAll(ctx))
+      .filter((item) => item.is_system_owner);
+    const ownerRoleId = owners[0]?.id;
+    if (ownerRoleId) {
+      const ownerCount = await usersRepository.countByRoleId(ownerRoleId, ctx);
+      if (ownerCount <= 1) {
+        return { success: false, error: 'Cannot demote the last system owner' };
+      }
+    }
+  }
+
+  try {
+    const profile = await usersRepository.updateRoleId(userId, roleId, ctx);
+    await auditService.log(
+      auth,
+      'update_role',
+      'profile',
+      userId,
+      {
+        created_by: auth.userId,
+        target_user_id: userId,
+        old_role_id: old.role_id,
+        old_role_slug: old.assigned_role?.slug ?? null,
+        new_role_id: roleId,
+        timestamp: new Date().toISOString(),
+      },
+      {
+        created_by: auth.userId,
+        target_user_id: userId,
+        old_role_id: old.role_id,
+        new_role_id: profile.role_id,
+        new_role_slug: role.slug,
+        timestamp: new Date().toISOString(),
+      },
+      ctx
+    );
+    revalidatePath(`/${locale}/users`);
+    return { success: true, data: profile };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.includes('last system owner')) {
+      return { success: false, error: 'Cannot demote the last system owner' };
+    }
+    return { success: false, error: 'Failed to update role' };
+  }
+}
+
+export async function updateUserFullName(locale: string, userId: string, fullNameInput: string) {
+  const auth = await requirePermission(locale, 'users.manage', await getCtx());
+  const ctx = { ...(await getCtx()), user_id: auth.userId, role: auth.role };
+  const parsedUserId = userIdSchema.safeParse(userId);
+  const parsedFullName = staffFullNameSchema.safeParse(fullNameInput);
+  if (!parsedUserId.success) return { success: false, error: 'userNotFound' };
+  if (!parsedFullName.success) return { success: false, error: 'nameInvalid' };
+
+  const target = await usersRepository.findById(parsedUserId.data, ctx);
+  if (!target) return { success: false, error: 'userNotFound' };
+  if (target.assigned_role?.is_system_owner && !auth.isAdminEditor) {
+    return { success: false, error: 'systemOwnerProtected' };
+  }
+  if (target.full_name === parsedFullName.data) return { success: true, data: target };
+
+  try {
+    const profile = await usersRepository.updateFullName(target.id, parsedFullName.data, ctx);
+    await auditService.log(
+      auth,
+      'update_user_name',
+      'profile',
+      target.id,
+      { full_name: target.full_name },
+      { full_name: profile.full_name },
+      ctx,
+    );
+    revalidatePath(`/${locale}/users`);
+    return { success: true, data: profile };
+  } catch {
+    return { success: false, error: 'nameUpdateFailed' };
+  }
+}
+
+export async function updateUserEmail(locale: string, userId: string, emailInput: string) {
+  const auth = await requirePermission(locale, 'users.manage', await getCtx());
+  const ctx = { ...(await getCtx()), user_id: auth.userId, role: auth.role };
+  const parsedUserId = userIdSchema.safeParse(userId);
+  const parsedEmail = staffEmailSchema.safeParse(emailInput);
+  if (!parsedUserId.success) return { success: false, error: 'userNotFound' };
+  if (!parsedEmail.success) return { success: false, error: 'emailInvalid' };
+
+  const target = await usersRepository.findById(parsedUserId.data, ctx);
+  if (!target) return { success: false, error: 'userNotFound' };
+  if (target.assigned_role?.is_system_owner && !auth.isAdminEditor) {
+    return { success: false, error: 'systemOwnerProtected' };
+  }
+
+  const nextEmail = parsedEmail.data;
+  if (target.email.toLowerCase() === nextEmail) {
+    return { success: true, data: target };
+  }
+
+  const rateLimitKey = await buildRateLimitKey(
+    'admin-user-email',
+    `${auth.userId}:${target.id}`,
+  );
+  if (await isRateLimited(
+    rateLimitKey.keyHash,
+    USER_SECURITY_RATE_LIMIT_ATTEMPTS,
+    USER_SECURITY_RATE_LIMIT_WINDOW_MS,
+  )) {
+    return { success: false, error: 'rateLimited' };
+  }
+
+  const supabaseAdmin = createAdminClient();
+  const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(target.id, {
+    email: nextEmail,
+  });
+  if (authError) {
+    await recordRateLimitFailure(
+      rateLimitKey,
+      USER_SECURITY_RATE_LIMIT_ATTEMPTS,
+      USER_SECURITY_RATE_LIMIT_WINDOW_MS,
+    );
+    return { success: false, error: 'emailUpdateFailed' };
+  }
+
+  try {
+    const profile = await usersRepository.updateEmail(target.id, nextEmail, ctx);
+    await clearRateLimit(rateLimitKey.keyHash);
+    await auditService.log(
+      auth,
+      'update_user_email',
+      'profile',
+      target.id,
+      { email: target.email },
+      { email: profile.email },
+      ctx,
+    );
+    revalidatePath(`/${locale}/users`);
+    return { success: true, data: profile };
+  } catch {
+    const { error: rollbackError } = await supabaseAdmin.auth.admin.updateUserById(target.id, {
+      email: target.email,
+    });
+    if (rollbackError) {
+      await auditService.log(
+        auth,
+        'update_user_email_partial_failure',
+        'profile',
+        target.id,
+        { profile_email: target.email },
+        { auth_email: nextEmail, profile_email: target.email },
+        ctx,
+      );
+    }
+    return { success: false, error: 'emailUpdateFailed' };
+  }
+}
+
+export async function resetUserPassword(locale: string, userId: string, password: string) {
+  const auth = await requirePermission(locale, 'users.manage', await getCtx());
+  const ctx = { ...(await getCtx()), user_id: auth.userId, role: auth.role };
+  const parsedUserId = userIdSchema.safeParse(userId);
+  if (!parsedUserId.success) return { success: false, error: 'userNotFound' };
+  if (validateStaffPassword(password)) return { success: false, error: 'passwordInvalid' };
+
+  const target = await usersRepository.findById(parsedUserId.data, ctx);
+  if (!target) return { success: false, error: 'userNotFound' };
+  if (target.assigned_role?.is_system_owner && !auth.isAdminEditor) {
+    return { success: false, error: 'systemOwnerProtected' };
+  }
+
+  const rateLimitKey = await buildRateLimitKey(
+    'admin-user-password',
+    `${auth.userId}:${target.id}`,
+  );
+  if (await isRateLimited(
+    rateLimitKey.keyHash,
+    USER_SECURITY_RATE_LIMIT_ATTEMPTS,
+    USER_SECURITY_RATE_LIMIT_WINDOW_MS,
+  )) {
+    return { success: false, error: 'rateLimited' };
+  }
+
+  const previousMustChangePassword = Boolean(target.must_change_password);
+  try {
+    await usersRepository.updateMustChangePassword(target.id, false, ctx);
+  } catch {
+    return { success: false, error: 'passwordUpdateFailed' };
+  }
+
+  const restorePasswordFlag = async () => {
+    try {
+      await usersRepository.updateMustChangePassword(
+        target.id,
+        previousMustChangePassword,
+        ctx,
+      );
+    } catch {
+      // A later retry safely attempts to clear the flag again.
+    }
+  };
+
+  let authError = false;
+  try {
+    const supabaseAdmin = createAdminClient();
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(target.id, { password });
+    authError = Boolean(error);
+  } catch {
+    authError = true;
+  }
+
+  if (authError) {
+    await restorePasswordFlag();
+    await recordRateLimitFailure(
+      rateLimitKey,
+      USER_SECURITY_RATE_LIMIT_ATTEMPTS,
+      USER_SECURITY_RATE_LIMIT_WINDOW_MS,
+    );
+    return { success: false, error: 'passwordUpdateFailed' };
+  }
+
+  await clearRateLimit(rateLimitKey.keyHash);
   await auditService.log(
     auth,
-    'update_role',
+    'reset_user_password',
     'profile',
-    userId,
-    {
-      created_by: auth.userId,
-      target_user_id: userId,
-      old_role: old?.role ?? null,
-      new_role: role,
-      timestamp: new Date().toISOString(),
-    },
-    {
-      created_by: auth.userId,
-      target_user_id: userId,
-      old_role: old?.role ?? null,
-      new_role: profile.role,
-      timestamp: new Date().toISOString(),
-    },
-    ctx
+    target.id,
+    null,
+    { password_changed: true },
+    ctx,
   );
   revalidatePath(`/${locale}/users`);
-  return { success: true, data: profile };
+  return { success: true };
 }
 
 export async function getSettings(locale: string) {
-  const auth = await requireAdminEditor(locale, await getCtx());
+  const auth = await requirePermission(locale, 'settings.manage', await getCtx());
   return settingsRepository.findAll({ ...await getCtx(), user_id: auth.userId, role: auth.role });
+}
+
+export async function getResolvedFeatureFlags(locale: string) {
+  const auth = await requireAuth(locale, await getCtx());
+  const settings = await settingsRepository.findAll({
+    ...await getCtx(),
+    user_id: auth.userId,
+    role: auth.role,
+  });
+  // RLS only returns feature_flag.* (and full settings for privileged roles).
+  return resolveFeatureFlags(settings.filter((setting) => setting.key.startsWith('feature_flag.')));
+}
+
+export async function getFeatureFlags(locale: string) {
+  const auth = await requirePermission(locale, 'feature_flags.manage', await getCtx());
+  return loadFeatureFlags({ ...await getCtx(), user_id: auth.userId, role: auth.role });
+}
+
+export async function updateFeatureFlag(
+  locale: string,
+  key: FeatureFlagKey,
+  enabled: boolean,
+) {
+  const auth = await requirePermission(locale, 'feature_flags.manage', await getCtx());
+  if (!isFeatureFlagKey(key) || !FEATURE_FLAG_KEYS.includes(key) || typeof enabled !== 'boolean') {
+    return { success: false as const, error: 'invalidFeatureFlag' as const };
+  }
+
+  const ctx = { ...(await getCtx()), user_id: auth.userId, role: auth.role };
+  const settingKey = featureFlagSettingKey(key);
+  const old = await settingsRepository.findByKey(settingKey, ctx);
+  const setting = await settingsRepository.upsert(settingKey, enabled, auth.userId, ctx);
+  await auditService.log(auth, 'update_feature_flag', 'setting', setting.id, {
+    ...(old ?? {}),
+    flag_key: key,
+  }, {
+    ...setting,
+    flag_key: key,
+  }, ctx);
+
+  revalidatePath(`/${locale}/feature-flags`);
+  for (const path of revalidatePathsForFlag(locale, key)) {
+    revalidatePath(path);
+  }
+  return { success: true as const, data: setting };
 }
 
 async function consumeImportRateLimit(userId: string) {
@@ -274,13 +584,35 @@ async function consumeImportRateLimit(userId: string) {
   if (await isRateLimited(key.keyHash, IMPORT_RATE_LIMIT_ATTEMPTS, IMPORT_RATE_LIMIT_WINDOW_MS)) {
     return { ok: false as const };
   }
-  await recordRateLimitFailure(key, IMPORT_RATE_LIMIT_ATTEMPTS, IMPORT_RATE_LIMIT_WINDOW_MS);
-  return { ok: true as const };
+  // Only check existing lock; successful previews/executes do not consume quota.
+  return { ok: true as const, key };
 }
 
+async function recordImportRateLimitFailure(userId: string) {
+  const key = await buildRateLimitKey('import', userId);
+  await recordRateLimitFailure(key, IMPORT_RATE_LIMIT_ATTEMPTS, IMPORT_RATE_LIMIT_WINDOW_MS);
+}
+
+const ALLOWED_SETTING_KEYS = new Set([
+  'company_name',
+  'company_name_ar',
+  'default_payment_cycle',
+  'default_tax_mode',
+  'vat_rate',
+  'invoice_prefix',
+  'currency',
+]);
+
 export async function updateSetting(locale: string, key: string, value: unknown) {
-  const auth = await requireAdminEditor(locale, await getCtx());
+  const auth = await requirePermission(locale, 'settings.manage', await getCtx());
   const ctx = { ...(await getCtx()), user_id: auth.userId, role: auth.role };
+  if (!ALLOWED_SETTING_KEYS.has(key)) {
+    return { success: false as const, error: 'Setting key is not allowed' };
+  }
+  // Odoo integration settings require the dedicated Odoo permission boundary.
+  if (key === 'odoo_integration') {
+    return { success: false as const, error: 'Use the Odoo settings action instead' };
+  }
   const old = await settingsRepository.findByKey(key, ctx);
   const setting = await settingsRepository.upsert(key, value, auth.userId, ctx);
   await auditService.log(auth, 'update', 'setting', setting.id, old, setting, ctx);
@@ -289,21 +621,31 @@ export async function updateSetting(locale: string, key: string, value: unknown)
 }
 
 export async function previewImport(locale: string, formData: FormData) {
-  const auth = await requireAdminEditor(locale, await getCtx());
+  const auth = await requirePermission(locale, 'imports.manage', await getCtx());
+  const ctx = { ...(await getCtx()), user_id: auth.userId, role: auth.role };
+  const disabled = await requireFeatureEnabled(ctx, 'master_data_mutations');
+  if (disabled) return disabled;
   const rate = await consumeImportRateLimit(auth.userId);
   if (!rate.ok) {
     return { success: false, error: GENERIC_IMPORT_RATE_LIMIT_ERROR };
   }
 
   const file = formData.get('file') as File;
-  if (!file) return { success: false, error: 'No file provided' };
+  if (!file) {
+    await recordImportRateLimitFailure(auth.userId);
+    return { success: false, error: 'No file provided' };
+  }
   const fileError = validateImportFile(file);
-  if (fileError) return { success: false, error: fileError };
+  if (fileError) {
+    await recordImportRateLimitFailure(auth.userId);
+    return { success: false, error: fileError };
+  }
 
   let rows: Array<Record<string, unknown>>;
   try {
     rows = await readImportRows(file);
   } catch {
+    await recordImportRateLimitFailure(auth.userId);
     return { success: false, error: 'Failed to read import file' };
   }
 
@@ -330,18 +672,37 @@ export async function executeImport(locale: string, rows: Array<{
   area_sqm?: number;
   status: UnitStatus;
 }>) {
-  const auth = await requireAdminEditor(locale, await getCtx());
+  const auth = await requirePermission(locale, 'imports.manage', await getCtx());
+  const ctxCheck = { ...(await getCtx()), user_id: auth.userId, role: auth.role };
+  const disabled = await requireFeatureEnabled(ctxCheck, 'master_data_mutations');
+  if (disabled) return disabled;
   const rate = await consumeImportRateLimit(auth.userId);
   if (!rate.ok) {
     return { success: false, error: GENERIC_IMPORT_RATE_LIMIT_ERROR };
   }
   const ctx = { ...(await getCtx()), user_id: auth.userId, role: auth.role };
 
+  if (!Array.isArray(rows) || rows.length === 0) {
+    await recordImportRateLimitFailure(auth.userId);
+    return { success: false, error: 'No rows to import' };
+  }
+  if (rows.length > MAX_IMPORT_ROWS) {
+    await recordImportRateLimitFailure(auth.userId);
+    return { success: false, error: `Import cannot contain more than ${MAX_IMPORT_ROWS} rows` };
+  }
+
+  const locations = await locationsRepository.findAll(ctx);
+  const locationIds = new Set(locations.map((location) => location.id));
+
   const errors: Array<{ row: number; message: string }> = [];
   let successCount = 0;
 
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
+    if (!locationIds.has(row.location_id)) {
+      errors.push({ row: i + 1, message: 'Unknown location' });
+      continue;
+    }
     const validation = validationService.validateUnit(row);
     if (!validation.valid) {
       errors.push({ row: i + 1, message: validation.errors.join(', ') });
@@ -356,9 +717,13 @@ export async function executeImport(locale: string, rows: Array<{
         status: row.status,
       }, ctx);
       successCount++;
-    } catch (e) {
-      errors.push({ row: i + 1, message: String(e) });
+    } catch {
+      errors.push({ row: i + 1, message: 'Failed to create unit' });
     }
+  }
+
+  if (errors.length > 0 && successCount === 0) {
+    await recordImportRateLimitFailure(auth.userId);
   }
 
   await importLogsRepository.create({
@@ -417,7 +782,7 @@ function resolveContractHeader(raw: string): string {
 function parseNumber(value: unknown): number | null {
   if (value === null || value === undefined || value === '') return null;
   if (typeof value === 'number') return isFinite(value) ? value : null;
-  const cleaned = String(value).replace(/,/g, '').trim();
+  const cleaned = normalizeNumberInputValue(String(value).trim());
   const n = Number(cleaned);
   return isNaN(n) ? null : n;
 }
@@ -517,7 +882,12 @@ function validateContractImportRow(row: Record<string, unknown>, rowIndex: numbe
 }
 
 export async function previewContractImport(locale: string, formData: FormData) {
-  const auth = await requireAdminEditor(locale, await getCtx());
+  const auth = await requirePermission(locale, 'imports.manage', await getCtx());
+  const ctxCheck = { ...(await getCtx()), user_id: auth.userId, role: auth.role };
+  const flags = await loadFeatureFlags(ctxCheck);
+  if (!flags.import_excel_contracts) {
+    return { success: false as const, error: 'featureDisabled' as const, errorCode: 'FEATURE_DISABLED' as const };
+  }
   const rate = await consumeImportRateLimit(auth.userId);
   if (!rate.ok) {
     return { success: false, error: GENERIC_IMPORT_RATE_LIMIT_ERROR };
@@ -542,6 +912,16 @@ export async function previewContractImport(locale: string, formData: FormData) 
     const row = normalizeContractRow(raw);
     const rowIndex = index + 2;
     const errors = validateContractImportRow(row, rowIndex);
+
+    if (
+      !flags.contracts_opening_balance
+      && (
+        row.paid_through_date
+        || (row.opening_paid_amount != null && Number(row.opening_paid_amount) !== 0)
+      )
+    ) {
+      errors.push(`Row ${rowIndex}: featureDisabled`);
+    }
 
     // unit_number may come as number (e.g. 1) or string ("1") from Excel
     const unitNumber = row.unit_number != null ? String(row.unit_number).trim() : '';
@@ -570,8 +950,12 @@ export async function previewContractImport(locale: string, formData: FormData) 
         end_date: row.end_date ? String(row.end_date) : '',
         total_amount: total,
         payment_cycle,
-        paid_through_date: row.paid_through_date ? String(row.paid_through_date) : null,
-        opening_paid_amount: row.opening_paid_amount != null ? Number(row.opening_paid_amount) : null,
+        paid_through_date: flags.contracts_opening_balance && row.paid_through_date
+          ? String(row.paid_through_date)
+          : null,
+        opening_paid_amount: flags.contracts_opening_balance && row.opening_paid_amount != null
+          ? Number(row.opening_paid_amount)
+          : null,
       },
       errors,
       valid: errors.length === 0,
@@ -592,12 +976,25 @@ export async function executeContractImport(locale: string, rows: Array<{
   paid_through_date?: string | null;
   opening_paid_amount?: number | null;
 }>) {
-  const auth = await requireAdminEditor(locale, await getCtx());
+  const auth = await requirePermission(locale, 'imports.manage', await getCtx());
+  const ctx = { ...await getCtx(), user_id: auth.userId, role: auth.role };
+  const flags = await loadFeatureFlags(ctx);
+  if (!flags.import_excel_contracts) {
+    return { success: false as const, error: 'featureDisabled' as const, errorCode: 'FEATURE_DISABLED' as const };
+  }
+  if (
+    !flags.contracts_opening_balance
+    && rows.some((row) => (
+      row.paid_through_date
+      || (row.opening_paid_amount != null && Number(row.opening_paid_amount) !== 0)
+    ))
+  ) {
+    return { success: false as const, error: 'featureDisabled' as const, errorCode: 'FEATURE_DISABLED' as const };
+  }
   const rate = await consumeImportRateLimit(auth.userId);
   if (!rate.ok) {
     return { success: false, error: GENERIC_IMPORT_RATE_LIMIT_ERROR };
   }
-  const ctx = { ...await getCtx(), user_id: auth.userId, role: auth.role };
 
   const errors: Array<{ row: number; message: string }> = [];
   let successCount = 0;
@@ -615,8 +1012,8 @@ export async function executeContractImport(locale: string, rows: Array<{
         tenant_name: row.tenant_name.trim(),
         tenant_phone: null,
         tenant_email: null,
-        paid_through_date: row.paid_through_date ?? null,
-        opening_paid_amount: row.opening_paid_amount ?? null,
+        paid_through_date: flags.contracts_opening_balance ? row.paid_through_date ?? null : null,
+        opening_paid_amount: flags.contracts_opening_balance ? row.opening_paid_amount ?? null : null,
       }, ctx);
 
       if (result.success) {
@@ -624,9 +1021,13 @@ export async function executeContractImport(locale: string, rows: Array<{
       } else {
         errors.push({ row: i + 1, message: result.error ?? 'Unknown error' });
       }
-    } catch (e) {
-      errors.push({ row: i + 1, message: String(e) });
+    } catch {
+      errors.push({ row: i + 1, message: 'Failed to create contract' });
     }
+  }
+
+  if (errors.length > 0 && successCount === 0) {
+    await recordImportRateLimitFailure(auth.userId);
   }
 
   await importLogsRepository.create({

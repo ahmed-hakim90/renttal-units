@@ -1,6 +1,6 @@
 'use server';
 
-import { requireAuth, requireAdminEditor } from '@/lib/auth/session';
+import { requirePermission } from '@/lib/auth/session';
 import { getCorrelationId } from '@/lib/observability/correlation-id';
 import { unitsRepository } from '@/lib/repositories/units';
 import { invoicesRepository } from '@/lib/repositories/invoices';
@@ -10,6 +10,7 @@ import { validationService } from '@/lib/services/validation-service';
 import { isUniqueViolation } from '@/lib/db/postgres-errors';
 import { revalidatePath } from 'next/cache';
 import type { UnitStatus } from '@/types/database';
+import { requireFeatureEnabled } from '@/lib/features/load-feature-flags';
 
 async function getCtx() {
   return { correlation_id: await getCorrelationId() };
@@ -20,8 +21,19 @@ function normalizeManualUnitStatus(status: UnitStatus | undefined): Extract<Unit
 }
 
 export async function getUnits(locale: string, filters?: { locationId?: string; status?: string }) {
-  const auth = await requireAuth(locale, await getCtx());
+  const auth = await requirePermission(locale, 'units.view', await getCtx());
   return unitsRepository.findAll({ ...await getCtx(), user_id: auth.userId, role: auth.role }, filters);
+}
+
+export async function getUnitHistory(locale: string, unitId: string) {
+  const auth = await requirePermission(locale, 'units.view', await getCtx());
+  const ctx = { ...await getCtx(), user_id: auth.userId, role: auth.role };
+  const [unit, contracts, invoices] = await Promise.all([
+    unitsRepository.findById(unitId, ctx),
+    contractsRepository.findByUnitId(unitId, ctx),
+    invoicesRepository.findByUnitId(unitId, ctx),
+  ]);
+  return { unit, contracts, invoices };
 }
 
 export async function createUnit(locale: string, data: {
@@ -31,8 +43,10 @@ export async function createUnit(locale: string, data: {
   area_sqm?: number;
   status: UnitStatus;
 }) {
-  const auth = await requireAdminEditor(locale, await getCtx());
+  const auth = await requirePermission(locale, 'units.create', await getCtx());
   const ctx = { ...(await getCtx()), user_id: auth.userId, role: auth.role };
+  const disabled = await requireFeatureEnabled(ctx, 'master_data_mutations');
+  if (disabled) return disabled;
   const input = { ...data, status: normalizeManualUnitStatus(data.status) };
   const validation = validationService.validateUnit(input);
   if (!validation.valid) return { success: false, error: validation.errors.join(', ') };
@@ -59,10 +73,19 @@ export async function updateUnit(locale: string, id: string, data: Partial<{
   area_sqm?: number;
   status: UnitStatus;
 }>) {
-  const auth = await requireAdminEditor(locale, await getCtx());
+  const auth = await requirePermission(locale, 'units.update', await getCtx());
   const ctx = { ...(await getCtx()), user_id: auth.userId, role: auth.role };
+  const disabled = await requireFeatureEnabled(ctx, 'master_data_mutations');
+  if (disabled) return disabled;
   const old = await unitsRepository.findById(id, ctx);
   if (!old) return { success: false, error: 'Unit not found' };
+  if (
+    old.odoo_product_id
+    && data.unit_number !== undefined
+    && data.unit_number.trim() !== old.unit_number
+  ) {
+    return { success: false, error: 'odooManagedUnitName', errorCode: 'VALIDATION_ERROR' };
+  }
   const input = { ...data };
   if (data.status) input.status = normalizeManualUnitStatus(data.status);
 
@@ -82,8 +105,10 @@ export async function updateUnit(locale: string, id: string, data: Partial<{
 }
 
 export async function deleteUnit(locale: string, id: string) {
-  const auth = await requireAdminEditor(locale, await getCtx());
+  const auth = await requirePermission(locale, 'units.delete', await getCtx());
   const ctx = { ...(await getCtx()), user_id: auth.userId, role: auth.role };
+  const disabled = await requireFeatureEnabled(ctx, 'master_data_mutations');
+  if (disabled) return disabled;
   const old = await unitsRepository.findById(id, ctx);
   if (!old) return { success: false, error: 'Unit not found' };
 

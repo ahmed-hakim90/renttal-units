@@ -1,0 +1,35 @@
+export const AUDIT_ACTIONS = [
+  'create',
+  'update',
+  'delete',
+  'cancel',
+  'upload',
+  'issue_invoice',
+  'update_status',
+  'create_user',
+  'update_user_name',
+  'update_user_email',
+  'update_user_email_partial_failure',
+  'reset_user_password',
+  'update_role',
+  'create_role',
+  'update_role_permissions',
+  'delete_role',
+  'update_feature_flag',
+  'draft_saved',
+  'activated',
+  'draft_deleted',
+] as const;
+
+export const AUDIT_ENTITY_TYPES = [
+  'profile',
+  'role',
+  'contract',
+  'contract_attachment',
+  'invoice',
+  'payment',
+  'location',
+  'unit',
+  'setting',
+] as const;
+

@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Download, Check } from 'lucide-react';
+import { Check, Download, Share } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Modal } from '@/components/ui/modal';
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -17,10 +18,16 @@ export function InstallAppButton() {
     () => typeof window !== 'undefined' && window.matchMedia('(display-mode: standalone)').matches
   );
   const [hidden, setHidden] = useState(false);
+  const [isIos] = useState(
+    () => typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent)
+  );
+  const [showIosHelp, setShowIosHelp] = useState(false);
 
   useEffect(() => {
     const media = window.matchMedia('(display-mode: standalone)');
-    const updateInstalled = () => setInstalled(media.matches);
+    const navigatorWithStandalone = navigator as Navigator & { standalone?: boolean };
+    const updateInstalled = () => setInstalled(media.matches || navigatorWithStandalone.standalone === true);
+    updateInstalled();
     media.addEventListener('change', updateInstalled);
 
     const onBeforeInstallPrompt = (event: Event) => {
@@ -43,9 +50,14 @@ export function InstallAppButton() {
     };
   }, []);
 
-  if (hidden || installed || !installEvent) return null;
+  if (hidden || installed || (!installEvent && !isIos)) return null;
 
   const handleInstall = async () => {
+    if (!installEvent) {
+      setShowIosHelp(true);
+      return;
+    }
+
     await installEvent.prompt();
     const choice = await installEvent.userChoice;
     if (choice.outcome === 'accepted') {
@@ -57,10 +69,20 @@ export function InstallAppButton() {
   };
 
   return (
-    <Button variant="outline" size="sm" type="button" onClick={handleInstall} className="gap-2">
-      <Download className="h-4 w-4" />
-      <span className="hidden sm:inline">{t('install')}</span>
-    </Button>
+    <>
+      <Button variant="outline" size="icon-sm" type="button" onClick={handleInstall} aria-label={t('install')} title={t('install')}>
+        <Download className="h-4 w-4" />
+      </Button>
+      <Modal open={showIosHelp} onClose={() => setShowIosHelp(false)} title={t('iosInstallTitle')}>
+        <div className="space-y-4 text-sm text-muted-foreground">
+          <p>{t('iosInstallDescription')}</p>
+          <div className="flex items-start gap-3 rounded-xl bg-muted p-4 text-foreground">
+            <Share className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden="true" />
+            <p>{t('iosInstallSteps')}</p>
+          </div>
+        </div>
+      </Modal>
+    </>
   );
 }
 

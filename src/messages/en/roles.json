@@ -1,0 +1,99 @@
+{
+  "title": "Roles & Permissions",
+  "subtitle": "Create roles and choose exactly which actions each role can perform",
+  "create": "Create Role",
+  "edit": "Edit Role",
+  "created": "Role created successfully",
+  "updated": "Role updated successfully",
+  "deleted": "Role deleted successfully",
+  "empty": "No roles found",
+  "nameEn": "Name (English)",
+  "nameAr": "Name (Arabic)",
+  "descriptionEn": "Description (English)",
+  "descriptionAr": "Description (Arabic)",
+  "noDescription": "No description",
+  "permissionCount": "{count} permissions",
+  "userCount": "{count} users",
+  "systemOwner": "System owner",
+  "systemRole": "System",
+  "ownerLocked": "The system owner role cannot be edited",
+  "confirmDeleteTitle": "Delete role?",
+  "confirmDeleteDescription": "This role will be permanently removed. Users must be reassigned first.",
+  "categories": {
+    "locations": "Locations",
+    "units": "Units",
+    "tenants": "Tenants",
+    "contracts": "Contracts",
+    "invoices": "Invoices",
+    "payments": "Payments",
+    "reports": "Reports",
+    "imports": "Import Center",
+    "odoo": "Odoo",
+    "users": "Users",
+    "roles": "Roles",
+    "settings": "Settings",
+    "feature_flags": "Feature Flags",
+    "audit": "Audit"
+  },
+  "permissions": {
+    "locations": {
+      "view": "View locations",
+      "create": "Create locations",
+      "update": "Update locations",
+      "delete": "Delete locations"
+    },
+    "units": {
+      "view": "View units",
+      "create": "Create units",
+      "update": "Update units",
+      "delete": "Delete units"
+    },
+    "tenants": {
+      "view": "View tenants",
+      "create": "Create tenants",
+      "update": "Update tenants",
+      "delete": "Delete tenants"
+    },
+    "contracts": {
+      "view": "View contracts",
+      "create": "Create contracts",
+      "update": "Update contracts",
+      "delete": "Delete contracts"
+    },
+    "invoices": {
+      "view": "View invoices",
+      "create": "Create invoices",
+      "update": "Update invoices",
+      "delete": "Delete invoices"
+    },
+    "payments": {
+      "view": "View payments",
+      "record": "Record payments"
+    },
+    "reports": {
+      "view": "View reports",
+      "export": "Export reports"
+    },
+    "imports": {
+      "manage": "Manage imports"
+    },
+    "odoo": {
+      "manage": "Manage Odoo integration"
+    },
+    "users": {
+      "manage": "Manage users"
+    },
+    "roles": {
+      "manage": "Manage roles"
+    },
+    "settings": {
+      "manage": "Manage settings"
+    },
+    "feature_flags": {
+      "manage": "Manage feature flags"
+    },
+    "audit": {
+      "view": "View audit logs"
+    }
+  }
+}

@@ -1,0 +1,70 @@
+{
+  "title": "خصائص النظام",
+  "subtitle": "التحكم في ظهور وتنفيذ الخصائص الاختيارية داخل التطبيق",
+  "enabled": "مفعّل",
+  "disabled": "متوقف",
+  "saved": "تم حفظ الخصائص بنجاح",
+  "saveFailed": "تعذر حفظ الخصائص",
+  "featureDisabled": "هذه الخاصية متوقفة حاليًا",
+  "unsavedChanges": "لديك تغييرات غير محفوظة",
+  "categories": {
+    "contracts": "العقود",
+    "odoo": "Odoo",
+    "imports": "الاستيراد",
+    "reports": "التقارير",
+    "operations": "العمليات",
+    "admin": "أدوات الإدارة"
+  },
+  "contractsOpeningBalance": {
+    "title": "الرصيد الافتتاحي للعقود",
+    "description": "السماح بإدخال آخر تاريخ مدفوع ومبلغ مدفوع مسبقًا عند إنشاء أو استيراد العقود."
+  },
+  "contractsMultiLine": {
+    "title": "العقود متعددة البنود",
+    "description": "السماح بإنشاء عقود بعدة وحدات إيجار وبنود خدمات."
+  },
+  "odooImportCenter": {
+    "title": "مركز استيراد Odoo",
+    "description": "إظهار والسماح بمعاينة واعتماد استيراد فواتير Odoo في صفحة الاستيراد."
+  },
+  "unitsCreateOdooProduct": {
+    "title": "إنشاء منتج Odoo من الوحدة",
+    "description": "السماح بإنشاء منتج جديد في Odoo من وحدة محلية."
+  },
+  "unitsLinkOdooProduct": {
+    "title": "ربط الوحدة بمنتج Odoo",
+    "description": "السماح بربط وحدة محلية بمنتج موجود في Odoo."
+  },
+  "unitsOdooCatalogButton": {
+    "title": "زر تحميل منتجات Odoo",
+    "description": "إظهار زر كتالوج منتجات Odoo في صفحة الوحدات."
+  },
+  "odooCronSync": {
+    "title": "مزامنة Odoo التلقائية",
+    "description": "السماح لمهمة المزامنة المجدولة بمعالجة الطابور والاستيراد التدريجي."
+  },
+  "odooInvoicesDocuments": {
+    "title": "فواتير ومستندات Odoo",
+    "description": "إظهار مستندات فواتير Odoo والسماح بإعادة مزامنتها. إصدار الفاتورة المحلية والمدفوعات يبقيان متاحين."
+  },
+  "importExcelContracts": {
+    "title": "استيراد العقود من Excel",
+    "description": "السماح باستيراد العقود من Excel أو CSV في صفحة الاستيراد."
+  },
+  "reportsOperational": {
+    "title": "التقارير التشغيلية",
+    "description": "إظهار صفحتي تقادم الديون وكشف الموقع."
+  },
+  "invoicesPaymentStatusPages": {
+    "title": "صفحات المدفوع جزئيًا والكامل",
+    "description": "إظهار صفحتي المدفوعات الجزئية والمدفوع بالكامل."
+  },
+  "masterDataMutations": {
+    "title": "تعديل الوحدات والمواقع",
+    "description": "السماح بإنشاء وتعديل وحذف واستيراد الوحدات والمواقع. العرض يبقى متاحًا عند الإيقاف."
+  },
+  "adminExperimental": {
+    "title": "أدوات Odoo التجريبية",
+    "description": "إظهار إجراءات Odoo المتقدمة في الإعدادات مثل تحميل الاختيارات وإنشاء فاتورة تجريبية. صفحة خصائص النظام تبقى متاحة."
+  }
+}

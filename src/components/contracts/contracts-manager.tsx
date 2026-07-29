@@ -1,80 +1,153 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { Fragment, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { useSearchParams } from 'next/navigation';
-import { CalendarX, Pencil, Plus } from 'lucide-react';
+import { CalendarX, ChevronDown, FileText, Pencil, Plus } from 'lucide-react';
 import { cancelContract, updateContract } from '@/lib/actions/contracts';
-import { ContractCreateForm } from '@/components/contracts/contract-create-form';
-import { Button } from '@/components/ui/button';
+import { getContractPdfUrl } from '@/lib/actions/contract-attachments';
+import { Button, buttonStyles } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { ListSearch, useListSearchValue } from '@/components/ui/list-search';
 import { Modal } from '@/components/ui/modal';
 import { Badge } from '@/components/ui/badge';
 import { formatCurrency, formatDate } from '@/lib/i18n/format';
 import { getContractDisplayStatus } from '@/lib/rental/calculations';
-import { getInvoiceDisplayStatus } from '@/lib/rental/invoice-display';
+import { getInvoiceDisplayStatus, hasOverdueInvoice } from '@/lib/rental/invoice-display';
+import { matchesSearch } from '@/lib/search/matches-search';
+import { Link } from '@/lib/i18n/navigation';
 import { toast } from 'sonner';
 import type {
   Contract,
   ContractCancellationHandling,
   PaymentCycle,
-  Unit,
 } from '@/types/database';
 import type { Locale } from '@/lib/i18n/routing';
+
+function formatContractDate(value: string | null | undefined, locale: Locale) {
+  return value ? formatDate(value, locale) : '—';
+}
 
 function sortInvoices(contract: Contract) {
   return [...(contract.invoices ?? [])].sort((a, b) => a.due_date.localeCompare(b.due_date));
 }
 
+function contractUnitLabels(contract: Contract) {
+  const rentalLines = (contract.lines ?? []).filter((line) => line.line_type === 'rental' && line.unit);
+  if (rentalLines.length > 0) {
+    return rentalLines.map((line) => line.unit?.unit_number).filter(Boolean).join(', ');
+  }
+  return contract.unit?.unit_number ?? '—';
+}
+
+function contractServiceAmount(contract: Contract) {
+  return (contract.lines ?? [])
+    .filter((line) => line.line_type === 'service')
+    .reduce((sum, line) => sum + Number(line.amount), 0);
+}
+
 export function ContractsManager({
   contracts,
-  units,
   locale,
   canEdit,
 }: {
   contracts: Contract[];
-  units: Unit[];
   locale: string;
   canEdit: boolean;
 }) {
   const t = useTranslations('contracts');
   const tc = useTranslations('common');
+  const tFeature = useTranslations('featureFlags');
   const ts = useTranslations('common.status');
   const loc = locale as Locale;
-  const searchParams = useSearchParams();
-  const search = searchParams.get('search')?.trim().toLowerCase() ?? '';
-  const [createOpen, setCreateOpen] = useState(false);
+  const search = useListSearchValue();
   const [editOpen, setEditOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
+  const [expandedInvoiceContracts, setExpandedInvoiceContracts] = useState<Set<string>>(
+    () => new Set()
+  );
   const [isSaving, setIsSaving] = useState(false);
   const isSavingRef = useRef(false);
 
-  const availableUnits = useMemo(
-    () => units.filter((unit) => !unit.active_contract),
-    [units]
-  );
-
   const visibleContracts = useMemo(() => {
-    if (!search) return contracts;
-    return contracts.filter((contract) => [
+    return contracts.filter((contract) => matchesSearch(search, [
       contract.contract_number,
+      contract.start_date,
+      contract.end_date,
+      contract.total_amount,
+      contract.payment_cycle,
+      tc(`paymentCycle.${contract.payment_cycle}`),
+      contract.tax_mode,
+      t(contract.tax_mode === 'taxable' ? 'taxable' : 'nonTaxable'),
+      contract.status,
+      t(getContractDisplayStatus(contract.status, contract.end_date)),
+      hasOverdueInvoice(contract.invoices ?? []) ? ts('overdue') : null,
+      contract.notes,
+      contract.cancellation_date,
+      contract.paid_through_date,
+      contract.opening_paid_amount,
+      contract.opening_payment_date,
+      contract.opening_notes,
       contract.unit?.unit_number,
+      ...(contract.lines ?? []).flatMap((line) => [
+        line.line_type,
+        line.unit?.unit_number,
+        line.unit?.location?.name_en,
+        line.unit?.location?.name_ar,
+        line.unit?.location?.address,
+        line.unit?.location?.city,
+        line.unit?.location?.region,
+        line.description,
+        line.amount,
+        line.period_start,
+        line.period_end,
+        line.odoo_line_id,
+        line.odoo_product_id,
+        line.odoo_product_name,
+      ]),
       contract.unit?.location?.name_en,
       contract.unit?.location?.name_ar,
+      contract.unit?.location?.address,
+      contract.unit?.location?.city,
+      contract.unit?.location?.region,
       contract.tenant?.full_name,
-      contract.status,
-    ].join(' ').toLowerCase().includes(search));
-  }, [contracts, search]);
+      contract.tenant?.phone,
+      contract.tenant?.email,
+      contract.tenant?.national_id,
+      contract.tenant?.odoo_partner_id,
+      contract.tenant?.vat,
+      contract.tenant?.street,
+      contract.tenant?.city,
+      contract.tenant?.country_code,
+      ...(contract.invoices ?? []).flatMap((invoice) => [
+        invoice.invoice_number,
+        invoice.period_start,
+        invoice.period_end,
+        invoice.amount,
+        invoice.paid_amount,
+        invoice.status,
+        invoice.due_date,
+        invoice.notes,
+        invoice.odoo_invoice_id,
+        invoice.odoo_invoice_name,
+      ]),
+      ...(contract.attachments ?? []).map((attachment) => attachment.original_filename),
+    ]));
+  }, [contracts, search, t, tc, ts]);
 
   function getActionErrorMessage(error: string) {
+    if (error === 'featureDisabled') return tFeature('featureDisabled');
     if (error === 'activeContractExists') return t('activeContractExists');
     if (error === 'contractNotActive') return t('contractNotActive');
     if (error === 'cancellationDateOutOfRange') return t('cancellationDateOutOfRange');
+    if (error === 'cancellationHasIssuedInvoices') return t('cancellationHasIssuedInvoices');
+    if (error === 'cancellationRequiresSettlement') return t('cancellationRequiresSettlement');
+    if (error === 'contractCancellationFailed') return t('contractCancellationFailed');
     if (error === 'duplicateContractNumber') return t('duplicateContractNumber');
     if (error === 'duplicateNationalId') return t('duplicateNationalId');
     if (error === 'contractHasFinancialActivity') return t('contractHasFinancialActivity');
-    return error;
+    if (error === 'contractNotFound') return t('contractNotFound');
+    return t('validationFailed');
   }
 
   async function handleEdit(e: React.FormEvent<HTMLFormElement>) {
@@ -82,17 +155,43 @@ export function ContractsManager({
     if (!selectedContract || isSavingRef.current) return;
 
     const fd = new FormData(e.currentTarget);
+    const existingLines = selectedContract.lines ?? [];
+    const lines = existingLines.length > 0
+      ? existingLines.map((line, index) => ({
+          line_type: line.line_type,
+          unit_id: line.unit_id,
+          description: (fd.get(`line_description_${line.id}`) as string)?.trim() || line.description,
+          amount: Number(fd.get(`line_amount_${line.id}`) ?? line.amount),
+          period_start: selectedContract.start_date,
+          period_end: selectedContract.end_date,
+          odoo_line_id: line.odoo_line_id,
+          odoo_product_id: line.odoo_product_id,
+          odoo_product_name: line.odoo_product_name,
+          tax_rate: Number(line.tax_rate),
+          sort_order: index,
+        }))
+      : [{
+          line_type: 'rental' as const,
+          unit_id: selectedContract.unit_id,
+          description: null,
+          amount: Number(fd.get('total_amount')),
+          period_start: fd.get('start_date') as string,
+          period_end: fd.get('end_date') as string,
+          sort_order: 0,
+        }];
+
     const data = {
       contract_number: (fd.get('contract_number') as string).trim(),
       start_date: fd.get('start_date') as string,
       end_date: fd.get('end_date') as string,
-      total_amount: Number(fd.get('total_amount')),
       payment_cycle: fd.get('payment_cycle') as PaymentCycle,
+      tax_mode: fd.get('apply_vat') === 'on' ? 'taxable' as const : 'non_taxable' as const,
       notes: (fd.get('notes') as string) || null,
       tenant_name: (fd.get('tenant_name') as string).trim(),
       tenant_phone: (fd.get('tenant_phone') as string) || null,
       tenant_email: (fd.get('tenant_email') as string) || null,
       tenant_national_id: (fd.get('tenant_national_id') as string) || null,
+      lines,
     };
 
     isSavingRef.current = true;
@@ -139,39 +238,69 @@ export function ContractsManager({
     }
   }
 
+  async function openAttachment(contractId: string, attachmentId: string) {
+    const result = await getContractPdfUrl(locale, contractId, attachmentId);
+    if (!result.success || !result.data) {
+      toast.error(t('pdfDownloadFailed'));
+      return;
+    }
+    window.open(result.data.url, '_blank', 'noopener,noreferrer');
+  }
+
+  function toggleContractInvoices(contractId: string) {
+    setExpandedInvoiceContracts((current) => {
+      const next = new Set(current);
+      if (next.has(contractId)) next.delete(contractId);
+      else next.add(contractId);
+      return next;
+    });
+  }
+
   return (
     <>
-      {canEdit && (
-        <Button className="mb-4 w-full sm:w-auto" onClick={() => setCreateOpen(true)}>
-          <Plus className="h-4 w-4" />
-          {t('create')}
-        </Button>
-      )}
+      <div className="toolbar">
+        <ListSearch />
+        {canEdit && (
+          <Link href="/contracts/new" className={buttonStyles({ className: 'w-full sm:w-auto' })}>
+            <Plus />
+            {t('create')}
+          </Link>
+        )}
+      </div>
 
       {visibleContracts.length === 0 ? (
-        <p className="text-muted-foreground">{t('empty')}</p>
+        <div className="surface-panel px-6 py-12 text-center text-muted-foreground">
+          {search.trim() ? tc('noResults') : t('empty')}
+        </div>
       ) : (
         <>
           <div className="grid gap-3 md:hidden">
             {visibleContracts.map((contract) => {
               const invoices = sortInvoices(contract);
+              const hasOverdue = hasOverdueInvoice(invoices);
               return (
-                <div key={contract.id} className="rounded-2xl border border-border bg-card p-4">
-                  <div className="flex items-start justify-between gap-3">
+                <div key={contract.id} className="mobile-card">
+                  <div>
                     <div className="min-w-0">
-                      <p className="truncate font-semibold">
+                      <Link
+                        href={`/contracts/${contract.id}`}
+                        className="block truncate font-semibold text-primary underline-offset-4 hover:underline"
+                      >
                         {contract.contract_number
-                          ? `${contract.contract_number} — ${contract.unit?.unit_number ?? '—'}`
-                          : (contract.unit?.unit_number ?? '—')}
-                      </p>
+                          ? `${contract.contract_number} — ${contractUnitLabels(contract)}`
+                          : contractUnitLabels(contract)}
+                      </Link>
                       <p className="text-sm text-muted-foreground">
-                        {formatDate(contract.start_date, loc)} - {formatDate(contract.end_date, loc)}
+                        {formatContractDate(contract.start_date, loc)} - {formatContractDate(contract.end_date, loc)}
                       </p>
                     </div>
-                    <Badge
-                      status={getContractDisplayStatus(contract.status, contract.end_date)}
-                      label={t(getContractDisplayStatus(contract.status, contract.end_date))}
-                    />
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      <Badge
+                        status={getContractDisplayStatus(contract.status, contract.end_date)}
+                        label={t(getContractDisplayStatus(contract.status, contract.end_date))}
+                      />
+                      {hasOverdue && <Badge status="overdue" label={ts('overdue')} />}
+                    </div>
                   </div>
                   <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
                     <div>
@@ -187,10 +316,25 @@ export function ContractsManager({
                       <p>{tc(`paymentCycle.${contract.payment_cycle}`)}</p>
                     </div>
                     <div>
+                      <p className="text-xs text-muted-foreground">{t('taxMode')}</p>
+                      <p>{t(contract.tax_mode === 'taxable' ? 'taxable' : 'nonTaxable')}</p>
+                    </div>
+                    <div>
                       <p className="text-xs text-muted-foreground">{t('invoices')}</p>
                       <p>{t('invoiceCount', { count: invoices.length })}</p>
                     </div>
                   </div>
+                  {canEdit && contract.status === 'draft' && (
+                    <div className="mt-4">
+                      <Link
+                        href={`/contracts/${contract.id}/edit`}
+                        className={buttonStyles({ variant: 'outline', size: 'sm', className: 'w-full' })}
+                      >
+                        <Pencil />
+                        {t('continueDraft')}
+                      </Link>
+                    </div>
+                  )}
                   {canEdit && contract.status === 'active' && (
                     <div className="mt-4 flex gap-2">
                       <Button
@@ -202,7 +346,7 @@ export function ContractsManager({
                           setEditOpen(true);
                         }}
                       >
-                        <Pencil className="h-4 w-4" />
+                        <Pencil />
                         {t('edit')}
                       </Button>
                       <Button
@@ -214,7 +358,7 @@ export function ContractsManager({
                           setCancelOpen(true);
                         }}
                       >
-                        <CalendarX className="h-4 w-4" />
+                        <CalendarX />
                         {t('cancel')}
                       </Button>
                     </div>
@@ -224,85 +368,170 @@ export function ContractsManager({
             })}
           </div>
 
-          <div className="hidden rounded-2xl border border-border overflow-x-auto md:block">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/50">
+          <div className="table-shell">
+            <table>
+              <thead>
                 <tr>
-                  <th className="px-4 py-3 text-start">{t('contractNumber')}</th>
-                  <th className="px-4 py-3 text-start">{t('unit')}</th>
-                  <th className="px-4 py-3 text-start">{t('tenant')}</th>
-                  <th className="px-4 py-3 text-start">{t('period')}</th>
-                  <th className="px-4 py-3 text-start">{t('totalAmount')}</th>
-                  <th className="px-4 py-3 text-start">{t('paymentCycle')}</th>
-                  <th className="px-4 py-3 text-start">{t('invoices')}</th>
-                  <th className="px-4 py-3 text-start">{t('status')}</th>
-                  {canEdit && <th className="px-4 py-3 text-end">{tc('actions')}</th>}
+                  <th>{t('contractNumber')}</th>
+                  <th>{t('unit')}</th>
+                  <th>{t('tenant')}</th>
+                  <th>{t('period')}</th>
+                  <th>{t('totalAmount')}</th>
+                  <th>{t('paymentCycle')}</th>
+                  <th>{t('taxMode')}</th>
+                  <th>{t('invoices')}</th>
+                  <th>{t('status')}</th>
+                  {canEdit && <th className="!text-end">{tc('actions')}</th>}
                 </tr>
               </thead>
               <tbody>
                 {visibleContracts.map((contract) => {
                   const invoices = sortInvoices(contract);
+                  const hasOverdue = hasOverdueInvoice(invoices);
+                  const invoicesExpanded = expandedInvoiceContracts.has(contract.id);
+                  const invoiceDetailsId = `contract-invoices-${contract.id}`;
                   return (
-                    <tr key={contract.id} className="border-t border-border align-top">
-                      <td className="px-4 py-3 font-medium">{contract.contract_number ?? '—'}</td>
-                      <td className="px-4 py-3 font-medium">{contract.unit?.unit_number ?? '—'}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{contract.tenant?.full_name ?? '—'}</td>
-                      <td className="px-4 py-3 text-xs">
-                        {formatDate(contract.start_date, loc)} - {formatDate(contract.end_date, loc)}
-                      </td>
-                      <td className="px-4 py-3">{formatCurrency(Number(contract.total_amount), loc)}</td>
-                      <td className="px-4 py-3">{tc(`paymentCycle.${contract.payment_cycle}`)}</td>
-                      <td className="px-4 py-3">
-                        <details>
-                          <summary className="cursor-pointer text-primary">{t('invoiceCount', { count: invoices.length })}</summary>
-                          <div className="mt-2 space-y-1 text-xs text-muted-foreground">
-                            {invoices.map((invoice) => (
-                              <div key={invoice.id} className="flex justify-between gap-4">
-                                <span>{formatDate(invoice.due_date, loc)}</span>
-                                <span>{formatCurrency(Number(invoice.amount), loc)}</span>
-                                <span>{ts(getInvoiceDisplayStatus(invoice))}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </details>
-                      </td>
-                      <td className="px-4 py-3">
-                        <Badge
-                      status={getContractDisplayStatus(contract.status, contract.end_date)}
-                      label={t(getContractDisplayStatus(contract.status, contract.end_date))}
-                    />
-                      </td>
-                      {canEdit && (
-                        <td className="px-4 py-3 text-end">
-                          {contract.status === 'active' && (
-                            <div className="flex justify-end gap-1">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
-                                  setSelectedContract(contract);
-                                  setEditOpen(true);
-                                }}
-                              >
-                                <Pencil className="h-4 w-4" />
-                                {t('edit')}
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
-                                  setSelectedContract(contract);
-                                  setCancelOpen(true);
-                                }}
-                              >
-                                <CalendarX className="h-4 w-4" />
-                                {t('cancel')}
-                              </Button>
+                    <Fragment key={contract.id}>
+                      <tr className="align-top">
+                        <td className="font-medium">
+                          <Link
+                            href={`/contracts/${contract.id}`}
+                            className="text-primary underline-offset-4 hover:underline"
+                          >
+                            {contract.contract_number ?? '—'}
+                          </Link>
+                        </td>
+                        <td className="font-medium">
+                          <div>{contractUnitLabels(contract)}</div>
+                          {contractServiceAmount(contract) > 0 && (
+                            <div className="text-xs text-muted-foreground">
+                              {t('serviceFees')}: {formatCurrency(contractServiceAmount(contract), loc)}
                             </div>
                           )}
                         </td>
+                        <td className="text-muted-foreground">{contract.tenant?.full_name ?? '—'}</td>
+                        <td className="text-xs">
+                          {formatContractDate(contract.start_date, loc)} - {formatContractDate(contract.end_date, loc)}
+                        </td>
+                        <td>{formatCurrency(Number(contract.total_amount), loc)}</td>
+                        <td>{tc(`paymentCycle.${contract.payment_cycle}`)}</td>
+                        <td>{t(contract.tax_mode === 'taxable' ? 'taxable' : 'nonTaxable')}</td>
+                        <td>
+                          <button
+                            type="button"
+                            className="inline-flex items-center gap-1 font-medium text-primary disabled:cursor-default disabled:opacity-60"
+                            aria-expanded={invoicesExpanded}
+                            aria-controls={invoiceDetailsId}
+                            disabled={invoices.length === 0}
+                            onClick={() => toggleContractInvoices(contract.id)}
+                          >
+                            <ChevronDown
+                              className={`size-4 transition-transform ${invoicesExpanded ? 'rotate-180' : ''}`}
+                              aria-hidden="true"
+                            />
+                            {t('invoiceCount', { count: invoices.length })}
+                          </button>
+                        </td>
+                        <td>
+                          <div className="flex flex-wrap gap-1.5">
+                            <Badge
+                              status={getContractDisplayStatus(contract.status, contract.end_date)}
+                              label={t(getContractDisplayStatus(contract.status, contract.end_date))}
+                            />
+                            {hasOverdue && <Badge status="overdue" label={ts('overdue')} />}
+                          </div>
+                        </td>
+                        {canEdit && (
+                          <td className="text-end">
+                            {contract.status === 'draft' && (
+                              <div className="row-actions">
+                                <Link
+                                  href={`/contracts/${contract.id}/edit`}
+                                  className={buttonStyles({ variant: 'ghost', size: 'icon-sm' })}
+                                  title={t('continueDraft')}
+                                  aria-label={t('continueDraft')}
+                                >
+                                  <Pencil />
+                                </Link>
+                              </div>
+                            )}
+                            {contract.status === 'active' && (
+                              <div className="row-actions">
+                                <Button
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  title={t('edit')}
+                                  aria-label={t('edit')}
+                                  onClick={() => {
+                                    setSelectedContract(contract);
+                                    setEditOpen(true);
+                                  }}
+                                >
+                                  <Pencil />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  title={t('cancel')}
+                                  aria-label={t('cancel')}
+                                  onClick={() => {
+                                    setSelectedContract(contract);
+                                    setCancelOpen(true);
+                                  }}
+                                >
+                                  <CalendarX />
+                                </Button>
+                              </div>
+                            )}
+                          </td>
+                        )}
+                      </tr>
+                      {invoicesExpanded && (
+                        <tr id={invoiceDetailsId} className="bg-muted/20 hover:!bg-muted/20">
+                          <td colSpan={canEdit ? 10 : 9} className="!p-4">
+                            <div className="overflow-hidden rounded-xl border border-border bg-card">
+                              <table className="w-full text-sm">
+                                <thead className="border-b border-border bg-muted/60">
+                                  <tr>
+                                    <th className="px-4 py-2.5 text-start text-xs font-semibold text-foreground/70">
+                                      {t('dueDate')}
+                                    </th>
+                                    <th className="px-4 py-2.5 text-start text-xs font-semibold text-foreground/70">
+                                      {t('amount')}
+                                    </th>
+                                    <th className="px-4 py-2.5 text-start text-xs font-semibold text-foreground/70">
+                                      {t('paidAmount')}
+                                    </th>
+                                    <th className="px-4 py-2.5 text-start text-xs font-semibold text-foreground/70">
+                                      {t('status')}
+                                    </th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {invoices.map((invoice) => (
+                                    <tr key={invoice.id} className="border-t border-border first:border-t-0">
+                                      <td className="px-4 py-2.5">{formatDate(invoice.due_date, loc)}</td>
+                                      <td className="px-4 py-2.5">
+                                        {formatCurrency(Number(invoice.amount), loc)}
+                                      </td>
+                                      <td className="px-4 py-2.5">
+                                        {formatCurrency(Number(invoice.paid_amount), loc)}
+                                      </td>
+                                      <td className="px-4 py-2.5">
+                                        <Badge
+                                          status={getInvoiceDisplayStatus(invoice)}
+                                          label={ts(getInvoiceDisplayStatus(invoice))}
+                                        />
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </td>
+                        </tr>
                       )}
-                    </tr>
+                    </Fragment>
                   );
                 })}
               </tbody>
@@ -310,23 +539,6 @@ export function ContractsManager({
           </div>
         </>
       )}
-
-      <Modal open={createOpen} onClose={() => !isSaving && setCreateOpen(false)} title={t('create')}>
-        {createOpen && (
-          <ContractCreateForm
-            key="create-contract-form"
-            units={availableUnits}
-            locale={locale}
-            isSaving={isSaving}
-            setIsSaving={(saving) => {
-              isSavingRef.current = saving;
-              setIsSaving(saving);
-            }}
-            onCancel={() => setCreateOpen(false)}
-            onSuccess={() => setCreateOpen(false)}
-          />
-        )}
-      </Modal>
 
       <Modal open={editOpen} onClose={() => !isSaving && setEditOpen(false)} title={t('edit')}>
         {selectedContract && (
@@ -339,33 +551,80 @@ export function ContractsManager({
             />
             <div>
               <label className="text-sm font-medium">{t('unit')}</label>
-              <p className="mt-1.5 flex h-10 items-center rounded-xl border border-border bg-muted/40 px-3 text-sm">
-                {selectedContract.unit?.unit_number ?? '—'}
+              <p className="mt-1.5 flex min-h-10 items-center rounded-xl border border-border bg-muted/40 px-3 py-2 text-sm">
+                {contractUnitLabels(selectedContract)}
                 {selectedContract.unit?.location?.name_en ? ` — ${selectedContract.unit.location.name_en}` : ''}
               </p>
             </div>
+            {(selectedContract.lines ?? []).length > 0 && (
+              <div className="space-y-3 rounded-xl border border-border p-4">
+                <p className="text-sm font-medium text-muted-foreground">{t('linesSection')}</p>
+                {(selectedContract.lines ?? []).map((line) => (
+                  <div key={line.id} className="grid gap-3 md:grid-cols-2 rounded-lg border border-border p-3">
+                    <div>
+                      <p className="text-xs text-muted-foreground">
+                        {line.line_type === 'service' ? t('serviceLine') : t('rentalLine')}
+                      </p>
+                      <p className="text-sm font-medium">
+                        {line.line_type === 'rental'
+                          ? (line.unit?.unit_number ?? '—')
+                          : (line.description || t('serviceLine'))}
+                      </p>
+                    </div>
+                    <Input
+                      name={`line_amount_${line.id}`}
+                      label={t('lineAmount')}
+                      type="number"
+                      step="0.01"
+                      required
+                      defaultValue={Number(line.amount)}
+                    />
+                    <input type="hidden" name={`line_description_${line.id}`} defaultValue={line.description ?? ''} />
+                  </div>
+                ))}
+              </div>
+            )}
+            {(selectedContract.attachments ?? []).length > 0 && (
+              <div className="space-y-2 rounded-xl border border-border p-4">
+                <p className="text-sm font-medium text-muted-foreground">{t('contractDocuments')}</p>
+                {selectedContract.attachments?.map((attachment) => (
+                  <Button
+                    key={attachment.id}
+                    type="button"
+                    variant="outline"
+                    className="w-full justify-start"
+                    onClick={() => void openAttachment(selectedContract.id, attachment.id)}
+                  >
+                    <FileText />
+                    {attachment.original_filename}
+                  </Button>
+                ))}
+              </div>
+            )}
             <Input
               name="start_date"
               label={t('startDate')}
               type="date"
               required
-              defaultValue={selectedContract.start_date}
+              defaultValue={selectedContract.start_date ?? ''}
             />
             <Input
               name="end_date"
               label={t('endDate')}
               type="date"
               required
-              defaultValue={selectedContract.end_date}
+              defaultValue={selectedContract.end_date ?? ''}
             />
-            <Input
-              name="total_amount"
-              label={t('totalAmount')}
-              type="number"
-              step="0.01"
-              required
-              defaultValue={Number(selectedContract.total_amount)}
-            />
+            {(selectedContract.lines ?? []).length === 0 && (
+              <Input
+                name="total_amount"
+                label={t('totalAmount')}
+                type="number"
+                step="0.01"
+                required
+                defaultValue={Number(selectedContract.total_amount)}
+              />
+            )}
             <div>
               <label className="text-sm font-medium">{t('paymentCycle')}</label>
               <select
@@ -373,7 +632,7 @@ export function ContractsManager({
                 defaultValue={selectedContract.payment_cycle}
                 className="mt-1.5 flex h-10 w-full rounded-xl border border-border bg-card px-3 text-sm"
               >
-                {(['monthly', 'quarterly', 'semi_annual', 'yearly'] as const).map((cycle) => (
+                {(['quarterly', 'semi_annual', 'yearly'] as const).map((cycle) => (
                   <option key={cycle} value={cycle}>{tc(`paymentCycle.${cycle}`)}</option>
                 ))}
               </select>
@@ -383,6 +642,15 @@ export function ContractsManager({
               label={t('notes')}
               defaultValue={selectedContract.notes ?? ''}
             />
+            <label className="flex items-center gap-2 rounded-xl border border-border p-3 text-sm">
+              <input
+                name="apply_vat"
+                type="checkbox"
+                defaultChecked={selectedContract.tax_mode !== 'non_taxable'}
+                className="h-4 w-4"
+              />
+              {t('applyVat')}
+            </label>
             <div className="rounded-xl border border-border p-4 space-y-3">
               <p className="text-sm font-medium text-muted-foreground">{t('tenantSection')}</p>
               <Input
@@ -411,7 +679,7 @@ export function ContractsManager({
                 maxLength={10}
               />
             </div>
-            <div className="flex justify-end gap-3">
+            <div className="form-actions">
               <Button variant="outline" type="button" disabled={isSaving} onClick={() => setEditOpen(false)}>
                 {tc('cancel')}
               </Button>
@@ -438,7 +706,7 @@ export function ContractsManager({
                 <option value="prorate_current">{t('prorateCurrent')}</option>
               </select>
             </div>
-            <div className="flex justify-end gap-3">
+            <div className="form-actions">
               <Button variant="outline" type="button" disabled={isSaving} onClick={() => setCancelOpen(false)}>
                 {tc('cancel')}
               </Button>

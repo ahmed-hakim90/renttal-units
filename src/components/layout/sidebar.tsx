@@ -1,45 +1,73 @@
 'use client';
 
-import { useTranslations } from 'next-intl';
+import { useFormatter, useTranslations } from 'next-intl';
 import { Link, usePathname } from '@/lib/i18n/navigation';
 import {
   LayoutDashboard, MapPin, Building2, Calendar, FileText,
   CreditCard, CheckCircle, History, BarChart3, Upload, Users, Settings,
-  PanelLeftClose, PanelLeftOpen, X, LogOut, ScrollText,
+  PanelLeftClose, PanelLeftOpen, X, LogOut, ScrollText, Flag, Shield,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Logo, LogoMark } from '@/components/brand/logo';
-import { LanguageSwitcher } from './language-switcher';
 import { signOut } from '@/lib/actions/auth';
 import { useCurrentLocale } from '@/lib/i18n/hooks';
+import { hasPermission, NAV_PERMISSIONS, type PermissionKey } from '@/lib/auth/permissions';
+import type { FeatureFlagKey, FeatureFlags } from '@/lib/features';
 import type { AuthContext } from '@/types/database';
 
-const navItems = [
-  { href: '/dashboard', icon: LayoutDashboard, labelKey: 'dashboard' as const },
-  { href: '/locations', icon: MapPin, labelKey: 'locations' as const },
-  { href: '/units', icon: Building2, labelKey: 'units' as const },
-  { href: '/contracts', icon: ScrollText, labelKey: 'contracts' as const },
-  { href: '/due-this-month', icon: Calendar, labelKey: 'dueThisMonth' as const },
-  { href: '/invoices', icon: FileText, labelKey: 'invoices' as const },
-  { href: '/partial-payments', icon: CreditCard, labelKey: 'partialPayments' as const },
-  { href: '/fully-paid', icon: CheckCircle, labelKey: 'fullyPaid' as const },
-  { href: '/payments', icon: History, labelKey: 'payments' as const },
-  { href: '/reports/debt-aging', icon: BarChart3, labelKey: 'debtAging' as const },
-  { href: '/reports/location-statement', icon: BarChart3, labelKey: 'locationStatement' as const },
-  { href: '/import', icon: Upload, labelKey: 'import' as const },
-  { href: '/users', icon: Users, labelKey: 'users' as const },
-  { href: '/settings', icon: Settings, labelKey: 'settings' as const },
+const navItems: Array<{
+  href: string;
+  icon: typeof LayoutDashboard;
+  labelKey: 'dashboard' | 'locations' | 'units' | 'contracts' | 'dueThisMonth' | 'invoices' | 'partialPayments' | 'fullyPaid' | 'payments' | 'debtAging' | 'locationStatement' | 'import' | 'users' | 'roles' | 'auditLogs' | 'featureFlags' | 'settings';
+  flagKey?: FeatureFlagKey;
+}> = [
+  { href: '/dashboard', icon: LayoutDashboard, labelKey: 'dashboard' },
+  { href: '/locations', icon: MapPin, labelKey: 'locations' },
+  { href: '/units', icon: Building2, labelKey: 'units' },
+  { href: '/contracts', icon: ScrollText, labelKey: 'contracts' },
+  { href: '/due-this-month', icon: Calendar, labelKey: 'dueThisMonth' },
+  { href: '/invoices', icon: FileText, labelKey: 'invoices' },
+  { href: '/partial-payments', icon: CreditCard, labelKey: 'partialPayments', flagKey: 'invoices_payment_status_pages' },
+  { href: '/fully-paid', icon: CheckCircle, labelKey: 'fullyPaid', flagKey: 'invoices_payment_status_pages' },
+  { href: '/payments', icon: History, labelKey: 'payments' },
+  { href: '/reports/debt-aging', icon: BarChart3, labelKey: 'debtAging', flagKey: 'reports_operational' },
+  { href: '/reports/location-statement', icon: BarChart3, labelKey: 'locationStatement', flagKey: 'reports_operational' },
+  { href: '/import', icon: Upload, labelKey: 'import' },
+  { href: '/users', icon: Users, labelKey: 'users' },
+  { href: '/roles', icon: Shield, labelKey: 'roles' },
+  { href: '/audit-logs', icon: History, labelKey: 'auditLogs' },
+  { href: '/feature-flags', icon: Flag, labelKey: 'featureFlags' },
+  { href: '/settings', icon: Settings, labelKey: 'settings' },
 ];
+
+function canSeeNavItem(auth: AuthContext, href: string, featureFlags: FeatureFlags) {
+  const required = NAV_PERMISSIONS[href];
+  if (required && !hasPermission(auth, required as PermissionKey)) return false;
+
+  if (href === '/import') {
+    return featureFlags.odoo_import_center
+      || featureFlags.import_excel_contracts
+      || featureFlags.master_data_mutations;
+  }
+
+  const item = navItems.find((navItem) => navItem.href === href);
+  if (item?.flagKey) return featureFlags[item.flagKey];
+  return true;
+}
 
 export function Sidebar({
   auth,
+  dueInvoiceCount,
+  featureFlags,
   collapsed,
   mobileOpen,
   onCloseMobile,
   onToggleCollapsed,
 }: {
   auth: AuthContext;
+  dueInvoiceCount: number;
+  featureFlags: FeatureFlags;
   collapsed: boolean;
   mobileOpen: boolean;
   onCloseMobile: () => void;
@@ -47,16 +75,17 @@ export function Sidebar({
 }) {
   const tNav = useTranslations('common.nav');
   const t = useTranslations('common');
+  const format = useFormatter();
   const pathname = usePathname();
   const locale = useCurrentLocale();
-  const visibleNavItems = auth.isAdminEditor ? navItems : navItems.filter((item) => item.href === '/dashboard');
+  const visibleNavItems = navItems.filter((item) => canSeeNavItem(auth, item.href, featureFlags));
 
   return (
     <>
       {mobileOpen && (
         <button
           type="button"
-          aria-label="Close navigation"
+          aria-label={t('navClose')}
           className="fixed inset-0 z-40 bg-black/40 lg:hidden"
           onClick={onCloseMobile}
         />
@@ -64,7 +93,7 @@ export function Sidebar({
       <aside
         className={cn(
           'fixed inset-y-0 start-0 z-50 flex w-64 flex-col border-e border-border bg-card transition-transform duration-200 lg:z-40 lg:translate-x-0',
-          !mobileOpen && '-translate-x-full rtl:translate-x-full lg:translate-x-0 rtl:lg:translate-x-0',
+          !mobileOpen && 'invisible -translate-x-full rtl:translate-x-full lg:visible lg:translate-x-0 rtl:lg:translate-x-0',
           collapsed && 'lg:w-20'
         )}
       >
@@ -75,15 +104,15 @@ export function Sidebar({
           <Logo size="sm" className="min-w-0" />
         )}
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="sm" type="button" className="lg:hidden" onClick={onCloseMobile}>
-            <X className="h-4 w-4" />
+          <Button variant="ghost" size="icon-sm" type="button" className="lg:hidden" onClick={onCloseMobile} aria-label={t('navClose')}>
+            <X />
           </Button>
-          <Button variant="ghost" size="sm" type="button" className="hidden lg:inline-flex" onClick={onToggleCollapsed}>
-            {collapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+          <Button variant="ghost" size="icon-sm" type="button" className="hidden lg:inline-flex" onClick={onToggleCollapsed} aria-label={t(collapsed ? 'sidebarExpand' : 'sidebarCollapse')}>
+            {collapsed ? <PanelLeftOpen /> : <PanelLeftClose />}
           </Button>
         </div>
       </div>
-      <nav className="flex-1 overflow-y-auto p-4 space-y-1">
+      <nav className="flex-1 space-y-1 overflow-y-auto p-3">
         {visibleNavItems.map(({ href, icon: Icon, labelKey }) => {
           const isActive = pathname === href || pathname.startsWith(href + '/');
           return (
@@ -93,15 +122,29 @@ export function Sidebar({
               title={tNav(labelKey)}
               onClick={onCloseMobile}
               className={cn(
-                'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors',
+                'relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors',
                 collapsed && 'lg:justify-center lg:px-2',
                 isActive
-                  ? 'bg-primary/10 text-primary'
+                  ? 'bg-primary/10 text-primary shadow-sm'
                   : 'text-muted-foreground hover:bg-accent hover:text-foreground'
               )}
             >
-              <Icon className="h-4 w-4 shrink-0" />
+              {isActive && (
+                <span className="absolute inset-y-2 start-0 w-1 rounded-full bg-primary" aria-hidden="true" />
+              )}
+              <Icon className="h-[1.125rem] w-[1.125rem] shrink-0" />
               <span className={cn(collapsed && 'lg:hidden')}>{tNav(labelKey)}</span>
+              {href === '/due-this-month' && dueInvoiceCount > 0 ? (
+                <span
+                  aria-label={tNav('dueInvoiceCount', { count: format.number(dueInvoiceCount) })}
+                  className={cn(
+                    'ms-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-xs font-semibold leading-none text-white',
+                    collapsed && 'lg:absolute lg:end-1 lg:top-1 lg:ms-0 lg:h-4 lg:min-w-4 lg:px-1 lg:text-[10px]'
+                  )}
+                >
+                  {format.number(dueInvoiceCount)}
+                </span>
+              ) : null}
             </Link>
           );
         })}
@@ -112,7 +155,6 @@ export function Sidebar({
           collapsed && 'lg:flex lg:flex-col lg:items-center lg:space-y-2 lg:p-2'
         )}
       >
-        <LanguageSwitcher collapsed={collapsed} />
         <form action={signOut.bind(null, locale)} className={cn(collapsed && 'lg:w-full')}>
           <Button
             variant="ghost"
@@ -124,7 +166,7 @@ export function Sidebar({
               collapsed && 'lg:justify-center lg:px-2'
             )}
           >
-            <LogOut className="h-4 w-4 shrink-0" />
+            <LogOut className="h-[1.125rem] w-[1.125rem] shrink-0" />
             <span className={cn(collapsed && 'lg:hidden')}>{t('logout')}</span>
           </Button>
         </form>

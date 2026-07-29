@@ -22,6 +22,13 @@ export function getInvoiceDisplayStatus(
   return invoice.status;
 }
 
+export function hasOverdueInvoice(
+  invoices: Array<Pick<Invoice, 'amount' | 'paid_amount' | 'due_date' | 'status'>>,
+  asOfDate: Date = new Date(),
+): boolean {
+  return invoices.some((invoice) => getInvoiceDisplayStatus(invoice, asOfDate) === 'overdue');
+}
+
 export function isOldOutstandingDue(dueDate: string, status: string, asOfDate: Date = new Date()): boolean {
   return status === 'due' && getDaysOverdue(dueDate, asOfDate) > 0;
 }

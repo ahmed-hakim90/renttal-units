@@ -18,3 +18,15 @@ function readErrorCode(error: unknown): string | undefined {
 export function isUniqueViolation(error: unknown) {
   return readErrorCode(error) === '23505';
 }
+
+export function readUniqueViolationConstraint(error: unknown): string | undefined {
+  if (!isUniqueViolation(error)) return undefined;
+
+  const message = error && typeof error === 'object' && 'message' in error
+    ? String((error as { message?: unknown }).message ?? '')
+    : error instanceof Error
+      ? error.message
+      : '';
+
+  return message.match(/unique constraint "([^"]+)"/i)?.[1];
+}

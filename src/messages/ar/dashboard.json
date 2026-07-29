@@ -19,5 +19,17 @@
   "totalContractsValue": "إجمالي قيمة العقود",
   "activeContracts": "{count} عقد نشط",
   "upcomingPayments": "مستحق خلال 30 يوم",
-  "upcomingPaymentsDesc": "فواتير صادرة تستحق خلال الـ 30 يوم القادمة"
+  "upcomingPaymentsDesc": "فواتير صادرة تستحق خلال الـ 30 يوم القادمة",
+  "locationOccupancyTitle": "إشغال المواقع",
+  "locationOccupancySubtitle": "الإشغال التشغيلي حسب الموقع",
+  "locationOccupancySummary": "{occupied} عليها عقد من {total} وحدة - افتح الموقع للتفاصيل",
+  "locationUnitsSummary": "{total} وحدة إجمالي داخل هذا الموقع",
+  "locationFilter": "تصفية الموقع",
+  "allLocations": "كل المواقع",
+  "location": "الموقع",
+  "vacantUnits": "فاضية",
+  "occupiedUnits": "عليها عقد",
+  "maintenanceUnits": "صيانة",
+  "locationOccupancyEmptyTitle": "لا توجد بيانات إشغال بعد",
+  "locationOccupancyEmptyDescription": "أضف المواقع والوحدات لعرض الإشغال حسب الموقع."
 }

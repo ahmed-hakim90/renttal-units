@@ -14,8 +14,8 @@ import { validateStaffPassword } from '@/lib/validation/password-policy';
 
 const LOGIN_RATE_LIMIT_ATTEMPTS = 5;
 const LOGIN_RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
-const GENERIC_LOGIN_ERROR = 'Invalid email or password';
-const GENERIC_PASSWORD_CHANGE_ERROR = 'Unable to change password';
+const GENERIC_LOGIN_ERROR = 'invalid_credentials';
+const GENERIC_PASSWORD_CHANGE_ERROR = 'change_password_failed';
 
 export async function signIn(formData: FormData) {
   const email = String(formData.get('email') ?? '').trim().toLowerCase();
@@ -51,7 +51,7 @@ export async function changePassword(formData: FormData) {
     return { success: false, error: passwordError };
   }
   if (password !== confirmPassword) {
-    return { success: false, error: 'Passwords do not match' };
+    return { success: false, error: 'passwords_mismatch' };
   }
 
   const ctx = { correlation_id: await getCorrelationId() };
