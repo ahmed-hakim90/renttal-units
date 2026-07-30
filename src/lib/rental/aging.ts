@@ -134,3 +134,44 @@ export function sumBucketAmounts(rows: AgingRow[]): AgingBucketAmounts {
   }
   return totals;
 }
+
+export interface DashboardDebtAgingAmounts {
+  totalOutstanding: number;
+  days1to30: { count: number; totalAmount: number };
+  days31to60: { count: number; totalAmount: number };
+  days61to90: { count: number; totalAmount: number };
+  over90: { count: number; totalAmount: number };
+}
+
+/** Compact dashboard aging strip — overdue buckets only (excludes current/not-yet-due). */
+export function buildDashboardDebtAgingSummary(
+  invoices: Invoice[],
+  asOfDate: Date = new Date(),
+): DashboardDebtAgingAmounts {
+  const rows = buildAgingRows(invoices, asOfDate);
+  const summary = buildBucketSummary(rows);
+  const byBucket = Object.fromEntries(summary.map((item) => [item.bucket, item])) as Record<
+    AgingBucketKey,
+    BucketSummary
+  >;
+
+  return {
+    totalOutstanding: rows.reduce((sum, row) => sum + row.remaining, 0),
+    days1to30: {
+      count: byBucket.days1to30.count,
+      totalAmount: byBucket.days1to30.totalAmount,
+    },
+    days31to60: {
+      count: byBucket.days31to60.count,
+      totalAmount: byBucket.days31to60.totalAmount,
+    },
+    days61to90: {
+      count: byBucket.days61to90.count,
+      totalAmount: byBucket.days61to90.totalAmount,
+    },
+    over90: {
+      count: byBucket.over90.count,
+      totalAmount: byBucket.over90.totalAmount,
+    },
+  };
+}

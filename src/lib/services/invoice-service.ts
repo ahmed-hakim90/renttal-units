@@ -189,15 +189,20 @@ export const invoiceService = {
   async getDashboardCounts(auth: AuthContext, ctx: LogContext) {
     const reminderSetting = await settingsRepository.findByKey('due_reminder_days', ctx);
     const reminderDays = Math.min(90, Math.max(0, Number(reminderSetting?.value ?? 7)));
-    const [dueInvoices, awaitingPayment, partialPayments, fullyPaid, upcoming] = await Promise.all([
+    const [dueInvoices, awaitingPayment, partialPayments, fullyPaid, upcoming, overdueInvoices] = await Promise.all([
       invoicesRepository.findDueThisMonth(ctx, reminderDays),
       invoicesRepository.countByStatus('invoice_issued', ctx),
       invoicesRepository.countByStatus('partially_paid', ctx),
       invoicesRepository.countByStatus('fully_paid', ctx),
       invoicesRepository.findUpcomingStats(30, ctx),
+      invoicesRepository.findOverdue(ctx),
     ]);
     const dueThisMonthAmount = dueInvoices.reduce(
       (sum, invoice) => sum + Number(invoice.amount) - Number(invoice.paid_amount),
+      0
+    );
+    const overdueAmount = overdueInvoices.reduce(
+      (sum, invoice) => sum + Math.max(0, Number(invoice.amount) - Number(invoice.paid_amount)),
       0
     );
     return {
@@ -208,6 +213,12 @@ export const invoiceService = {
       fullyPaid,
       upcomingPayments: upcoming.count,
       upcomingPaymentsAmount: upcoming.amount,
+      overdueCount: overdueInvoices.length,
+      overdueAmount,
     };
+  },
+
+  async listOverdue(auth: AuthContext, ctx: LogContext) {
+    return invoicesRepository.findOverdue(ctx);
   },
 };

@@ -27,7 +27,7 @@ export default async function DebtAgingPage({ params }: { params: Promise<{ loca
 
   return (
     <div>
-      <PageHeader title={t('debtAging')} subtitle={t('debtAgingSubtitle')} />
+      <PageHeader compact title={t('debtAging')} subtitle={t('debtAgingSubtitle')} />
       <DebtAgingReport
         invoices={invoices}
         locations={locations}

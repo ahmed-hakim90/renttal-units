@@ -9,6 +9,7 @@ import { getOdooProductName } from '@/lib/odoo/product-name';
 import { contractsRepository } from '@/lib/repositories/contracts';
 import { invoicesRepository } from '@/lib/repositories/invoices';
 import { odooSyncLogsRepository } from '@/lib/repositories/settings';
+import { odooServiceProductsRepository } from '@/lib/repositories/odoo-service-products';
 import { tenantsRepository } from '@/lib/repositories/tenants';
 import { unitsRepository } from '@/lib/repositories/units';
 import { locationsRepository } from '@/lib/repositories/locations';
@@ -841,6 +842,10 @@ export const odooService = {
       });
     }
 
+    if (category === 'service') {
+      return products.map((product) => toProductCatalogRow(product));
+    }
+
     const locations = await locationsRepository.findAll(ctx);
     const locationByAnalytic = new Map(locations
       .filter((location) => location.odoo_analytic_account_id != null)
@@ -887,6 +892,57 @@ export const odooService = {
       }
     }
     return products.map((product) => toProductCatalogRow(product, suggestions.get(product.id)));
+  },
+
+  async syncServiceProductCatalog(
+    auth: AuthContext,
+    ctx: LogContext,
+  ): Promise<{ success: true; count: number; lastSyncedAt: string } | { success: false; error: string }> {
+    const settings = await getOdooSettings(ctx);
+    if (!settings.serviceCategoryId) {
+      return { success: false, error: 'serviceCategoryNotConfigured' };
+    }
+
+    try {
+      const products = await odooService.searchProducts(auth, '', ctx, 5_000, 'service');
+      const lastSyncedAt = new Date().toISOString();
+      const count = await odooServiceProductsRepository.syncCategory(
+        settings.serviceCategoryId,
+        products.map((product) => ({
+          id: product.id,
+          name: product.name,
+          display_name: product.display_name,
+          default_code: product.default_code,
+          description: product.description,
+          category_name: product.category_name,
+        })),
+        lastSyncedAt,
+        ctx,
+      );
+      await logOdoo(
+        auth,
+        'sync_service_product_catalog',
+        'service_product',
+        null,
+        'synced',
+        null,
+        { categoryId: settings.serviceCategoryId, productCount: count },
+        ctx,
+      );
+      return { success: true, count, lastSyncedAt };
+    } catch (error) {
+      await logOdoo(
+        auth,
+        'sync_service_product_catalog',
+        'service_product',
+        null,
+        'failed',
+        messageFromError(error),
+        { categoryId: settings.serviceCategoryId },
+        ctx,
+      );
+      return { success: false, error: 'serviceProductSyncFailed' };
+    }
   },
 
   async syncLinkedUnitDetails(

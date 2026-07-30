@@ -32,7 +32,7 @@ System roles:
 - New pages and actions must call `requirePermission` / `has_permission`, not only `isAdminEditor`.
 - New permission keys must be added to the typed catalog, seeded in migration (or follow-up migration), and localized.
 - Write permissions always imply the matching view permission when saving a role.
-- Cron/service-role paths remain outside user RBAC and continue to use trusted system credentials.
+- Trusted service-role paths remain outside user RBAC and continue to use system credentials.
 
 ## Compatibility
 

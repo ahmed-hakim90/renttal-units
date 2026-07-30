@@ -7,6 +7,7 @@
   "edit": "Edit",
   "create": "Create",
   "search": "Search...",
+  "select": "Select...",
   "listSearchLabel": "Search list data",
   "listSearchPlaceholder": "Search by any information...",
   "clearSearch": "Clear search",

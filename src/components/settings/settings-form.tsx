@@ -6,6 +6,7 @@ import { Building2, ChevronDown, Link2, ScrollText, PlugZap, FilePlus2, ListFilt
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { updateSetting } from '@/lib/actions/admin';
 import { createOdooTestDraftInvoice, getOdooSetupOptions, testOdooConnection, updateOdooSettings } from '@/lib/actions/odoo';
 import { isFeatureDisabledResult } from '@/lib/features';
@@ -139,6 +140,7 @@ export function SettingsForm({
       'load_setup_options',
       'suggest_product_locations',
       'sync_linked_unit_details',
+      'sync_service_product_catalog',
       'import_location_products',
       'find_or_create_partner',
       'import_legacy_invoices',
@@ -184,6 +186,7 @@ export function SettingsForm({
       invoiceCount: t('odooLogDataLabels.invoiceCount'),
       contractCount: t('odooLogDataLabels.contractCount'),
       productCount: t('odooLogDataLabels.productCount'),
+      categoryId: t('odooLogDataLabels.categoryId'),
       companies: t('odooLogDataLabels.companies'),
       journals: t('odooLogDataLabels.journals'),
       taxes: t('odooLogDataLabels.taxes'),
@@ -584,57 +587,111 @@ export function SettingsForm({
         <div className="grid gap-4 md:grid-cols-2">
           {setupOptions && !showManualOdooIds ? (
             <>
-              <div>
-                <label className="text-sm font-medium">{t('odooCompanyId')}</label>
-                <select value={companyId} onChange={(event) => setCompanyId(event.target.value)} className="field-control" disabled={!allowOdooEdit || isSubmitting}>
-                  <option value="">{t('odooSelectOptional')}</option>
-                  {setupOptions.companies.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
-                </select>
-              </div>
+              <SearchableSelect
+                searchable
+                label={t('odooCompanyId')}
+                value={companyId}
+                onChange={setCompanyId}
+                disabled={!allowOdooEdit || isSubmitting}
+                placeholder={t('odooSelectOptional')}
+                options={[
+                  { value: '', label: t('odooSelectOptional') },
+                  ...setupOptions.companies.map((option) => ({
+                    value: String(option.id),
+                    label: option.label,
+                    keywords: [option.id],
+                  })),
+                ]}
+              />
               {setupOptions.journals.length > 0 && (
-                <div>
-                  <label className="text-sm font-medium">{t('odooJournalId')}</label>
-                  <select value={journalId} onChange={(event) => setJournalId(event.target.value)} className="field-control" disabled={!allowOdooEdit || isSubmitting}>
-                    <option value="">{t('odooSelectOptional')}</option>
-                    {setupOptions.journals.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
-                  </select>
-                </div>
+                <SearchableSelect
+                  searchable
+                  label={t('odooJournalId')}
+                  value={journalId}
+                  onChange={setJournalId}
+                  disabled={!allowOdooEdit || isSubmitting}
+                  placeholder={t('odooSelectOptional')}
+                  options={[
+                    { value: '', label: t('odooSelectOptional') },
+                    ...setupOptions.journals.map((option) => ({
+                      value: String(option.id),
+                      label: option.label,
+                      keywords: [option.id],
+                    })),
+                  ]}
+                />
               )}
               {setupOptions.taxes.length > 0 && (
-                <div>
-                  <label className="text-sm font-medium">{t('odooVatTaxId')}</label>
-                  <select value={vatTaxId} onChange={(event) => setVatTaxId(event.target.value)} className="field-control" disabled={!allowOdooEdit || isSubmitting}>
-                    <option value="">{t('odooSelectOptional')}</option>
-                    {setupOptions.taxes.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
-                  </select>
-                </div>
+                <SearchableSelect
+                  searchable
+                  label={t('odooVatTaxId')}
+                  value={vatTaxId}
+                  onChange={setVatTaxId}
+                  disabled={!allowOdooEdit || isSubmitting}
+                  placeholder={t('odooSelectOptional')}
+                  options={[
+                    { value: '', label: t('odooSelectOptional') },
+                    ...setupOptions.taxes.map((option) => ({
+                      value: String(option.id),
+                      label: option.label,
+                      keywords: [option.id],
+                    })),
+                  ]}
+                />
               )}
               {setupOptions.incomeAccounts.length > 0 && (
-                <div>
-                  <label className="text-sm font-medium">{t('odooIncomeAccountId')}</label>
-                  <select value={incomeAccountId} onChange={(event) => setIncomeAccountId(event.target.value)} className="field-control" disabled={!allowOdooEdit || isSubmitting}>
-                    <option value="">{t('odooSelectOptional')}</option>
-                    {setupOptions.incomeAccounts.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
-                  </select>
-                </div>
+                <SearchableSelect
+                  searchable
+                  label={t('odooIncomeAccountId')}
+                  value={incomeAccountId}
+                  onChange={setIncomeAccountId}
+                  disabled={!allowOdooEdit || isSubmitting}
+                  placeholder={t('odooSelectOptional')}
+                  options={[
+                    { value: '', label: t('odooSelectOptional') },
+                    ...setupOptions.incomeAccounts.map((option) => ({
+                      value: String(option.id),
+                      label: option.label,
+                      keywords: [option.id],
+                    })),
+                  ]}
+                />
               )}
               {setupOptions.productCategories.length > 0 && (
-                <div>
-                  <label className="text-sm font-medium">{t('odooProductCategoryId')}</label>
-                  <select value={productCategoryId} onChange={(event) => setProductCategoryId(event.target.value)} className="field-control" disabled={!allowOdooEdit || isSubmitting}>
-                    <option value="">{t('odooSelectOptional')}</option>
-                    {setupOptions.productCategories.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
-                  </select>
-                </div>
+                <SearchableSelect
+                  searchable
+                  label={t('odooProductCategoryId')}
+                  value={productCategoryId}
+                  onChange={setProductCategoryId}
+                  disabled={!allowOdooEdit || isSubmitting}
+                  placeholder={t('odooSelectOptional')}
+                  options={[
+                    { value: '', label: t('odooSelectOptional') },
+                    ...setupOptions.productCategories.map((option) => ({
+                      value: String(option.id),
+                      label: option.label,
+                      keywords: [option.id],
+                    })),
+                  ]}
+                />
               )}
               {setupOptions.productCategories.length > 0 && (
-                <div>
-                  <label className="text-sm font-medium">{t('odooServiceCategoryId')}</label>
-                  <select value={serviceCategoryId} onChange={(event) => setServiceCategoryId(event.target.value)} className="field-control" disabled={!allowOdooEdit || isSubmitting}>
-                    <option value="">{t('odooSelectOptional')}</option>
-                    {setupOptions.productCategories.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
-                  </select>
-                </div>
+                <SearchableSelect
+                  searchable
+                  label={t('odooServiceCategoryId')}
+                  value={serviceCategoryId}
+                  onChange={setServiceCategoryId}
+                  disabled={!allowOdooEdit || isSubmitting}
+                  placeholder={t('odooSelectOptional')}
+                  options={[
+                    { value: '', label: t('odooSelectOptional') },
+                    ...setupOptions.productCategories.map((option) => ({
+                      value: String(option.id),
+                      label: option.label,
+                      keywords: [option.id],
+                    })),
+                  ]}
+                />
               )}
             </>
           ) : (

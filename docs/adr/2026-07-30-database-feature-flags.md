@@ -6,7 +6,7 @@ Administrators need to show or hide optional operational controls without rebuil
 
 ## Decision
 
-Store feature flags in the existing `settings` table using the `feature_flag.<name>` key convention. Expose a dedicated admin Feature Flags page driven by a typed registry in `src/lib/features.ts`. Resolve missing or malformed values to explicit code defaults. Enforce every flag in UI and server actions (and Cron for Odoo sync).
+Store feature flags in the existing `settings` table using the `feature_flag.<name>` key convention. Expose a dedicated admin Feature Flags page driven by a typed registry in `src/lib/features.ts`. Resolve missing or malformed values to explicit code defaults. Enforce every flag in UI and server actions.
 
 ### Registry (all default `true`)
 
@@ -18,7 +18,7 @@ Store feature flags in the existing `settings` table using the `feature_flag.<na
 | `units_create_odoo_product` | Create Odoo product from unit |
 | `units_link_odoo_product` | Link unit to Odoo product / create unit from product |
 | `units_odoo_catalog_button` | Load Odoo Products catalog button |
-| `odoo_cron_sync` | Scheduled Odoo cron side effects |
+| `odoo_service_catalog_button` | Service product catalog and synchronization button |
 | `odoo_invoices_documents` | Odoo documents UI and invoice sync retries (local issue/pay remain) |
 | `import_excel_contracts` | Excel/CSV contract import |
 | `reports_operational` | Debt aging + location statement pages |
@@ -37,7 +37,6 @@ Store feature flags in the existing `settings` table using the `feature_flag.<na
 | Contracts | `src/lib/actions/contracts.ts` + Excel import in `admin.ts` |
 | Units / locations | `units.ts`, `locations.ts`, related Odoo product actions |
 | Odoo | `odoo.ts` actions; invoice-service skips Odoo enqueue when documents flag is off |
-| Cron | `src/app/api/cron/odoo-sync/route.ts` returns `{ skipped: true }` after `CRON_SECRET` check |
 
 ## Rejected alternatives
 
@@ -52,6 +51,7 @@ Store feature flags in the existing `settings` table using the `feature_flag.<na
 - New flags must be added to the typed registry, translations, UI groups, and server guards.
 - Existing settings RLS policies continue to protect persistence; no migration is required.
 - `admin_experimental` never hides the Feature Flags page itself, to avoid self-lockout.
+- Odoo imports and retries are operator-initiated; no scheduled endpoint or privileged system identity is exposed.
 
 ## Compatibility
 

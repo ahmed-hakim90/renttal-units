@@ -1,5 +1,15 @@
-import type { AuthContext, Contract, Invoice, LocationOccupancySummary, LocationStatement } from '@/types/database';
+import type {
+  AuthContext,
+  Contract,
+  DashboardDebtAgingSummary,
+  DashboardOdooHealth,
+  DashboardPortfolioSummary,
+  Invoice,
+  LocationOccupancySummary,
+  LocationStatement,
+} from '@/types/database';
 import { invoicesRepository } from '@/lib/repositories/invoices';
+import { buildDashboardDebtAgingSummary } from '@/lib/rental/aging';
 import { withSpan, type LogContext } from '@/lib/observability';
 
 function sumInvoiceRemaining(invoice: Invoice) {
@@ -23,50 +33,61 @@ export const reportingService = {
     });
   },
 
-  async getPortfolioSummary(auth: AuthContext, ctx: LogContext) {
+  async getDashboardDebtAgingSummary(
+    auth: AuthContext,
+    ctx: LogContext,
+  ): Promise<DashboardDebtAgingSummary> {
+    return withSpan('reportingService.getDashboardDebtAgingSummary', { ...ctx, service: 'reporting', user_id: auth.userId }, async () => {
+      const invoices = await invoicesRepository.findOutstanding(ctx);
+      return buildDashboardDebtAgingSummary(invoices);
+    });
+  },
+
+  async getDashboardOdooHealth(
+    auth: AuthContext,
+    ctx: LogContext,
+  ): Promise<DashboardOdooHealth> {
+    return withSpan('reportingService.getDashboardOdooHealth', { ...ctx, service: 'reporting', user_id: auth.userId }, async () => {
+      const [failedCount, needsReviewCount] = await Promise.all([
+        invoicesRepository.countByOdooSyncStatus(['failed'], ctx),
+        invoicesRepository.countByOdooSyncStatus(['needs_review'], ctx),
+      ]);
+      return { failedCount, needsReviewCount };
+    });
+  },
+
+  async getDashboardOverview(
+    auth: AuthContext,
+    ctx: LogContext,
+  ): Promise<{
+    summary: DashboardPortfolioSummary;
+    locationsOccupancy: LocationOccupancySummary[];
+  }> {
     const { unitsRepository } = await import('@/lib/repositories/units');
     const { locationsRepository } = await import('@/lib/repositories/locations');
     const { contractsRepository } = await import('@/lib/repositories/contracts');
     const { calculateContractPaymentSchedule } = await import('@/lib/rental/calculations');
 
-    const [units, locations, activeContracts, contractStats] = await Promise.all([
-      unitsRepository.findAll(ctx),
-      locationsRepository.findAll(ctx),
-      contractsRepository.findActive(ctx),
-      contractsRepository.getSummaryStats(ctx),
-    ]);
-
-    const occupied = units.filter((u) => u.status === 'occupied').length;
-    const monthlyRevenue = activeContracts.reduce((sum, contract) => {
-      const schedule = calculateContractPaymentSchedule(contract);
-      if (schedule.length === 0) return sum;
-      return sum + Number(contract.total_amount) / schedule.length;
-    }, 0);
-
-    return {
-      totalUnits: units.length,
-      totalLocations: locations.length,
-      occupancyRate: units.length > 0 ? Math.round((occupied / units.length) * 100) : 0,
-      monthlyRevenue: Math.round(monthlyRevenue),
-      totalContracts: contractStats.totalCount,
-      totalContractsValue: contractStats.totalValue,
-      activeContracts: contractStats.activeCount,
-    };
-  },
-
-  async getLocationsOccupancy(auth: AuthContext, ctx: LogContext): Promise<LocationOccupancySummary[]> {
-    const { unitsRepository } = await import('@/lib/repositories/units');
-    const { locationsRepository } = await import('@/lib/repositories/locations');
-
-    return withSpan('reportingService.getLocationsOccupancy', { ...ctx, service: 'reporting', user_id: auth.userId }, async () => {
-      const [locations, units] = await Promise.all([
-        locationsRepository.findAll(ctx),
+    return withSpan('reportingService.getDashboardOverview', { ...ctx, service: 'reporting', user_id: auth.userId }, async () => {
+      const [units, locations, activeContracts, contractStats] = await Promise.all([
         unitsRepository.findAll(ctx),
+        locationsRepository.findAll(ctx),
+        contractsRepository.findActive(ctx),
+        contractsRepository.getSummaryStats(ctx),
       ]);
 
-      const summaries = new Map<string, LocationOccupancySummary>();
+      const occupied = units.filter((unit) => unit.status === 'occupied').length;
+      const vacantUnits = units.filter((unit) => unit.status === 'vacant').length;
+      const maintenanceUnits = units.filter((unit) => unit.status === 'maintenance').length;
+      const monthlyRevenue = activeContracts.reduce((sum, contract) => {
+        const schedule = calculateContractPaymentSchedule(contract);
+        if (schedule.length === 0) return sum;
+        return sum + Number(contract.total_amount) / schedule.length;
+      }, 0);
+
+      const occupancyByLocation = new Map<string, LocationOccupancySummary>();
       for (const location of locations) {
-        summaries.set(location.id, {
+        occupancyByLocation.set(location.id, {
           locationId: location.id,
           name_en: location.name_en,
           name_ar: location.name_ar,
@@ -79,7 +100,7 @@ export const reportingService = {
       }
 
       for (const unit of units) {
-        const summary = summaries.get(unit.location_id);
+        const summary = occupancyByLocation.get(unit.location_id);
         if (!summary) continue;
 
         summary.totalUnits += 1;
@@ -89,7 +110,21 @@ export const reportingService = {
         if (unit.active_contract) summary.activeContractCount += 1;
       }
 
-      return Array.from(summaries.values());
+      return {
+        summary: {
+          totalUnits: units.length,
+          totalLocations: locations.length,
+          occupancyRate: units.length > 0 ? Math.round((occupied / units.length) * 100) : 0,
+          monthlyRevenue: Math.round(monthlyRevenue),
+          totalContracts: contractStats.totalCount,
+          totalContractsValue: contractStats.totalValue,
+          activeContracts: contractStats.activeCount,
+          vacantUnits,
+          maintenanceUnits,
+          draftContracts: contractStats.draftCount,
+        },
+        locationsOccupancy: Array.from(occupancyByLocation.values()),
+      };
     });
   },
 

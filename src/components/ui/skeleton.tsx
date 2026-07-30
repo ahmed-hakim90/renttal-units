@@ -72,7 +72,7 @@ export function StatsCardsSkeleton({
     ? 'grid gap-4 sm:grid-cols-2 lg:grid-cols-4'
     : columns === 'report'
       ? 'grid gap-4 sm:grid-cols-2 xl:grid-cols-3'
-      : 'grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5';
+      : 'grid gap-3 sm:grid-cols-2 xl:grid-cols-4';
 
   return (
     <div className={gridClass}>
@@ -366,17 +366,28 @@ export function DetailPageSkeleton({
 
 export function DashboardPageSkeleton() {
   return (
-    <div className="space-y-6">
-      <PageHeaderSkeleton withAction={false} />
-      <StatsCardsSkeleton count={5} columns="dashboard" />
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {Array.from({ length: 3 }, (_, index) => (
+    <div className="space-y-4">
+      <PageHeaderSkeleton withAction />
+      <StatsCardsSkeleton count={4} columns="dashboard" />
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        {Array.from({ length: 5 }, (_, index) => (
           <div
             key={index}
-            className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6"
+            className="rounded-2xl border border-border bg-card p-4 shadow-sm"
           >
-            <Skeleton className="mb-3 h-4 w-28" />
-            <Skeleton className="h-8 w-24" />
+            <Skeleton className="mb-2 h-4 w-24" />
+            <Skeleton className="h-7 w-20" />
+          </div>
+        ))}
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {Array.from({ length: 4 }, (_, index) => (
+          <div
+            key={index}
+            className="rounded-2xl border border-border bg-card p-4 shadow-sm"
+          >
+            <Skeleton className="mb-2 h-3.5 w-20" />
+            <Skeleton className="h-6 w-24" />
           </div>
         ))}
       </div>
@@ -388,23 +399,23 @@ export function DashboardPageSkeleton() {
 
 export function RecentActivitySkeleton() {
   return (
-    <div className="mt-6 space-y-4">
-      <Skeleton className="h-6 w-40" />
-      <div className="grid gap-4 lg:grid-cols-2">
-        {Array.from({ length: 2 }, (_, index) => (
+    <div className="mt-4 space-y-3">
+      <Skeleton className="h-5 w-36" />
+      <div className="grid gap-3 xl:grid-cols-3">
+        {Array.from({ length: 3 }, (_, index) => (
           <div
             key={index}
-            className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6"
+            className="rounded-2xl border border-border bg-card p-4 shadow-sm"
           >
-            <Skeleton className="mb-4 h-5 w-36" />
-            <div className="space-y-3">
+            <Skeleton className="mb-3 h-4 w-28" />
+            <div className="space-y-2">
               {Array.from({ length: 3 }, (_, rowIndex) => (
                 <div key={rowIndex} className="flex items-center justify-between gap-3">
                   <div className="min-w-0 flex-1 space-y-2">
-                    <Skeleton className="h-4 w-32 max-w-full" />
-                    <Skeleton className="h-3.5 w-24 max-w-full" />
+                    <Skeleton className="h-4 w-28 max-w-full" />
+                    <Skeleton className="h-3.5 w-20 max-w-full" />
                   </div>
-                  <Skeleton className="h-8 w-20" />
+                  <Skeleton className="h-8 w-16" />
                 </div>
               ))}
             </div>
@@ -421,14 +432,22 @@ export function ReportPageSkeleton({
   summaryCount?: number;
 }) {
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHeaderSkeleton withAction />
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div className="w-full max-w-sm space-y-2">
           <Skeleton className="h-3.5 w-28" />
           <Skeleton className="h-10 w-full" />
         </div>
-        <Skeleton className="h-10 w-full sm:w-36" />
+        <Skeleton className="h-9 w-full sm:w-36" />
+      </div>
+      <div className="grid gap-3 sm:grid-cols-3">
+        {Array.from({ length: 3 }, (_, index) => (
+          <div key={index} className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+            <Skeleton className="mb-2 h-3.5 w-24" />
+            <Skeleton className="h-7 w-28" />
+          </div>
+        ))}
       </div>
       <ReportResultsSkeleton summaryCount={summaryCount} />
     </div>

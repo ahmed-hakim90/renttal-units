@@ -208,6 +208,7 @@ export const contractsRepository = {
     totalCount: number;
     totalValue: number;
     activeCount: number;
+    draftCount: number;
   }> {
     const supabase = await createClient();
     const { data, error } = await supabase.from('contracts').select('total_amount, status');
@@ -217,6 +218,7 @@ export const contractsRepository = {
       totalCount: rows.length,
       totalValue: rows.reduce((sum, row) => sum + Number(row.total_amount), 0),
       activeCount: rows.filter((row) => row.status === 'active').length,
+      draftCount: rows.filter((row) => row.status === 'draft').length,
     };
   },
 

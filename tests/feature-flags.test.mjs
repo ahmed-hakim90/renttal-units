@@ -28,6 +28,7 @@ test('registers all planned feature flags with enabled defaults', () => {
 
 test('keeps existing Odoo catalog button visible when no flag is saved', () => {
   assert.equal(resolveFeatureFlags([]).units_odoo_catalog_button, true);
+  assert.equal(resolveFeatureFlags([]).odoo_service_catalog_button, true);
 });
 
 test('reads saved boolean feature flags', () => {
@@ -51,7 +52,6 @@ test('reads saved boolean feature flags', () => {
   const flags = resolveFeatureFlags(settings);
   assert.equal(flags.units_odoo_catalog_button, false);
   assert.equal(flags.contracts_opening_balance, false);
-  assert.equal(flags.odoo_cron_sync, true);
 });
 
 test('ignores malformed feature flag values and uses the safe default', () => {

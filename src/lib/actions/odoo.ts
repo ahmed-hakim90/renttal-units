@@ -115,24 +115,36 @@ export async function searchOdooProducts(
   limit?: number,
   category: 'rental' | 'service' = 'rental',
 ) {
-  const auth = await requirePermission(locale, 'odoo.manage', await getCtx());
-  const ctx = { ...(await getCtx()), user_id: auth.userId, role: auth.role };
-  if (category === 'rental') {
-    const disabled = await requireFeatureEnabled(ctx, 'units_link_odoo_product');
-    if (disabled) return [];
-  }
-  return odooService.searchProducts(auth, query, ctx, limit, category);
+  const { searchOdooProducts: search } = await import('@/lib/actions/odoo-unit-catalog');
+  return search(locale, query, limit, category);
 }
 
 export async function refreshOdooUnitCatalog(locale: string, limit?: number) {
-  const auth = await requirePermission(locale, 'odoo.manage', await getCtx());
-  const ctx = { ...(await getCtx()), user_id: auth.userId, role: auth.role };
-  const disabled = await requireFeatureEnabled(ctx, 'units_odoo_catalog_button');
-  if (disabled) return disabled;
-  const products = await odooService.searchProducts(auth, '', ctx, limit);
-  const sync = await odooService.syncLinkedUnitDetails(auth, products, ctx);
-  revalidatePath(`/${locale}/units`);
-  return { products, sync };
+  const { refreshOdooUnitCatalog: refresh } = await import('@/lib/actions/odoo-unit-catalog');
+  return refresh(locale, limit);
+}
+
+export async function syncOdooServiceProductCatalog(locale: string) {
+  const { syncOdooServiceProductCatalog: sync } = await import('@/lib/actions/odoo-unit-catalog');
+  return sync(locale);
+}
+
+export async function linkUnitToOdooProduct(locale: string, unitId: string, productId: number) {
+  const { linkUnitToOdooProduct: link } = await import('@/lib/actions/odoo-unit-catalog');
+  return link(locale, unitId, productId);
+}
+
+export async function createOdooProductForUnit(locale: string, unitId: string) {
+  const { createOdooProductForUnit: create } = await import('@/lib/actions/odoo-unit-catalog');
+  return create(locale, unitId);
+}
+
+export async function createUnitFromOdooProduct(locale: string, input: {
+  locationId: string;
+  productId: number;
+}) {
+  const { createUnitFromOdooProduct: create } = await import('@/lib/actions/odoo-unit-catalog');
+  return create(locale, input);
 }
 
 export async function searchOdooPartners(locale: string, query: string) {
@@ -145,43 +157,6 @@ export async function searchOdooAnalyticAccounts(locale: string, query: string) 
   const auth = await requirePermission(locale, 'odoo.manage', await getCtx());
   const ctx = { ...(await getCtx()), user_id: auth.userId, role: auth.role };
   return odooService.searchAnalyticAccounts(auth, query, ctx);
-}
-
-export async function linkUnitToOdooProduct(locale: string, unitId: string, productId: number) {
-  const auth = await requirePermission(locale, 'odoo.manage', await getCtx());
-  const ctx = { ...(await getCtx()), user_id: auth.userId, role: auth.role };
-  const disabled = await requireFeatureEnabled(ctx, 'units_link_odoo_product');
-  if (disabled) return disabled;
-  const result = await odooService.linkUnitProduct(auth, unitId, productId, ctx);
-  revalidatePath(`/${locale}/units`);
-  return result;
-}
-
-export async function createOdooProductForUnit(locale: string, unitId: string) {
-  const auth = await requirePermission(locale, 'odoo.manage', await getCtx());
-  const ctx = { ...(await getCtx()), user_id: auth.userId, role: auth.role };
-  const disabled = await requireFeatureEnabled(ctx, 'units_create_odoo_product');
-  if (disabled) return disabled;
-  const result = await odooService.createProductForUnit(auth, unitId, ctx);
-  revalidatePath(`/${locale}/units`);
-  return result;
-}
-
-export async function createUnitFromOdooProduct(locale: string, input: {
-  locationId: string;
-  productId: number;
-}) {
-  const auth = await requirePermission(locale, 'odoo.manage', await getCtx());
-  const ctx = { ...(await getCtx()), user_id: auth.userId, role: auth.role };
-  const linkDisabled = await requireFeatureEnabled(ctx, 'units_link_odoo_product');
-  if (linkDisabled) return linkDisabled;
-  const masterDisabled = await requireFeatureEnabled(ctx, 'master_data_mutations');
-  if (masterDisabled) return masterDisabled;
-  const result = await odooService.createUnitFromProduct(auth, input, ctx);
-  revalidatePath(`/${locale}/units`);
-  revalidatePath(`/${locale}/dashboard`);
-  revalidatePath(`/${locale}/locations/${input.locationId}`);
-  return result;
 }
 
 export async function startOdooInvoiceImportPreview(locale: string, input?: { since?: string | null }) {
@@ -268,16 +243,4 @@ export async function retryOdooInvoiceSync(locale: string, invoiceId: string) {
   revalidatePath(`/${locale}/invoices`);
   revalidatePath(`/${locale}/contracts`);
   return result;
-}
-
-export async function processOdooOutbox(locale: string, limit = 10) {
-  // Manual outbox processing is restricted to system owners to avoid abuse.
-  const auth = await requirePermission(locale, 'odoo.manage', await getCtx());
-  if (!auth.isAdminEditor) {
-    return { processed: 0, skipped: true, reason: 'forbidden' };
-  }
-  const ctx = { ...(await getCtx()), user_id: auth.userId, role: auth.role };
-  const disabled = await requireFeatureEnabled(ctx, 'odoo_cron_sync');
-  if (disabled) return { processed: 0, skipped: true, reason: 'featureDisabled' };
-  return odooOutboxService.processReady(auth, ctx, limit);
 }

@@ -13,6 +13,20 @@ export type OdooImportItemStatus = 'ready' | 'needs_review' | 'duplicate' | 'imp
 export type OdooLineMappingStatus = 'matched' | 'unmatched' | 'needs_review' | 'service';
 export type OdooOutboxStatus = 'pending' | 'processing' | 'succeeded' | 'failed';
 
+export interface OdooServiceProduct {
+  odoo_product_id: number;
+  name: string;
+  display_name: string;
+  default_code: string | null;
+  description: string | null;
+  category_id: number;
+  category_name: string | null;
+  active: boolean;
+  last_synced_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Profile {
   id: string;
   email: string;
@@ -431,6 +445,39 @@ export interface DashboardStats {
   fullyPaid: number;
   upcomingPayments: number;
   upcomingPaymentsAmount: number;
+  overdueCount: number;
+  overdueAmount: number;
+}
+
+export interface DashboardPortfolioSummary {
+  totalUnits: number;
+  totalLocations: number;
+  occupancyRate: number;
+  monthlyRevenue: number;
+  totalContracts: number;
+  totalContractsValue: number;
+  activeContracts: number;
+  vacantUnits: number;
+  maintenanceUnits: number;
+  draftContracts: number;
+}
+
+export interface DashboardAgingBucketSummary {
+  count: number;
+  totalAmount: number;
+}
+
+export interface DashboardDebtAgingSummary {
+  totalOutstanding: number;
+  days1to30: DashboardAgingBucketSummary;
+  days31to60: DashboardAgingBucketSummary;
+  days61to90: DashboardAgingBucketSummary;
+  over90: DashboardAgingBucketSummary;
+}
+
+export interface DashboardOdooHealth {
+  failedCount: number;
+  needsReviewCount: number;
 }
 
 export interface LocationStatementUnit {

@@ -1,5 +1,5 @@
 -- Forward-compatible hardening for databases where the import-center migration
--- was already applied before server-side cron and atomic tenant matching landed.
+-- was already applied before atomic tenant matching landed.
 
 CREATE OR REPLACE FUNCTION prevent_direct_invoice_payment_update()
 RETURNS TRIGGER

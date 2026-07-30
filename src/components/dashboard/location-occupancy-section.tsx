@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { MapPin } from 'lucide-react';
 import { Link } from '@/lib/i18n/navigation';
 import { Card, CardDescription, CardTitle } from '@/components/ui/card';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { formatNumber } from '@/lib/i18n/format';
 import type { Locale } from '@/lib/i18n/routing';
 import type { LocationOccupancySummary } from '@/types/database';
@@ -45,49 +46,53 @@ export function LocationOccupancySection({
   }), [locations]);
 
   return (
-    <section className="surface-panel mt-8 p-5 sm:p-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+    <section className="surface-panel mt-4 p-4">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div className="flex items-start gap-3">
           <div className="icon-tile bg-amber-50 text-amber-700">
-            <MapPin className="h-5 w-5" />
+            <MapPin className="h-4 w-4" />
           </div>
           <div>
-            <h2 className="text-2xl font-bold tracking-tight">{t('locationOccupancyTitle')}</h2>
-            <p className="mt-1 text-base font-medium text-muted-foreground">
+            <h2 className="text-base font-semibold tracking-tight">{t('locationOccupancyTitle')}</h2>
+            <p className="mt-0.5 text-sm text-muted-foreground">
               {t('locationOccupancySummary', {
                 occupied: formatNumber(totals.occupiedUnits, loc),
                 total: formatNumber(totals.totalUnits, loc),
               })}
+            </p>
+            <p className="mt-0.5 text-xs font-medium text-muted-foreground">
+              {t('totalLocationsCount', { count: formatNumber(locations.length, loc) })}
             </p>
           </div>
         </div>
 
         {locations.length > 0 && (
           <div className="w-full sm:max-w-xs">
-            <label className="text-sm font-medium">{t('locationFilter')}</label>
-            <select
+            <SearchableSelect
+              searchable
+              label={t('locationFilter')}
               value={selectedLocationId}
-              onChange={(event) => setSelectedLocationId(event.target.value)}
-              className="mt-1.5 flex h-10 w-full rounded-xl border border-border bg-card px-3 text-sm"
-            >
-              <option value="all">{t('allLocations')}</option>
-              {locations.map((location) => (
-                <option key={location.locationId} value={location.locationId}>
-                  {getLocationName(location, locale)}
-                </option>
-              ))}
-            </select>
+              onChange={setSelectedLocationId}
+              options={[
+                { value: 'all', label: t('allLocations') },
+                ...locations.map((location) => ({
+                  value: location.locationId,
+                  label: getLocationName(location, locale),
+                  keywords: [location.name_en, location.name_ar],
+                })),
+              ]}
+            />
           </div>
         )}
       </div>
 
       {locations.length === 0 || !hasUnits ? (
-        <Card className="mt-5">
+        <Card className="mt-4 p-4">
           <CardTitle>{t('locationOccupancyEmptyTitle')}</CardTitle>
           <CardDescription className="mt-2">{t('locationOccupancyEmptyDescription')}</CardDescription>
         </Card>
       ) : (
-        <div className="mt-6 grid gap-4 xl:grid-cols-2">
+        <div className="mt-4 grid gap-3 xl:grid-cols-2">
           {visibleLocations.map((location) => {
             const occupancyRate = location.totalUnits > 0
               ? Math.round((location.occupiedUnits / location.totalUnits) * 100)
@@ -100,31 +105,31 @@ export function LocationOccupancySection({
 
             return (
               <Link key={location.locationId} href={`/locations/${location.locationId}`} className="block">
-                <Card className="h-full border-amber-200/70 p-5 transition-shadow hover:shadow-md">
-                  <div className="flex items-center justify-between gap-4">
-                    <CardTitle className="truncate text-xl">{getLocationName(location, locale)}</CardTitle>
-                    <span className="shrink-0 rounded-xl bg-amber-50 px-4 py-2 text-lg font-bold text-amber-700">
+                <Card className="h-full border-amber-200/70 p-4 transition-shadow hover:shadow-md">
+                  <div className="flex items-center justify-between gap-3">
+                    <CardTitle className="truncate text-base">{getLocationName(location, locale)}</CardTitle>
+                    <span className="shrink-0 rounded-lg bg-amber-50 px-3 py-1.5 text-sm font-bold tabular-nums text-amber-700">
                       {formatNumber(occupancyRate, loc)}%
                     </span>
                   </div>
 
-                  <div className="mt-5 h-3 rounded-full bg-muted">
+                  <div className="mt-3 h-2 rounded-full bg-muted">
                     <div
-                      className="h-3 rounded-full bg-amber-600"
+                      className="h-2 rounded-full bg-amber-600"
                       style={{ width: `${occupancyRate}%` }}
                     />
                   </div>
 
-                  <div className="mt-5 grid grid-cols-3 gap-3">
+                  <div className="mt-3 grid grid-cols-3 gap-2">
                     {stats.map((stat) => (
-                      <div key={stat.key} className="rounded-xl bg-muted/50 px-3 py-3 text-center">
-                        <p className="text-xl font-bold tabular-nums">{formatNumber(stat.value, loc)}</p>
-                        <p className="mt-1 text-sm font-medium text-muted-foreground">{stat.label}</p>
+                      <div key={stat.key} className="rounded-lg bg-muted/50 px-2 py-2 text-center">
+                        <p className="text-base font-bold tabular-nums">{formatNumber(stat.value, loc)}</p>
+                        <p className="mt-0.5 text-xs font-medium text-muted-foreground">{stat.label}</p>
                       </div>
                     ))}
                   </div>
 
-                  <p className="mt-4 text-sm text-muted-foreground">
+                  <p className="mt-3 text-xs text-muted-foreground">
                     {t('locationUnitsSummary', { total: formatNumber(location.totalUnits, loc) })}
                   </p>
                 </Card>

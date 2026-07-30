@@ -49,11 +49,11 @@ export const FEATURE_FLAG_REGISTRY = {
     i18nKey: 'unitsOdooCatalogButton',
     revalidatePaths: (locale: string) => [`/${locale}/units`],
   },
-  odoo_cron_sync: {
+  odoo_service_catalog_button: {
     default: true,
     category: 'odoo',
-    i18nKey: 'odooCronSync',
-    revalidatePaths: () => [],
+    i18nKey: 'odooServiceCatalogButton',
+    revalidatePaths: (locale: string) => [`/${locale}/units`],
   },
   odoo_invoices_documents: {
     default: true,

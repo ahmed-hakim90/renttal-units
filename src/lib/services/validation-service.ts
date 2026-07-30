@@ -15,6 +15,35 @@ const phoneSchema = z
   .optional()
   .nullable();
 
+/** Soft tenant fields for drafts — invalid optional contact data is dropped, not rejected. */
+const optionalTenantSchema = z.object({
+  full_name: z.string().trim().optional().nullable(),
+  phone: z.string().trim().optional().nullable(),
+  email: z.string().trim().optional().nullable(),
+  national_id: z.string().trim().optional().nullable(),
+  odoo_partner_id: z.number().int().positive().nullable().optional(),
+  vat: z.string().trim().optional().nullable(),
+  street: z.string().trim().optional().nullable(),
+  city: z.string().trim().optional().nullable(),
+  country_code: z.string().trim().optional().nullable(),
+}).transform((tenant) => {
+  const phone = tenant.phone?.trim() || null;
+  const email = tenant.email?.trim() || null;
+  const nationalId = tenant.national_id ? normalizeNationalId(tenant.national_id) : null;
+  const country = tenant.country_code?.trim().toUpperCase().slice(0, 2) || null;
+  return {
+    full_name: tenant.full_name?.trim() || null,
+    phone: phone && /^[+0-9][0-9\s-]{6,20}$/.test(phone) ? phone : null,
+    email: email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : null,
+    national_id: nationalId && isValidSaudiNationalId(nationalId) ? nationalId : null,
+    odoo_partner_id: tenant.odoo_partner_id ?? null,
+    vat: tenant.vat?.trim() || null,
+    street: tenant.street?.trim() || null,
+    city: tenant.city?.trim() || null,
+    country_code: country && /^[A-Z]{2}$/.test(country) ? country : null,
+  };
+});
+
 const tenantSchema = z.object({
   full_name: z.string().trim().min(1, 'tenant name is required'),
   phone: phoneSchema,
@@ -197,33 +226,6 @@ const draftContractSchema = z.object({
   if (new Set(unitIds).size !== unitIds.length) {
     ctx.addIssue({ code: 'custom', path: ['lines'], message: 'duplicate rental units are not allowed' });
   }
-});
-
-const optionalTenantSchema = z.object({
-  full_name: z.string().trim().optional().nullable(),
-  phone: phoneSchema,
-  email: z
-    .union([
-      z.literal(''),
-      z.null(),
-      z.undefined(),
-      z.string().trim().email('tenant email must be valid'),
-    ])
-    .optional(),
-  national_id: z
-    .string()
-    .trim()
-    .optional()
-    .nullable()
-    .refine(
-      (value) => !value || isValidSaudiNationalId(normalizeNationalId(value)),
-      'national_id must be a valid Saudi ID/Iqama',
-    ),
-  odoo_partner_id: z.number().int().positive().nullable().optional(),
-  vat: z.string().trim().optional().nullable(),
-  street: z.string().trim().optional().nullable(),
-  city: z.string().trim().optional().nullable(),
-  country_code: z.string().trim().max(2).optional().nullable(),
 });
 
 const cancelContractSchema = z.object({

@@ -7,6 +7,7 @@ import { Button, buttonStyles } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ListSearch, useListSearchValue } from '@/components/ui/list-search';
 import { Modal } from '@/components/ui/modal';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Badge } from '@/components/ui/badge';
 import { CatalogProductSkeleton, LoadingRegion } from '@/components/ui/skeleton';
 import { createUnit, updateUnit, deleteUnit } from '@/lib/actions/units';
@@ -16,7 +17,8 @@ import {
   linkUnitToOdooProduct,
   refreshOdooUnitCatalog,
   searchOdooProducts,
-} from '@/lib/actions/odoo';
+  syncOdooServiceProductCatalog,
+} from '@/lib/actions/odoo-unit-catalog';
 import { isFeatureDisabledResult } from '@/lib/features';
 import {
   parseOdooProductLabel,
@@ -24,10 +26,10 @@ import {
   suggestUnitForOdooProduct,
 } from '@/lib/odoo/product-match';
 import { toast } from 'sonner';
-import { Building2, Clock3, Link2, MapPin, PackageSearch, Plus, Pencil, Search, Sparkles, Trash2 } from 'lucide-react';
+import { Building2, Clock3, Link2, MapPin, PackageSearch, Plus, Pencil, RefreshCw, Search, Sparkles, Trash2 } from 'lucide-react';
 import { formatDate } from '@/lib/i18n/format';
 import { matchesSearch } from '@/lib/search/matches-search';
-import type { Unit, Location, UnitStatus } from '@/types/database';
+import type { Unit, Location, OdooServiceProduct, UnitStatus } from '@/types/database';
 import type { Locale } from '@/lib/i18n/routing';
 
 type ManualUnitStatus = Extract<UnitStatus, 'vacant' | 'maintenance'>;
@@ -56,16 +58,22 @@ export function UnitsManager({
   locale,
   canEdit,
   showOdooCatalogButton,
+  showOdooServiceCatalogButton,
   allowCreateOdooProduct,
   allowLinkOdooProduct,
+  initialServiceProducts,
+  serviceCategoryId,
 }: {
   units: Unit[];
   locations: Location[];
   locale: string;
   canEdit: boolean;
   showOdooCatalogButton: boolean;
+  showOdooServiceCatalogButton: boolean;
   allowCreateOdooProduct: boolean;
   allowLinkOdooProduct: boolean;
+  initialServiceProducts: OdooServiceProduct[];
+  serviceCategoryId: number | null;
 }) {
   const t = useTranslations('units');
   const tc = useTranslations('common');
@@ -75,6 +83,7 @@ export function UnitsManager({
   const search = useListSearchValue();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Unit | null>(null);
+  const [formLocationId, setFormLocationId] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const isSavingRef = useRef(false);
   const [selectedStatus, setSelectedStatus] = useState<ManualUnitStatus>('vacant');
@@ -82,6 +91,10 @@ export function UnitsManager({
   const [productQuery, setProductQuery] = useState('');
   const [productResults, setProductResults] = useState<Array<{ id: number; name?: unknown; default_code?: unknown; display_name?: unknown }>>([]);
   const [productsOpen, setProductsOpen] = useState(false);
+  const [serviceProductsOpen, setServiceProductsOpen] = useState(false);
+  const [serviceProducts, setServiceProducts] = useState(initialServiceProducts);
+  const [serviceProductQuery, setServiceProductQuery] = useState('');
+  const [serviceProductsLoading, setServiceProductsLoading] = useState(false);
   const [catalogQuery, setCatalogQuery] = useState('');
   const [catalogLimit] = useState(500);
   const [catalogProducts, setCatalogProducts] = useState<OdooProductRow[]>([]);
@@ -113,6 +126,17 @@ export function UnitsManager({
       product.suggested_location_name,
     ].join(' ').toLowerCase().includes(term));
   }, [catalogProducts, catalogQuery]);
+  const visibleServiceProducts = useMemo(
+    () => serviceProducts.filter((product) => matchesSearch(serviceProductQuery, [
+      product.odoo_product_id,
+      product.name,
+      product.display_name,
+      product.default_code,
+      product.category_id,
+      product.category_name,
+    ])),
+    [serviceProductQuery, serviceProducts],
+  );
 
   const visibleUnits = useMemo(() => {
     const filteredByOdoo = units.filter((unit) => {
@@ -159,12 +183,14 @@ export function UnitsManager({
 
   function openCreateModal() {
     setEditing(null);
+    setFormLocationId('');
     setSelectedStatus('vacant');
     setOpen(true);
   }
 
   function openEditModal(unit: Unit) {
     setEditing(unit);
+    setFormLocationId(unit.location_id);
     setSelectedStatus(getManualStatus(unit));
     setOpen(true);
   }
@@ -288,6 +314,32 @@ export function UnitsManager({
   async function openProductsCatalog() {
     setProductsOpen(true);
     if (catalogProducts.length === 0) await handleLoadCatalogProducts();
+  }
+
+  async function handleSyncServiceProducts() {
+    if (serviceProductsLoading) return;
+    setServiceProductsLoading(true);
+    try {
+      const result = await syncOdooServiceProductCatalog(locale);
+      if (isFeatureDisabledResult(result)) {
+        toast.error(tFeature('featureDisabled'));
+        return;
+      }
+      if (!result.success) {
+        toast.error(
+          result.error === 'serviceCategoryNotConfigured'
+            ? t('serviceCategoryNotConfigured')
+            : t('serviceProductSyncFailed'),
+        );
+        return;
+      }
+      setServiceProducts(result.products);
+      toast.success(t('serviceProductsSynced', { count: result.count }));
+    } catch {
+      toast.error(t('serviceProductSyncFailed'));
+    } finally {
+      setServiceProductsLoading(false);
+    }
   }
 
   function toggleCatalogProduct(productId: number) {
@@ -458,12 +510,18 @@ export function UnitsManager({
             ))}
           </div>
         </div>
-        {(canEdit || showOdooCatalogButton) && (
+        {(canEdit || showOdooCatalogButton || showOdooServiceCatalogButton) && (
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
             {showOdooCatalogButton && (
               <Button variant="outline" className="w-full sm:w-auto" onClick={openProductsCatalog}>
                 <PackageSearch />
                 {t('loadOdooProducts')}
+              </Button>
+            )}
+            {showOdooServiceCatalogButton && (
+              <Button variant="outline" className="w-full sm:w-auto" onClick={() => setServiceProductsOpen(true)}>
+                <RefreshCw />
+                {t('serviceProducts')}
               </Button>
             )}
             {canEdit && (
@@ -675,13 +733,22 @@ export function UnitsManager({
 
       <Modal open={open} onClose={closeModal} title={editing ? t('edit') : t('create')}>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="text-sm font-medium">{t('location')}</label>
-            <select name="location_id" defaultValue={editing?.location_id} required className="field-control">
-              <option value="">{t('selectLocation')}</option>
-              {locations.map((l) => <option key={l.id} value={l.id}>{l.name_en}</option>)}
-            </select>
-          </div>
+          <SearchableSelect
+            searchable
+            name="location_id"
+            label={t('location')}
+            value={formLocationId}
+            onChange={setFormLocationId}
+            placeholder={t('selectLocation')}
+            options={[
+              { value: '', label: t('selectLocation') },
+              ...locations.map((location) => ({
+                value: location.id,
+                label: location.name_ar || location.name_en,
+                keywords: [location.name_en, location.name_ar, location.city, location.address],
+              })),
+            ]}
+          />
           <Input
             name="unit_number"
             label={editing?.odoo_product_id ? t('odooProductName') : t('unitNumber')}
@@ -834,13 +901,21 @@ export function UnitsManager({
               {selectedCatalogIds.size > 0 && (
                 <div className="flex flex-col gap-2 border-t border-border pt-3 sm:flex-row sm:items-end">
                   <div className="min-w-0 flex-1">
-                    <label className="text-sm font-medium">{t('bulkLocation')}</label>
-                    <select value={bulkLocationId} onChange={(event) => setBulkLocationId(event.target.value)} className="field-control">
-                      <option value="">{t('useSuggestedLocation')}</option>
-                      {locations.map((location) => (
-                        <option key={location.id} value={location.id}>{location.name_en}</option>
-                      ))}
-                    </select>
+                    <SearchableSelect
+                      searchable
+                      label={t('bulkLocation')}
+                      value={bulkLocationId}
+                      onChange={setBulkLocationId}
+                      placeholder={t('useSuggestedLocation')}
+                      options={[
+                        { value: '', label: t('useSuggestedLocation') },
+                        ...locations.map((location) => ({
+                          value: location.id,
+                          label: location.name_ar || location.name_en,
+                          keywords: [location.name_en, location.name_ar, location.city],
+                        })),
+                      ]}
+                    />
                   </div>
                   <Button type="button" onClick={handleBulkCreateUnits} disabled={catalogLoading}>
                     <Building2 />
@@ -924,18 +999,21 @@ export function UnitsManager({
                             {t('linkExistingUnit')}
                           </div>
                           <div className="flex flex-col gap-2 sm:flex-row">
-                            <select
-                              className="field-control mt-0 h-9 min-w-0 flex-1"
+                            <SearchableSelect
+                              searchable
+                              className="min-w-0 flex-1"
                               value={selectedUnitByProduct[product.id] ?? ''}
-                              onChange={(event) => setSelectedUnitByProduct((current) => ({ ...current, [product.id]: event.target.value }))}
-                            >
-                              <option value="">{t('selectUnit')}</option>
-                              {unitsForLink.map((unit) => (
-                                <option key={unit.id} value={unit.id}>
-                                  {unit.unit_number} · {unit.location?.name_en ?? '—'}
-                                </option>
-                              ))}
-                            </select>
+                              onChange={(value) => setSelectedUnitByProduct((current) => ({ ...current, [product.id]: value }))}
+                              placeholder={t('selectUnit')}
+                              options={[
+                                { value: '', label: t('selectUnit') },
+                                ...unitsForLink.map((unit) => ({
+                                  value: unit.id,
+                                  label: `${unit.unit_number} · ${unit.location?.name_ar || unit.location?.name_en || '—'}`,
+                                  keywords: [unit.unit_number, unit.location?.name_en, unit.location?.name_ar],
+                                })),
+                              ]}
+                            />
                             <Button type="button" variant="outline" size="sm" onClick={() => handleCatalogLinkProduct(product)}>
                               {t('link')}
                             </Button>
@@ -948,19 +1026,20 @@ export function UnitsManager({
                             {t('createUnitFromProduct')}
                           </div>
                           <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
-                            <select
-                              className="field-control mt-0 h-9"
+                            <SearchableSelect
+                              searchable
                               value={selectedLocationId}
-                              onChange={(event) => setCreateLocationByProduct((current) => ({ ...current, [product.id]: event.target.value }))}
-                            >
-                              <option value="">{t('selectLocation')}</option>
-                              {locations.map((location) => (
-                                <option key={location.id} value={location.id}>
-                                  {location.name_en}
-                                  {suggestedLocation?.id === location.id ? ` · ${t('suggestedLocation')}` : ''}
-                                </option>
-                              ))}
-                            </select>
+                              onChange={(value) => setCreateLocationByProduct((current) => ({ ...current, [product.id]: value }))}
+                              placeholder={t('selectLocation')}
+                              options={[
+                                { value: '', label: t('selectLocation') },
+                                ...locations.map((location) => ({
+                                  value: location.id,
+                                  label: `${location.name_ar || location.name_en}${suggestedLocation?.id === location.id ? ` · ${t('suggestedLocation')}` : ''}`,
+                                  keywords: [location.name_en, location.name_ar, location.city],
+                                })),
+                              ]}
+                            />
                             <Button type="button" size="sm" onClick={() => handleCatalogCreateUnit(product)}>
                               <Plus />
                               {t('create')}
@@ -975,6 +1054,85 @@ export function UnitsManager({
                   </div>
                 );
               })
+            )}
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={serviceProductsOpen}
+        onClose={() => setServiceProductsOpen(false)}
+        title={t('serviceProductsTitle')}
+        className="max-w-3xl"
+      >
+        <div className="space-y-4">
+          <div className="rounded-xl border border-border bg-muted/20 p-3 text-sm text-muted-foreground">
+            {serviceCategoryId ? (
+              <p>
+                {t('serviceProductsCategoryHint')}{' '}
+                <span className="font-medium text-foreground" dir="ltr">#{serviceCategoryId}</span>
+              </p>
+            ) : (
+              <p className="text-destructive">{t('serviceCategoryNotConfigured')}</p>
+            )}
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
+            <Input
+              name="service_product_search"
+              label={t('odooProductSearch')}
+              value={serviceProductQuery}
+              onChange={(event) => setServiceProductQuery(event.target.value)}
+              placeholder={t('odooProductSearchPlaceholder')}
+            />
+            <Button
+              type="button"
+              onClick={handleSyncServiceProducts}
+              disabled={!serviceCategoryId || serviceProductsLoading}
+              className="w-full sm:w-auto"
+            >
+              <RefreshCw className={serviceProductsLoading ? 'animate-spin' : undefined} />
+              {serviceProductsLoading ? tc('loading') : t('syncServiceProducts')}
+            </Button>
+          </div>
+
+          <p className="text-sm text-muted-foreground">
+            {t('serviceProductsCount', {
+              visible: visibleServiceProducts.length,
+              total: serviceProducts.length,
+            })}
+          </p>
+
+          <div className="max-h-[55vh] space-y-2 overflow-y-auto pe-1">
+            {visibleServiceProducts.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">
+                {t('noServiceProductsCached')}
+              </div>
+            ) : (
+              visibleServiceProducts.map((product) => (
+                <div
+                  key={product.odoo_product_id}
+                  className="rounded-xl border border-border bg-card p-3"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-medium" dir="auto">{product.display_name}</p>
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <Badge status="pending" label={`#${product.odoo_product_id}`} />
+                        {product.default_code && <Badge status="linked" label={product.default_code} />}
+                        {product.category_name && (
+                          <span className="text-xs text-muted-foreground" dir="auto">
+                            {product.category_name}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <span className="shrink-0 text-xs text-muted-foreground">
+                      {t('syncedAt', { date: formatDate(product.last_synced_at, loc) })}
+                    </span>
+                  </div>
+                </div>
+              ))
             )}
           </div>
         </div>

@@ -7,6 +7,7 @@ import { getLocationStatement } from '@/lib/actions/admin';
 import { Button } from '@/components/ui/button';
 import { Card, CardDescription, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { formatCurrency, formatDate, formatNumber } from '@/lib/i18n/format';
 import { exportLocationStatementExcel } from '@/lib/reports/location-statement-export';
 import { LoadingRegion, ReportResultsSkeleton } from '@/components/ui/skeleton';
@@ -132,19 +133,18 @@ export function LocationStatementReport({
     <div className="space-y-6">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div className="w-full max-w-sm">
-          <label className="text-sm font-medium">{t('filterByLocation')}</label>
-          <select
+          <SearchableSelect
+            searchable
+            label={t('filterByLocation')}
             value={locationId}
-            onChange={(event) => handleLocationChange(event.target.value)}
+            onChange={handleLocationChange}
             disabled={isPending}
-            className="mt-1.5 flex h-10 w-full rounded-xl border border-border bg-card px-3 text-sm"
-          >
-            {locations.map((location) => (
-              <option key={location.id} value={location.id}>
-                {getLocationName(location, locale)}
-              </option>
-            ))}
-          </select>
+            options={locations.map((location) => ({
+              value: location.id,
+              label: getLocationName(location, locale),
+              keywords: [location.name_en, location.name_ar, location.city],
+            }))}
+          />
         </div>
 
         {canExport && (

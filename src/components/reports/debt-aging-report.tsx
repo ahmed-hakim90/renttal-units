@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Card, CardDescription, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { formatCurrency, formatDate, formatNumber } from '@/lib/i18n/format';
 import { Download } from 'lucide-react';
 import {
@@ -15,6 +16,7 @@ import {
   sumBucketAmounts,
 } from '@/lib/rental/aging';
 import { exportDebtAgingExcel } from '@/lib/reports/debt-aging-export';
+import { cn } from '@/lib/utils';
 import type { Invoice, Location } from '@/types/database';
 import type { Locale } from '@/lib/i18n/routing';
 
@@ -32,10 +34,10 @@ function formatPeriod(start: string, end: string, loc: Locale): string {
 
 function AmountCell({ value, locale, bold = false }: { value: number; locale: Locale; bold?: boolean }) {
   if (value <= 0) {
-    return <td className="px-3 py-2.5 text-end text-muted-foreground">—</td>;
+    return <td className="px-2.5 py-2 text-end text-muted-foreground">—</td>;
   }
   return (
-    <td className={`px-3 py-2.5 text-end tabular-nums ${bold ? 'font-semibold' : ''}`}>
+    <td className={`px-2.5 py-2 text-end tabular-nums ${bold ? 'font-semibold' : ''}`}>
       {formatCurrency(value, locale)}
     </td>
   );
@@ -77,15 +79,18 @@ export function DebtAgingReport({
     ));
   }, [invoices, locale, locationId]);
 
-  const rows = useMemo(() => {
+  const filteredWithoutBucket = useMemo(() => {
     return buildAgingRows(invoices, asOfDate)
       .filter((row) => !locationId || row.invoice.unit?.location_id === locationId)
       .filter((row) => !unitId || row.invoice.unit_id === unitId)
-      .filter((row) => !bucketFilter || row.bucket === bucketFilter)
       .sort((a, b) => b.daysOverdue - a.daysOverdue || (a.invoice.unit?.unit_number ?? '').localeCompare(b.invoice.unit?.unit_number ?? ''));
-  }, [asOfDate, bucketFilter, invoices, locationId, unitId]);
+  }, [asOfDate, invoices, locationId, unitId]);
 
-  const bucketSummary = useMemo(() => buildBucketSummary(rows), [rows]);
+  const rows = useMemo(() => {
+    return filteredWithoutBucket.filter((row) => !bucketFilter || row.bucket === bucketFilter);
+  }, [bucketFilter, filteredWithoutBucket]);
+
+  const bucketSummary = useMemo(() => buildBucketSummary(filteredWithoutBucket), [filteredWithoutBucket]);
   const unitSummary = useMemo(
     () => buildUnitAgingSummary(rows, (invoice) => getLocationName(invoice, locale)),
     [locale, rows],
@@ -101,6 +106,10 @@ export function DebtAgingReport({
       rows: rows.filter((row) => row.bucket === bucket),
     })).filter((group) => group.rows.length > 0);
   }, [rows]);
+
+  function toggleBucketFilter(bucket: AgingBucketKey) {
+    setBucketFilter((current) => (current === bucket ? '' : bucket));
+  }
 
   async function exportExcel() {
     if (!canExport) return;
@@ -157,51 +166,49 @@ export function DebtAgingReport({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="text-sm text-muted-foreground">
+        <div className="min-w-0">
+          <p className="text-xs text-muted-foreground sm:text-sm">
             {t('asOfDate')}: <span className="font-medium text-foreground">{formatDate(asOfDate, loc)}</span>
           </p>
-          <p className="mt-1 text-sm text-muted-foreground">{t('debtAgingNote')}</p>
+          <p className="mt-0.5 text-xs text-muted-foreground sm:text-sm">{t('debtAgingNote')}</p>
         </div>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div>
-              <label htmlFor="debt-aging-location" className="text-sm font-medium">{t('filterByLocation')}</label>
-              <select
-                id="debt-aging-location"
-                value={locationId}
-                onChange={(event) => {
-                  setLocationId(event.target.value);
-                  setUnitId('');
-                }}
-                className="mt-1.5 flex h-10 w-full rounded-xl border border-border bg-card px-3 text-sm"
-              >
-                <option value="">{t('allLocations')}</option>
-                {locations.map((location) => (
-                  <option key={location.id} value={location.id}>
-                    {locale === 'ar' ? location.name_ar : location.name_en}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label htmlFor="debt-aging-unit" className="text-sm font-medium">{t('filterByUnit')}</label>
-              <select
-                id="debt-aging-unit"
-                value={unitId}
-                onChange={(event) => setUnitId(event.target.value)}
-                className="mt-1.5 flex h-10 w-full rounded-xl border border-border bg-card px-3 text-sm"
-              >
-                <option value="">{t('allUnits')}</option>
-                {units.map((unit) => (
-                  <option key={unit.id} value={unit.id}>
-                    {unit.unitNumber}
-                  </option>
-                ))}
-              </select>
-            </div>
+        <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-end lg:w-auto">
+          <div className="grid w-full gap-3 sm:grid-cols-3 lg:min-w-[36rem]">
+            <SearchableSelect
+              searchable
+              label={t('filterByLocation')}
+              value={locationId}
+              onChange={(value) => {
+                setLocationId(value);
+                setUnitId('');
+              }}
+              placeholder={t('allLocations')}
+              options={[
+                { value: '', label: t('allLocations') },
+                ...locations.map((location) => ({
+                  value: location.id,
+                  label: locale === 'ar' ? location.name_ar : location.name_en,
+                  keywords: [location.name_en, location.name_ar, location.city],
+                })),
+              ]}
+            />
+            <SearchableSelect
+              searchable
+              label={t('filterByUnit')}
+              value={unitId}
+              onChange={setUnitId}
+              placeholder={t('allUnits')}
+              options={[
+                { value: '', label: t('allUnits') },
+                ...units.map((unit) => ({
+                  value: unit.id,
+                  label: unit.unitNumber,
+                  keywords: [unit.unitNumber],
+                })),
+              ]}
+            />
             <div>
               <label htmlFor="debt-aging-bucket" className="text-sm font-medium">{t('bucket')}</label>
               <select
@@ -218,7 +225,7 @@ export function DebtAgingReport({
             </div>
           </div>
           {canExport && (
-            <Button type="button" onClick={exportExcel} disabled={rows.length === 0}>
+            <Button type="button" size="sm" onClick={exportExcel} disabled={rows.length === 0} className="shrink-0">
               <Download className="h-4 w-4" />
               {t('exportReport')}
             </Button>
@@ -226,62 +233,87 @@ export function DebtAgingReport({
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        {bucketSummary.map((bucket) => (
-          <Card key={bucket.bucket}>
-            <CardTitle className="text-sm text-muted-foreground">{t(bucket.bucket)}</CardTitle>
-            <p className="mt-2 text-2xl font-bold">{bucket.count}</p>
-            <p className="text-sm font-medium">{formatCurrency(bucket.totalAmount, loc)}</p>
-            <p className="text-xs text-muted-foreground">
-              {formatNumber(Math.round(bucket.percentage), loc)}%
-            </p>
-          </Card>
-        ))}
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Card className="p-4">
+          <CardDescription>{t('totalOutstanding')}</CardDescription>
+          <CardTitle className="mt-1.5 text-2xl tabular-nums tracking-tight">
+            {formatCurrency(totalAmount, loc)}
+          </CardTitle>
+        </Card>
+        <Card className="p-4">
+          <CardDescription>{t('totalInvoices')}</CardDescription>
+          <CardTitle className="mt-1.5 text-2xl tabular-nums tracking-tight">
+            {formatNumber(totalInvoices, loc)}
+          </CardTitle>
+        </Card>
+        <Card className="p-4">
+          <CardDescription>{t('totalUnits')}</CardDescription>
+          <CardTitle className="mt-1.5 text-2xl tabular-nums tracking-tight">
+            {formatNumber(totalUnits, loc)}
+          </CardTitle>
+        </Card>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Card>
-          <CardTitle className="text-sm text-muted-foreground">{t('totalOutstanding')}</CardTitle>
-          <p className="mt-2 text-3xl font-bold">{formatCurrency(totalAmount, loc)}</p>
-        </Card>
-        <Card>
-          <CardTitle className="text-sm text-muted-foreground">{t('totalInvoices')}</CardTitle>
-          <p className="mt-2 text-3xl font-bold">{formatNumber(totalInvoices, loc)}</p>
-        </Card>
-        <Card>
-          <CardTitle className="text-sm text-muted-foreground">{t('totalUnits')}</CardTitle>
-          <p className="mt-2 text-3xl font-bold">{formatNumber(totalUnits, loc)}</p>
-        </Card>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        {bucketSummary.map((bucket) => {
+          const selected = bucketFilter === bucket.bucket;
+          return (
+            <button
+              key={bucket.bucket}
+              type="button"
+              onClick={() => toggleBucketFilter(bucket.bucket)}
+              aria-pressed={selected}
+              className="text-start"
+            >
+              <Card
+                className={cn(
+                  'h-full p-4 transition-shadow hover:shadow-md',
+                  selected && 'border-primary ring-1 ring-primary/30',
+                )}
+              >
+                <CardDescription>{t(bucket.bucket)}</CardDescription>
+                <CardTitle className="mt-1.5 text-xl tabular-nums tracking-tight">
+                  {formatCurrency(bucket.totalAmount, loc)}
+                </CardTitle>
+                <p className="mt-1 text-xs font-medium text-muted-foreground">
+                  {formatNumber(bucket.count, loc)} · {formatNumber(Math.round(bucket.percentage), loc)}%
+                </p>
+              </Card>
+            </button>
+          );
+        })}
       </div>
 
       {rows.length === 0 ? (
-        <p className="text-muted-foreground">{t('noData')}</p>
+        <Card className="p-4">
+          <CardTitle>{t('noData')}</CardTitle>
+        </Card>
       ) : (
         <>
           <Card className="overflow-hidden p-0">
-            <div className="border-b border-border px-6 py-4">
-              <CardTitle>{t('summaryByUnit')}</CardTitle>
-              <CardDescription className="mt-1">{t('summaryByUnitDesc')}</CardDescription>
+            <div className="border-b border-border px-4 py-3">
+              <CardTitle className="text-base">{t('summaryByUnit')}</CardTitle>
+              <CardDescription className="mt-0.5 text-xs sm:text-sm">{t('summaryByUnitDesc')}</CardDescription>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[880px] text-sm">
                 <thead className="bg-muted/50">
                   <tr>
-                    <th className="px-4 py-3 text-start">{t('unit')}</th>
-                    <th className="px-4 py-3 text-start">{t('location')}</th>
-                    <th className="px-4 py-3 text-start">{t('paymentCycle')}</th>
+                    <th className="px-3 py-2.5 text-start">{t('unit')}</th>
+                    <th className="px-3 py-2.5 text-start">{t('location')}</th>
+                    <th className="px-3 py-2.5 text-start">{t('paymentCycle')}</th>
                     {AGING_BUCKET_KEYS.map((bucket) => (
-                      <th key={bucket} className="px-3 py-3 text-end">{t(bucket)}</th>
+                      <th key={bucket} className="px-2.5 py-2.5 text-end">{t(bucket)}</th>
                     ))}
-                    <th className="px-3 py-3 text-end">{t('total')}</th>
+                    <th className="px-2.5 py-2.5 text-end">{t('total')}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {unitSummary.map((unit) => (
                     <tr key={unit.unitId} className="border-t border-border">
-                      <td className="px-4 py-3 font-medium">{unit.unitNumber}</td>
-                      <td className="px-4 py-3">{unit.locationName}</td>
-                      <td className="px-4 py-3">
+                      <td className="px-3 py-2 font-medium">{unit.unitNumber}</td>
+                      <td className="px-3 py-2">{unit.locationName}</td>
+                      <td className="px-3 py-2">
                         {unit.paymentCycle ? tc(`paymentCycle.${unit.paymentCycle}`) : '—'}
                       </td>
                       {AGING_BUCKET_KEYS.map((bucket) => (
@@ -291,7 +323,7 @@ export function DebtAgingReport({
                     </tr>
                   ))}
                   <tr className="border-t-2 border-border bg-muted/30 font-semibold">
-                    <td className="px-4 py-3" colSpan={3}>{t('grandTotal')}</td>
+                    <td className="px-3 py-2" colSpan={3}>{t('grandTotal')}</td>
                     {AGING_BUCKET_KEYS.map((bucket) => (
                       <AmountCell key={bucket} value={bucketTotals[bucket]} locale={loc} bold />
                     ))}
@@ -303,32 +335,32 @@ export function DebtAgingReport({
           </Card>
 
           <Card className="overflow-hidden p-0">
-            <div className="border-b border-border px-6 py-4">
-              <CardTitle>{t('invoiceDetails')}</CardTitle>
-              <CardDescription className="mt-1">{t('invoiceDetailsDesc')}</CardDescription>
+            <div className="border-b border-border px-4 py-3">
+              <CardTitle className="text-base">{t('invoiceDetails')}</CardTitle>
+              <CardDescription className="mt-0.5 text-xs sm:text-sm">{t('invoiceDetailsDesc')}</CardDescription>
             </div>
 
-            <div className="grid gap-3 p-4 md:hidden">
+            <div className="grid gap-3 p-3 md:hidden">
               {groupedRows.map((group) => (
-                <div key={group.bucket} className="space-y-3">
-                  <div className="flex items-center justify-between rounded-xl bg-muted/40 px-4 py-2">
-                    <p className="font-semibold">{t(group.bucket)}</p>
+                <div key={group.bucket} className="space-y-2">
+                  <div className="flex items-center justify-between rounded-lg bg-muted/40 px-3 py-2">
+                    <p className="text-sm font-semibold">{t(group.bucket)}</p>
                     <p className="text-sm font-medium">
                       {formatCurrency(group.rows.reduce((sum, row) => sum + row.remaining, 0), loc)}
                     </p>
                   </div>
                   {group.rows.map((row) => (
-                    <Card key={row.invoice.id} className="p-4">
+                    <Card key={row.invoice.id} className="p-3">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="truncate font-semibold">{row.invoice.invoice_number}</p>
-                          <p className="text-sm text-muted-foreground">
+                          <p className="truncate text-sm font-semibold">{row.invoice.invoice_number}</p>
+                          <p className="text-xs text-muted-foreground">
                             {row.invoice.unit?.unit_number ?? '—'}
                           </p>
                         </div>
-                        <p className="shrink-0 font-semibold">{formatCurrency(row.remaining, loc)}</p>
+                        <p className="shrink-0 text-sm font-semibold">{formatCurrency(row.remaining, loc)}</p>
                       </div>
-                      <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                      <div className="mt-3 grid grid-cols-2 gap-2 text-xs sm:text-sm">
                         <div>
                           <p className="text-xs text-muted-foreground">{t('period')}</p>
                           <p>{formatPeriod(row.invoice.period_start, row.invoice.period_end, loc)}</p>
@@ -356,16 +388,16 @@ export function DebtAgingReport({
               <table className="w-full min-w-[1080px] text-sm">
                 <thead className="bg-muted/50">
                   <tr>
-                    <th className="px-4 py-3 text-start">{t('invoiceNumber')}</th>
-                    <th className="px-4 py-3 text-start">{t('unit')}</th>
-                    <th className="px-4 py-3 text-start">{t('location')}</th>
-                    <th className="px-4 py-3 text-start">{t('period')}</th>
-                    <th className="px-4 py-3 text-start">{t('dueDate')}</th>
-                    <th className="px-4 py-3 text-end">{t('daysOverdue')}</th>
-                    <th className="px-4 py-3 text-end">{t('amount')}</th>
-                    <th className="px-4 py-3 text-end">{t('paidAmount')}</th>
-                    <th className="px-4 py-3 text-end">{t('remainingAmount')}</th>
-                    <th className="px-4 py-3 text-start">{t('status')}</th>
+                    <th className="px-3 py-2.5 text-start">{t('invoiceNumber')}</th>
+                    <th className="px-3 py-2.5 text-start">{t('unit')}</th>
+                    <th className="px-3 py-2.5 text-start">{t('location')}</th>
+                    <th className="px-3 py-2.5 text-start">{t('period')}</th>
+                    <th className="px-3 py-2.5 text-start">{t('dueDate')}</th>
+                    <th className="px-3 py-2.5 text-end">{t('daysOverdue')}</th>
+                    <th className="px-3 py-2.5 text-end">{t('amount')}</th>
+                    <th className="px-3 py-2.5 text-end">{t('paidAmount')}</th>
+                    <th className="px-3 py-2.5 text-end">{t('remainingAmount')}</th>
+                    <th className="px-3 py-2.5 text-start">{t('status')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -380,8 +412,8 @@ export function DebtAgingReport({
                     />
                   ))}
                   <tr className="border-t-2 border-border bg-muted/30 font-semibold">
-                    <td className="px-4 py-3" colSpan={6}>{t('grandTotal')}</td>
-                    <td className="px-4 py-3 text-end tabular-nums" colSpan={3}>
+                    <td className="px-3 py-2" colSpan={6}>{t('grandTotal')}</td>
+                    <td className="px-3 py-2 text-end tabular-nums" colSpan={3}>
                       {formatCurrency(totalAmount, loc)}
                     </td>
                     <td />
@@ -414,28 +446,28 @@ function BucketDetailGroup({
   return (
     <>
       <tr className="bg-muted/40">
-        <td className="px-4 py-2.5 font-semibold" colSpan={10}>
+        <td className="px-3 py-2 font-semibold" colSpan={10}>
           {t(bucket)} · {rows.length} {t('invoicesLabel')} · {formatCurrency(subtotal, locale)}
         </td>
       </tr>
       {rows.map((row) => (
         <tr key={row.invoice.id} className="border-t border-border">
-          <td className="px-4 py-3">{row.invoice.invoice_number}</td>
-          <td className="px-4 py-3">{row.invoice.unit?.unit_number ?? '—'}</td>
-          <td className="px-4 py-3">
+          <td className="px-3 py-2">{row.invoice.invoice_number}</td>
+          <td className="px-3 py-2">{row.invoice.unit?.unit_number ?? '—'}</td>
+          <td className="px-3 py-2">
             {row.invoice.unit?.location
               ? locale === 'ar'
                 ? row.invoice.unit.location.name_ar || row.invoice.unit.location.name_en
                 : row.invoice.unit.location.name_en || row.invoice.unit.location.name_ar
               : '—'}
           </td>
-          <td className="px-4 py-3">{formatPeriod(row.invoice.period_start, row.invoice.period_end, locale)}</td>
-          <td className="px-4 py-3">{formatDate(row.invoice.due_date, locale)}</td>
-          <td className="px-4 py-3 text-end tabular-nums">{formatNumber(row.daysOverdue, locale)}</td>
-          <td className="px-4 py-3 text-end tabular-nums">{formatCurrency(Number(row.invoice.amount), locale)}</td>
-          <td className="px-4 py-3 text-end tabular-nums">{formatCurrency(Number(row.invoice.paid_amount), locale)}</td>
-          <td className="px-4 py-3 text-end tabular-nums font-medium">{formatCurrency(row.remaining, locale)}</td>
-          <td className="px-4 py-3">{ts(row.invoice.status)}</td>
+          <td className="px-3 py-2">{formatPeriod(row.invoice.period_start, row.invoice.period_end, locale)}</td>
+          <td className="px-3 py-2">{formatDate(row.invoice.due_date, locale)}</td>
+          <td className="px-3 py-2 text-end tabular-nums">{formatNumber(row.daysOverdue, locale)}</td>
+          <td className="px-3 py-2 text-end tabular-nums">{formatCurrency(Number(row.invoice.amount), locale)}</td>
+          <td className="px-3 py-2 text-end tabular-nums">{formatCurrency(Number(row.invoice.paid_amount), locale)}</td>
+          <td className="px-3 py-2 text-end tabular-nums font-medium">{formatCurrency(row.remaining, locale)}</td>
+          <td className="px-3 py-2">{ts(row.invoice.status)}</td>
         </tr>
       ))}
     </>

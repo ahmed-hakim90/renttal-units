@@ -1,8 +1,10 @@
 'use server';
 
 import { requirePermission } from '@/lib/auth/session';
+import { canMutateModule, hasPermission } from '@/lib/auth/permissions';
 import { getCorrelationId } from '@/lib/observability/correlation-id';
 import { unitsRepository } from '@/lib/repositories/units';
+import { locationsRepository } from '@/lib/repositories/locations';
 import { invoicesRepository } from '@/lib/repositories/invoices';
 import { contractsRepository } from '@/lib/repositories/contracts';
 import { auditService } from '@/lib/services/audit-service';
@@ -10,7 +12,9 @@ import { validationService } from '@/lib/services/validation-service';
 import { isUniqueViolation } from '@/lib/db/postgres-errors';
 import { revalidatePath } from 'next/cache';
 import type { UnitStatus } from '@/types/database';
-import { requireFeatureEnabled } from '@/lib/features/load-feature-flags';
+import { loadFeatureFlags, requireFeatureEnabled } from '@/lib/features/load-feature-flags';
+import { odooServiceProductsRepository } from '@/lib/repositories/odoo-service-products';
+import { getPublicOdooSettings } from '@/lib/odoo/settings';
 
 async function getCtx() {
   return { correlation_id: await getCorrelationId() };
@@ -23,6 +27,41 @@ function normalizeManualUnitStatus(status: UnitStatus | undefined): Extract<Unit
 export async function getUnits(locale: string, filters?: { locationId?: string; status?: string }) {
   const auth = await requirePermission(locale, 'units.view', await getCtx());
   return unitsRepository.findAll({ ...await getCtx(), user_id: auth.userId, role: auth.role }, filters);
+}
+
+export async function getUnitsPageData(locale: string) {
+  const auth = await requirePermission(locale, 'units.view', await getCtx());
+  const ctx = { ...await getCtx(), user_id: auth.userId, role: auth.role };
+  const canManageOdoo = hasPermission(auth, 'odoo.manage');
+
+  const [units, locations, featureFlags, odooSettings] = await Promise.all([
+    unitsRepository.findAll(ctx),
+    locationsRepository.findAll(ctx),
+    loadFeatureFlags(ctx),
+    getPublicOdooSettings(ctx).catch(() => null),
+  ]);
+
+  const showOdooServiceCatalogButton = canManageOdoo && featureFlags.odoo_service_catalog_button;
+  let serviceProducts: Awaited<ReturnType<typeof odooServiceProductsRepository.findActive>> = [];
+  if (showOdooServiceCatalogButton) {
+    serviceProducts = await odooServiceProductsRepository.findActive(ctx).catch(() => []);
+  }
+
+  const serviceCategoryId = odooSettings?.serviceCategoryId ?? null;
+
+  return {
+    units,
+    locations,
+    canEdit: canMutateModule(auth, 'units') && featureFlags.master_data_mutations,
+    showOdooCatalogButton: canManageOdoo && featureFlags.units_odoo_catalog_button,
+    showOdooServiceCatalogButton,
+    allowCreateOdooProduct: featureFlags.units_create_odoo_product,
+    allowLinkOdooProduct: featureFlags.units_link_odoo_product,
+    serviceProducts: serviceCategoryId == null
+      ? serviceProducts
+      : serviceProducts.filter((product) => product.category_id === serviceCategoryId),
+    serviceCategoryId,
+  };
 }
 
 export async function getUnitHistory(locale: string, unitId: string) {

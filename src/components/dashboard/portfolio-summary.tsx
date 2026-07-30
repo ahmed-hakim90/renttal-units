@@ -1,24 +1,17 @@
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/lib/i18n/navigation';
 import { Card, CardDescription, CardTitle } from '@/components/ui/card';
-import { formatCurrency } from '@/lib/i18n/format';
+import { formatCurrency, formatNumber } from '@/lib/i18n/format';
 import type { Locale } from '@/lib/i18n/routing';
-import { ScrollText } from 'lucide-react';
+import type { DashboardPortfolioSummary } from '@/types/database';
+import { Building2, DoorOpen, Wrench, ScrollText, Wallet } from 'lucide-react';
 
 export async function PortfolioSummary({
   summary,
   locale,
   canNavigate = true,
 }: {
-  summary: {
-    totalUnits: number;
-    totalLocations: number;
-    occupancyRate: number;
-    monthlyRevenue: number;
-    totalContracts: number;
-    totalContractsValue: number;
-    activeContracts: number;
-  };
+  summary: DashboardPortfolioSummary;
   locale: string;
   canNavigate?: boolean;
 }) {
@@ -26,45 +19,56 @@ export async function PortfolioSummary({
   const loc = locale as Locale;
 
   const cards = [
-    { key: 'totalUnits', value: summary.totalUnits, href: '/units' as const },
-    { key: 'totalLocations', value: summary.totalLocations, href: '/locations' as const },
-    { key: 'occupancyRate', value: `${summary.occupancyRate}%`, href: '/units' as const },
-    { key: 'monthlyRevenue', value: formatCurrency(summary.monthlyRevenue, loc), href: '/contracts' as const },
     {
-      key: 'totalContracts',
-      value: summary.totalContracts,
-      href: '/contracts' as const,
-      subtitle: t('activeContracts', { count: summary.activeContracts }),
-      icon: ScrollText,
-      iconColor: 'text-indigo-600 bg-indigo-50',
+      key: 'occupancyRate',
+      value: `${formatNumber(summary.occupancyRate, loc)}%`,
+      href: '/units' as const,
+      icon: Building2,
+      iconColor: 'bg-sky-50 text-sky-700',
     },
     {
-      key: 'totalContractsValue',
-      value: formatCurrency(summary.totalContractsValue, loc),
+      key: 'vacantUnits',
+      value: formatNumber(summary.vacantUnits, loc),
+      href: '/units' as const,
+      icon: DoorOpen,
+      iconColor: 'bg-amber-50 text-amber-700',
+    },
+    {
+      key: 'maintenanceUnits',
+      value: formatNumber(summary.maintenanceUnits, loc),
+      href: '/units' as const,
+      icon: Wrench,
+      iconColor: 'bg-orange-50 text-orange-700',
+    },
+    {
+      key: 'activeContractsLabel',
+      value: formatNumber(summary.activeContracts, loc),
       href: '/contracts' as const,
       icon: ScrollText,
-      iconColor: 'text-violet-600 bg-violet-50',
+      iconColor: 'bg-indigo-50 text-indigo-700',
+    },
+    {
+      key: 'monthlyRevenue',
+      value: formatCurrency(summary.monthlyRevenue, loc),
+      href: '/contracts' as const,
+      icon: Wallet,
+      iconColor: 'bg-emerald-50 text-emerald-700',
     },
   ];
 
   return (
-    <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
       {cards.map((card) => {
         const content = (
-          <Card className={canNavigate ? 'h-full transition-shadow hover:shadow-md' : 'h-full'}>
+          <Card className={`h-full p-4 ${canNavigate ? 'transition-shadow hover:shadow-md' : ''}`}>
             <div className="flex items-start justify-between gap-3">
-              <div>
+              <div className="min-w-0">
                 <CardDescription>{t(card.key)}</CardDescription>
-                <CardTitle className="mt-2 text-3xl">{card.value}</CardTitle>
-                {'subtitle' in card && card.subtitle && (
-                  <p className="mt-1 text-sm font-medium text-muted-foreground">{card.subtitle}</p>
-                )}
+                <CardTitle className="mt-1.5 text-2xl tabular-nums tracking-tight">{card.value}</CardTitle>
               </div>
-              {'icon' in card && card.icon && (
-                <div className={`rounded-xl p-2.5 ${card.iconColor}`}>
-                  <card.icon className="h-5 w-5" />
-                </div>
-              )}
+              <div className={`icon-tile ${card.iconColor}`}>
+                <card.icon className="h-4 w-4" />
+              </div>
             </div>
           </Card>
         );

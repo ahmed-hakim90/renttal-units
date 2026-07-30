@@ -4,9 +4,10 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Card, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Button, buttonStyles } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
+import { Link } from '@/lib/i18n/navigation';
 import { issueDueInvoice, recordPayment } from '@/lib/actions/invoices';
 import { useSingleSubmit } from '@/lib/hooks/use-single-submit';
 import { formatCurrency, formatDate, formatNumber } from '@/lib/i18n/format';
@@ -30,20 +31,22 @@ function getDaysUntilDue(dueDate: string) {
   return Math.ceil((due.getTime() - today.getTime()) / (24 * 60 * 60 * 1000));
 }
 
+const ACTIVITY_LIMIT = 3;
+
 export function RecentActivity({
+  overdueInvoices,
   dueInvoices,
-  awaitingInvoices,
   partialInvoices,
-  fullyPaidInvoices,
   locale,
   canEdit,
+  showPaymentStatusPages = true,
 }: {
+  overdueInvoices: Invoice[];
   dueInvoices: Invoice[];
-  awaitingInvoices: Invoice[];
   partialInvoices: Invoice[];
-  fullyPaidInvoices: Invoice[];
   locale: string;
   canEdit: boolean;
+  showPaymentStatusPages?: boolean;
 }) {
   const t = useTranslations('dashboard');
   const ti = useTranslations('invoices');
@@ -118,82 +121,104 @@ export function RecentActivity({
   }
 
   const sections = [
-    { key: 'dueThisMonth' as const, invoices: dueInvoices, action: 'issue' as const },
-    { key: 'awaitingPayment' as const, invoices: awaitingInvoices, action: 'pay' as const },
-    { key: 'partialPayments' as const, invoices: partialInvoices, action: 'pay' as const },
-    { key: 'fullyPaid' as const, invoices: fullyPaidInvoices, action: 'none' as const },
+    { key: 'overdue' as const, invoices: overdueInvoices, action: 'pay' as const, href: '/invoices' as const },
+    { key: 'dueThisMonth' as const, invoices: dueInvoices, action: 'issue' as const, href: '/due-this-month' as const },
+    ...(showPaymentStatusPages
+      ? [{ key: 'partialPayments' as const, invoices: partialInvoices, action: 'pay' as const, href: '/partial-payments' as const }]
+      : []),
   ];
 
   return (
     <>
-      <div className="mt-8 grid gap-6 xl:grid-cols-4">
-        {sections.map((section) => (
-          <Card key={section.key}>
-            <CardTitle className="mb-4 text-base">{t(section.key)}</CardTitle>
-            <div className="space-y-3">
-              {section.invoices.length === 0 ? (
-                <p className="text-sm text-muted-foreground">—</p>
-              ) : (
-                section.invoices.slice(0, 4).map((inv) => {
-                  const daysOverdue = getInvoiceDaysOverdue(inv.due_date);
-                  const daysUntilDue = getDaysUntilDue(inv.due_date);
-                  const isOldDue = isOldOutstandingDue(inv.due_date, inv.status);
+      <section className="mt-4">
+        <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <h2 className="text-base font-semibold tracking-tight">{t('actionableActivity')}</h2>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/invoices" className={buttonStyles({ variant: 'outline', size: 'sm' })}>
+              {t('viewAwaiting')}
+            </Link>
+            {showPaymentStatusPages && (
+              <Link href="/fully-paid" className={buttonStyles({ variant: 'ghost', size: 'sm' })}>
+                {t('viewFullyPaid')}
+              </Link>
+            )}
+          </div>
+        </div>
 
-                  return (
-                  <div key={inv.id} className={cn('rounded-lg border border-border p-3', getInvoiceRowHighlight(inv.due_date, inv.status))}>
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-medium">{inv.unit?.unit_number ?? inv.invoice_number}</p>
-                        <p className="text-xs text-muted-foreground">{formatDate(inv.due_date, loc)}</p>
-                        {isOldDue && (
-                          <p className="mt-1 text-xs font-medium text-amber-800">{ti('oldOutstanding')}</p>
-                        )}
+        <div className={cn('grid gap-3', sections.length >= 3 ? 'xl:grid-cols-3' : 'xl:grid-cols-2')}>
+          {sections.map((section) => (
+            <Card key={section.key} className="p-4">
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <CardTitle className="text-sm">{t(section.key)}</CardTitle>
+                <Link href={section.href} className="text-xs font-medium text-primary hover:underline">
+                  {t('viewAll')}
+                </Link>
+              </div>
+              <div className="space-y-2">
+                {section.invoices.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">—</p>
+                ) : (
+                  section.invoices.slice(0, ACTIVITY_LIMIT).map((inv) => {
+                    const daysOverdue = getInvoiceDaysOverdue(inv.due_date);
+                    const daysUntilDue = getDaysUntilDue(inv.due_date);
+                    const isOldDue = isOldOutstandingDue(inv.due_date, inv.status);
+
+                    return (
+                    <div key={inv.id} className={cn('rounded-lg border border-border p-2.5', getInvoiceRowHighlight(inv.due_date, inv.status))}>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium">{inv.unit?.unit_number ?? inv.invoice_number}</p>
+                          <p className="text-xs text-muted-foreground">{formatDate(inv.due_date, loc)}</p>
+                          {isOldDue && (
+                            <p className="mt-1 text-xs font-medium text-amber-800">{ti('oldOutstanding')}</p>
+                          )}
+                        </div>
+                        <div className="flex shrink-0 flex-col items-end gap-1">
+                          <Badge status={getInvoiceDisplayStatus(inv)} label={tc(getInvoiceDisplayStatus(inv))} />
+                          {daysOverdue > 0 && (
+                            <span className={cn('rounded-full px-2 py-0.5 text-[10px] font-medium', getOverdueBadgeClass(daysOverdue))}>
+                              {ti('daysOverdueLabel', { days: formatNumber(daysOverdue, loc) })}
+                            </span>
+                          )}
+                          {inv.status === 'due' && daysUntilDue >= 0 && daysUntilDue <= 3 && (
+                            <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-medium text-sky-800">
+                              {daysUntilDue === 0 ? ti('dueToday') : ti('dueSoonLabel', { days: formatNumber(daysUntilDue, loc) })}
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex flex-col items-end gap-1">
-                        <Badge status={getInvoiceDisplayStatus(inv)} label={tc(getInvoiceDisplayStatus(inv))} />
-                        {daysOverdue > 0 && (
-                          <span className={cn('rounded-full px-2 py-0.5 text-[10px] font-medium', getOverdueBadgeClass(daysOverdue))}>
-                            {ti('daysOverdueLabel', { days: formatNumber(daysOverdue, loc) })}
-                          </span>
-                        )}
-                        {inv.status === 'due' && daysUntilDue >= 0 && daysUntilDue <= 3 && (
-                          <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-medium text-sky-800">
-                            {daysUntilDue === 0 ? ti('dueToday') : ti('dueSoonLabel', { days: formatNumber(daysUntilDue, loc) })}
-                          </span>
-                        )}
-                      </div>
+                      <p className="mt-2 text-sm font-medium">{formatCurrency(Number(inv.amount) - Number(inv.paid_amount), loc)}</p>
+                      {canEdit && section.action === 'issue' && inv.status === 'due' && (
+                        <Button
+                          className="mt-2 w-full"
+                          size="sm"
+                          variant="issue"
+                          onClick={() => { setSelectedInvoice(inv); setIssueOpen(true); }}
+                        >
+                          <FileText />
+                          {ti('issueInvoice')}
+                        </Button>
+                      )}
+                      {canEdit && section.action === 'pay' && (
+                        <Button
+                          className="mt-2 w-full"
+                          size="sm"
+                          variant="payment"
+                          onClick={() => { setSelectedInvoice(inv); setPaymentMode('full'); setPayOpen(true); }}
+                        >
+                          <CreditCard />
+                          {ti('recordPayment')}
+                        </Button>
+                      )}
                     </div>
-                    <p className="mt-2 text-sm font-medium">{formatCurrency(Number(inv.amount) - Number(inv.paid_amount), loc)}</p>
-                    {canEdit && section.action === 'issue' && inv.status === 'due' && (
-                      <Button
-                        className="mt-3 w-full"
-                        size="sm"
-                        variant="issue"
-                        onClick={() => { setSelectedInvoice(inv); setIssueOpen(true); }}
-                      >
-                        <FileText />
-                        {ti('issueInvoice')}
-                      </Button>
-                    )}
-                    {canEdit && section.action === 'pay' && (
-                      <Button
-                        className="mt-3 w-full"
-                        size="sm"
-                        variant="payment"
-                        onClick={() => { setSelectedInvoice(inv); setPaymentMode('full'); setPayOpen(true); }}
-                      >
-                        <CreditCard />
-                        {ti('recordPayment')}
-                      </Button>
-                    )}
-                  </div>
-                  );
-                })
-              )}
-            </div>
-          </Card>
-        ))}
-      </div>
+                    );
+                  })
+                )}
+              </div>
+            </Card>
+          ))}
+        </div>
+      </section>
 
       <Modal open={issueOpen} onClose={() => !isSubmitting && setIssueOpen(false)} title={ti('issueInvoice')}>
         <form onSubmit={handleIssue} className="space-y-4">

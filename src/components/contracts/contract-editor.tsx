@@ -24,8 +24,10 @@ import { uploadContractPdf } from '@/lib/actions/contract-attachments';
 import { searchOdooPartners, searchOdooProducts } from '@/lib/actions/odoo';
 import { Button, buttonStyles } from '@/components/ui/button';
 import { Input, InputControl } from '@/components/ui/input';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Link, useRouter } from '@/lib/i18n/navigation';
 import { formatCurrency, formatDate } from '@/lib/i18n/format';
+import { normalizeArabicDigits } from '@/lib/i18n/numbers';
 import {
   previewContractInvoices,
   sumContractLineAmounts,
@@ -52,7 +54,7 @@ type OdooPartnerResult = {
   country_code?: unknown;
 };
 
-type OdooServiceProduct = {
+export type ContractServiceProductOption = {
   id: number;
   name: string;
   default_code: string | null;
@@ -218,7 +220,31 @@ function SheetSection({
   );
 }
 
-const fieldClassName = 'shadow-none';
+function unitSelectLabel(unit: Unit) {
+  return unit.unit_number?.trim() || unit.odoo_product_reference?.trim() || unit.id;
+}
+
+function unitSelectKeywords(unit: Unit) {
+  return [
+    unit.unit_number,
+    unit.odoo_product_reference,
+    unit.odoo_product_name,
+    unit.location?.name_en,
+    unit.location?.name_ar,
+    unit.odoo_product_id,
+  ];
+}
+
+/** Units with an active contract stay out of the picker, except the line's current value. */
+function selectableUnitsForLine(units: Unit[], selectedUnitIds: Set<string>, lineUnitId: string) {
+  return units.filter((unit) => {
+    if (unit.id === lineUnitId) return true;
+    if (selectedUnitIds.has(unit.id)) return false;
+    if (unit.active_contract) return false;
+    if (unit.status === 'occupied') return false;
+    return true;
+  });
+}
 
 function buildInitialForm(initialValues?: ContractEditorInitialValues): ContractFormValues {
   return {
@@ -226,6 +252,32 @@ function buildInitialForm(initialValues?: ContractEditorInitialValues): Contract
     ...initialValues,
     lines: initialValues?.lines ?? [],
   };
+}
+
+function buildInitialServiceProductOptions(
+  cachedProducts: ContractServiceProductOption[],
+  initialValues?: ContractEditorInitialValues,
+) {
+  const products = [...cachedProducts];
+  const knownIds = new Set(products.map((product) => product.id));
+  for (const line of initialValues?.lines ?? []) {
+    const productId = Number(line.odoo_product_id);
+    if (
+      line.line_type !== 'service'
+      || !Number.isSafeInteger(productId)
+      || productId <= 0
+      || knownIds.has(productId)
+    ) continue;
+    const label = line.odoo_product_name?.trim() || line.description?.trim() || String(productId);
+    products.push({
+      id: productId,
+      name: label,
+      display_name: label,
+      default_code: null,
+    });
+    knownIds.add(productId);
+  }
+  return products;
 }
 
 export function ContractEditor({
@@ -237,6 +289,7 @@ export function ContractEditor({
   openingBalanceEnabled,
   multiLineEnabled = true,
   canDeleteDraft = false,
+  initialServiceProducts = [],
 }: {
   mode: 'create' | 'edit-draft';
   contractId?: string | null;
@@ -246,6 +299,7 @@ export function ContractEditor({
   openingBalanceEnabled: boolean;
   multiLineEnabled?: boolean;
   canDeleteDraft?: boolean;
+  initialServiceProducts?: ContractServiceProductOption[];
 }) {
   const t = useTranslations('contracts');
   const tc = useTranslations('common');
@@ -270,8 +324,10 @@ export function ContractEditor({
   );
   const [partnerQuery, setPartnerQuery] = useState(initialValues?.tenant_name ?? '');
   const [partnerResults, setPartnerResults] = useState<OdooPartnerResult[]>([]);
-  const [serviceProducts, setServiceProducts] = useState<OdooServiceProduct[]>([]);
-  const [serviceProductsLoaded, setServiceProductsLoaded] = useState(false);
+  const [serviceProducts, setServiceProducts] = useState<ContractServiceProductOption[]>(
+    () => buildInitialServiceProductOptions(initialServiceProducts, initialValues),
+  );
+  const serviceProductsLoadStartedRef = useRef(initialServiceProducts.length > 0);
   const [isSearchingPartners, setIsSearchingPartners] = useState(false);
   const partnerSearchSeq = useRef(0);
   const [notes, setNotes] = useState(initialValues?.notes ?? '');
@@ -341,16 +397,15 @@ export function ContractEditor({
   }, [multiLineEnabled, values.lines.length]);
 
   useEffect(() => {
-    if (values.lines.some((line) => line.line_type === 'service') && !serviceProductsLoaded) {
-      setServiceProductsLoaded(true);
-      void searchOdooProducts(locale, '', 500, 'service')
-        .then((products) => setServiceProducts(products as OdooServiceProduct[]))
-        .catch(() => {
-          setServiceProducts([]);
-          toast.error(t('serviceProductsLoadFailed'));
-        });
-    }
-  }, [locale, serviceProductsLoaded, t, values.lines]);
+    if (!values.lines.some((line) => line.line_type === 'service')) return;
+    if (serviceProductsLoadStartedRef.current) return;
+    serviceProductsLoadStartedRef.current = true;
+    void searchOdooProducts(locale, '', 500, 'service')
+      .then((products) => setServiceProducts(products as ContractServiceProductOption[]))
+      .catch(() => {
+        toast.error(t('serviceProductsLoadFailed'));
+      });
+  }, [locale, t, values.lines]);
 
   function fieldError(field: ContractFormField): string | undefined {
     if (!(attempted || touched[field])) return undefined;
@@ -390,12 +445,11 @@ export function ContractEditor({
   }
 
   function ensureServiceProductsLoaded() {
-    if (serviceProductsLoaded) return;
-    setServiceProductsLoaded(true);
+    if (serviceProductsLoadStartedRef.current) return;
+    serviceProductsLoadStartedRef.current = true;
     void searchOdooProducts(locale, '', 500, 'service')
-      .then((products) => setServiceProducts(products as OdooServiceProduct[]))
+      .then((products) => setServiceProducts(products as ContractServiceProductOption[]))
       .catch(() => {
-        setServiceProducts([]);
         toast.error(t('serviceProductsLoadFailed'));
       });
   }
@@ -449,6 +503,32 @@ export function ContractEditor({
     if (error === 'contractDraftDeleteFailed') return t('contractDraftDeleteFailed');
     if (error === 'contractNotFound') return t('contractNotFound');
     if (error === 'contractHasFinancialActivity') return t('contractHasFinancialActivity');
+    if (error === 'openingBalanceOutOfRange') return t('validation.paidThroughOutOfRange');
+    if (error === 'contractDatesInvalid') return t('validation.startDateInvalid');
+    return t('validationFailed');
+  }
+
+  function firstValidationMessage(fieldErrors: ReturnType<typeof validateContractForm>) {
+    const order: ContractFormField[] = [
+      'contract_number',
+      'tenant_name',
+      'start_date',
+      'end_date',
+      'unit_id',
+      'lines',
+      'total_amount',
+      'paid_through_date',
+      'opening_paid_amount',
+      'last_payment_date',
+      'tenant_email',
+      'tenant_national_id',
+      'payment_cycle',
+      'schedule',
+    ];
+    for (const field of order) {
+      const code = fieldErrors[field];
+      if (code) return t(`validation.${code}` as `validation.${ContractFormErrorCode}`);
+    }
     return t('validationFailed');
   }
 
@@ -553,14 +633,14 @@ export function ContractEditor({
       opening_payment_date: openingBalanceEnabled ? values.last_payment_date.trim() || null : null,
       opening_notes: openingBalanceEnabled ? values.opening_notes.trim() || null : null,
       tenant_name: values.tenant_name.trim(),
-      tenant_phone: tenantPhone.trim() || null,
+      tenant_phone: normalizeArabicDigits(tenantPhone).trim() || null,
       tenant_email: values.tenant_email.trim() || null,
       tenant_national_id: values.tenant_national_id.trim() || null,
       tenant_odoo_partner_id: tenantOdooPartnerId,
       tenant_vat: tenantVat.trim() || null,
       tenant_street: tenantStreet.trim() || null,
       tenant_city: tenantCity.trim() || null,
-      tenant_country_code: tenantCountryCode.trim() || null,
+      tenant_country_code: tenantCountryCode.trim().toUpperCase().slice(0, 2) || null,
       sync_tenant_to_odoo: syncTenantToOdoo,
       lines: mapLinesForPayload(),
     };
@@ -582,14 +662,14 @@ export function ContractEditor({
       opening_payment_date: openingBalanceEnabled ? values.last_payment_date.trim() || null : null,
       opening_notes: openingBalanceEnabled ? values.opening_notes.trim() || null : null,
       tenant_name: values.tenant_name.trim() || null,
-      tenant_phone: tenantPhone.trim() || null,
+      tenant_phone: normalizeArabicDigits(tenantPhone).trim() || null,
       tenant_email: values.tenant_email.trim() || null,
       tenant_national_id: values.tenant_national_id.trim() || null,
       tenant_odoo_partner_id: tenantOdooPartnerId,
       tenant_vat: tenantVat.trim() || null,
       tenant_street: tenantStreet.trim() || null,
       tenant_city: tenantCity.trim() || null,
-      tenant_country_code: tenantCountryCode.trim() || null,
+      tenant_country_code: tenantCountryCode.trim().toUpperCase().slice(0, 2) || null,
       lines: mapLinesForPayload(),
     };
   }
@@ -611,7 +691,11 @@ export function ContractEditor({
     setValidationMode('draft');
     setAttempted(true);
     const draftErrors = validateContractForm(formValues, { mode: 'draft' });
-    if (Object.keys(draftErrors).length > 0 || isSaving) return;
+    if (Object.keys(draftErrors).length > 0) {
+      toast.error(firstValidationMessage(draftErrors));
+      return;
+    }
+    if (isSaving) return;
 
     setIsSaving(true);
     try {
@@ -640,9 +724,14 @@ export function ContractEditor({
     const strictErrors = validateContractForm(formValues, { requireUnit: true });
     if (!tenantOdooPartnerId) {
       touch('tenant_name');
+      toast.error(t('odooPartnerRequired'));
       return;
     }
-    if (Object.keys(strictErrors).length > 0 || isSaving) return;
+    if (Object.keys(strictErrors).length > 0) {
+      toast.error(firstValidationMessage(strictErrors));
+      return;
+    }
+    if (isSaving) return;
 
     setIsSaving(true);
     try {
@@ -681,7 +770,7 @@ export function ContractEditor({
   }
 
   const cellInputClass = cn(
-    'h-8 w-full rounded-md border border-transparent bg-transparent px-2 text-sm',
+    'h-8 w-full rounded-md border border-transparent bg-transparent text-sm',
     'hover:border-border focus-visible:border-ring focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/30',
   );
 
@@ -746,7 +835,7 @@ export function ContractEditor({
                 label={t('contractNumber')}
                 icon={<Icon><Hash /></Icon>}
                 dense
-                className={fieldClassName}
+                className="shadow-none"
                 value={values.contract_number}
                 onChange={(e) => setField('contract_number', e.target.value)}
                 onBlur={() => touch('contract_number')}
@@ -760,7 +849,7 @@ export function ContractEditor({
                   type="date"
                   icon={<Icon><CalendarDays /></Icon>}
                   dense
-                  className={fieldClassName}
+                  className="shadow-none"
                   value={values.start_date}
                   onChange={(e) => setField('start_date', e.target.value)}
                   onBlur={() => touch('start_date')}
@@ -774,7 +863,7 @@ export function ContractEditor({
                   type="date"
                   icon={<Icon><CalendarDays /></Icon>}
                   dense
-                  className={fieldClassName}
+                  className="shadow-none"
                   value={values.end_date}
                   onChange={(e) => setField('end_date', e.target.value)}
                   onBlur={() => touch('end_date')}
@@ -824,7 +913,7 @@ export function ContractEditor({
                   label={t('odooPartnerSearch')}
                   icon={<Icon><Search /></Icon>}
                   dense
-                  className={fieldClassName}
+                  className="shadow-none"
                   value={partnerQuery}
                   onChange={(e) => {
                     const nextQuery = e.target.value;
@@ -896,19 +985,19 @@ export function ContractEditor({
             <div className="rounded-lg border border-border">
               {/* Desktop Odoo-style editable table */}
               <div className="hidden md:block">
-                <table className="w-full text-sm">
+                <table className="w-full table-fixed text-sm">
                   <thead className="border-b border-border bg-muted/50">
                     <tr>
-                      <th className="w-32 px-2 py-1.5 text-start text-[11px] font-semibold text-muted-foreground">
+                      <th className="w-[7.5rem] px-2 py-1.5 text-start text-[11px] font-semibold text-muted-foreground">
                         {t('lineType')}
                       </th>
-                      <th className="min-w-[12rem] px-2 py-1.5 text-start text-[11px] font-semibold text-muted-foreground">
+                      <th className="w-[32%] px-2 py-1.5 text-start text-[11px] font-semibold text-muted-foreground">
                         {t('unit')} / {t('serviceProduct')}
                       </th>
-                      <th className="min-w-[10rem] px-2 py-1.5 text-start text-[11px] font-semibold text-muted-foreground">
+                      <th className="px-2 py-1.5 text-start text-[11px] font-semibold text-muted-foreground">
                         {t('lineDescription')}
                       </th>
-                      <th className="w-40 px-2 py-1.5 text-end text-[11px] font-semibold text-muted-foreground">
+                      <th className="w-[8.5rem] px-2 py-1.5 text-end text-[11px] font-semibold text-muted-foreground">
                         {t('lineAmount')}
                       </th>
                       <th className="w-10 px-1 py-1.5" aria-label={tc('actions')} />
@@ -923,12 +1012,10 @@ export function ContractEditor({
                       </tr>
                     ) : (
                       values.lines.map((line) => {
-                        const availableUnits = units.filter((unit) => (
-                          !selectedUnitIds.has(unit.id) || unit.id === line.unit_id
-                        ));
+                        const availableUnits = selectableUnitsForLine(units, selectedUnitIds, line.unit_id);
                         return (
                           <tr key={line.key} className="border-b border-border last:border-b-0 hover:bg-muted/20">
-                            <td className="px-1 py-1 align-middle">
+                            <td className="max-w-0 px-1 py-1 align-middle">
                               {multiLineEnabled ? (
                                 <SelectField
                                   compact
@@ -944,60 +1031,80 @@ export function ContractEditor({
                                 <span className="px-2 text-xs text-muted-foreground">{t('rentalLine')}</span>
                               )}
                             </td>
-                            <td className="px-1 py-1 align-middle">
+                            <td className="max-w-0 px-1 py-1 align-middle">
                               {line.line_type === 'rental' ? (
-                                <SelectField
+                                <SearchableSelect
                                   compact
+                                  searchable
+                                  className="min-w-0"
                                   label={t('unit')}
                                   name={`unit-${line.key}`}
                                   value={line.unit_id}
+                                  placeholder={t('selectUnit')}
+                                  error={fieldError('unit_id') || fieldError('lines')}
                                   onChange={(value) => updateLine(line.key, { unit_id: value })}
-                                >
-                                  <option value="">{t('selectUnit')}</option>
-                                  {availableUnits.map((unit) => (
-                                    <option key={unit.id} value={unit.id}>
-                                      {unit.unit_number} - {unit.location?.name_en ?? ''}
-                                    </option>
-                                  ))}
-                                </SelectField>
+                                  options={[
+                                    { value: '', label: t('selectUnit') },
+                                    ...availableUnits.map((unit) => ({
+                                      value: unit.id,
+                                      label: unitSelectLabel(unit),
+                                      keywords: unitSelectKeywords(unit),
+                                    })),
+                                  ]}
+                                />
                               ) : (
-                                <SelectField
+                                <SearchableSelect
                                   compact
+                                  searchable
+                                  className="min-w-0"
                                   label={t('serviceProduct')}
                                   name={`service-product-${line.key}`}
                                   value={line.odoo_product_id}
+                                  placeholder={t('selectServiceProduct')}
+                                  error={fieldError('lines')}
                                   onChange={(value) => selectServiceProduct(line.key, value)}
-                                >
-                                  <option value="">{t('selectServiceProduct')}</option>
-                                  {serviceProducts.map((product) => (
-                                    <option key={product.id} value={product.id}>
-                                      {product.display_name || product.name}
-                                    </option>
-                                  ))}
-                                </SelectField>
+                                  options={[
+                                    { value: '', label: t('selectServiceProduct') },
+                                    ...serviceProducts.map((product) => ({
+                                      value: String(product.id),
+                                      label: product.display_name || product.name,
+                                      keywords: [product.name, product.default_code, product.id],
+                                    })),
+                                  ]}
+                                />
                               )}
                             </td>
-                            <td className="px-1 py-1 align-middle">
-                              <InputControl
-                                name={`description-${line.key}`}
-                                aria-label={t('lineDescription')}
-                                className={cellInputClass}
-                                value={line.description}
-                                onChange={(e) => updateLine(line.key, { description: e.target.value })}
-                                placeholder={line.line_type === 'service' ? t('serviceFeePlaceholder') : undefined}
-                              />
+                            <td className="max-w-0 px-1 py-1 align-middle">
+                              <div className="relative min-w-0">
+                                <span className="pointer-events-none absolute inset-y-0 start-0 z-[1] flex w-7 items-center justify-center text-muted-foreground" aria-hidden="true">
+                                  <FileText className="size-3.5" />
+                                </span>
+                                <InputControl
+                                  name={`description-${line.key}`}
+                                  aria-label={t('lineDescription')}
+                                  className={cn(cellInputClass, 'min-w-0 ps-7 pe-2')}
+                                  value={line.description}
+                                  onChange={(e) => updateLine(line.key, { description: e.target.value })}
+                                  placeholder={line.line_type === 'service' ? t('serviceFeePlaceholder') : undefined}
+                                />
+                              </div>
                             </td>
                             <td className="px-1 py-1 align-middle">
-                              <InputControl
-                                name={`amount-${line.key}`}
-                                aria-label={t('lineAmount')}
-                                type="number"
-                                step="0.01"
-                                min="0.01"
-                                className={cn(cellInputClass, 'text-end tabular-nums')}
-                                value={line.amount}
-                                onChange={(e) => updateLine(line.key, { amount: e.target.value })}
-                              />
+                              <div className="relative min-w-0">
+                                <span className="pointer-events-none absolute inset-y-0 start-0 z-[1] flex w-7 items-center justify-center text-muted-foreground" aria-hidden="true">
+                                  <Wallet className="size-3.5" />
+                                </span>
+                                <InputControl
+                                  name={`amount-${line.key}`}
+                                  aria-label={t('lineAmount')}
+                                  type="number"
+                                  step="0.01"
+                                  min="0.01"
+                                  className={cn(cellInputClass, 'min-w-0 ps-7 pe-2 text-end tabular-nums')}
+                                  value={line.amount}
+                                  onChange={(e) => updateLine(line.key, { amount: e.target.value })}
+                                />
+                              </div>
                             </td>
                             <td className="px-1 py-1 align-middle text-end">
                               <Button
@@ -1058,9 +1165,7 @@ export function ContractEditor({
                 ) : (
                   <ul className="divide-y divide-border">
                     {values.lines.map((line) => {
-                      const availableUnits = units.filter((unit) => (
-                        !selectedUnitIds.has(unit.id) || unit.id === line.unit_id
-                      ));
+                      const availableUnits = selectableUnitsForLine(units, selectedUnitIds, line.unit_id);
                       return (
                         <li key={line.key} className="space-y-2 p-3">
                           <div className="flex items-start justify-between gap-2">
@@ -1090,37 +1195,45 @@ export function ContractEditor({
                             </Button>
                           </div>
                           {line.line_type === 'rental' ? (
-                            <SelectField
+                            <SearchableSelect
+                              searchable
                               label={t('unit')}
                               name={`unit-m-${line.key}`}
                               value={line.unit_id}
+                              placeholder={t('selectUnit')}
                               onChange={(value) => updateLine(line.key, { unit_id: value })}
-                            >
-                              <option value="">{t('selectUnit')}</option>
-                              {availableUnits.map((unit) => (
-                                <option key={unit.id} value={unit.id}>
-                                  {unit.unit_number} - {unit.location?.name_en ?? ''}
-                                </option>
-                              ))}
-                            </SelectField>
+                              options={[
+                                { value: '', label: t('selectUnit') },
+                                ...availableUnits.map((unit) => ({
+                                  value: unit.id,
+                                  label: unitSelectLabel(unit),
+                                  keywords: unitSelectKeywords(unit),
+                                })),
+                              ]}
+                            />
                           ) : (
-                            <SelectField
+                            <SearchableSelect
+                              searchable
                               label={t('serviceProduct')}
                               name={`service-product-m-${line.key}`}
                               value={line.odoo_product_id}
+                              placeholder={t('selectServiceProduct')}
                               onChange={(value) => selectServiceProduct(line.key, value)}
-                            >
-                              <option value="">{t('selectServiceProduct')}</option>
-                              {serviceProducts.map((product) => (
-                                <option key={product.id} value={product.id}>
-                                  {product.display_name || product.name}
-                                </option>
-                              ))}
-                            </SelectField>
+                              options={[
+                                { value: '', label: t('selectServiceProduct') },
+                                ...serviceProducts.map((product) => ({
+                                  value: String(product.id),
+                                  label: product.display_name || product.name,
+                                  keywords: [product.name, product.default_code, product.id],
+                                })),
+                              ]}
+                            />
                           )}
                           <Input
                             name={`description-m-${line.key}`}
                             label={t('lineDescription')}
+                            icon={<Icon><FileText /></Icon>}
+                            dense
                             value={line.description}
                             onChange={(e) => updateLine(line.key, { description: e.target.value })}
                             placeholder={line.line_type === 'service' ? t('serviceFeePlaceholder') : undefined}
@@ -1131,6 +1244,8 @@ export function ContractEditor({
                             type="number"
                             step="0.01"
                             min="0.01"
+                            icon={<Icon><Wallet /></Icon>}
+                            dense
                             value={line.amount}
                             onChange={(e) => updateLine(line.key, { amount: e.target.value })}
                           />
@@ -1177,7 +1292,7 @@ export function ContractEditor({
                   type="date"
                   icon={<Icon><CalendarDays /></Icon>}
                   dense
-                  className={fieldClassName}
+                  className="shadow-none"
                   value={values.paid_through_date}
                   onChange={(e) => setField('paid_through_date', e.target.value)}
                   onBlur={() => touch('paid_through_date')}
@@ -1193,7 +1308,7 @@ export function ContractEditor({
                   min="0"
                   icon={<Icon><Wallet /></Icon>}
                   dense
-                  className={fieldClassName}
+                  className="shadow-none"
                   value={values.opening_paid_amount}
                   onChange={(e) => setField('opening_paid_amount', e.target.value)}
                   onBlur={() => touch('opening_paid_amount')}
@@ -1205,7 +1320,7 @@ export function ContractEditor({
                   type="date"
                   icon={<Icon><CalendarDays /></Icon>}
                   dense
-                  className={fieldClassName}
+                  className="shadow-none"
                   value={values.last_payment_date}
                   onChange={(e) => setField('last_payment_date', e.target.value)}
                   onBlur={() => touch('last_payment_date')}
@@ -1218,7 +1333,7 @@ export function ContractEditor({
                   label={t('openingNotes')}
                   icon={<Icon><FileText /></Icon>}
                   dense
-                  className={fieldClassName}
+                  className="shadow-none"
                   value={values.opening_notes}
                   onChange={(e) => setField('opening_notes', e.target.value)}
                 />
@@ -1232,7 +1347,7 @@ export function ContractEditor({
               label={t('notes')}
               icon={<Icon><FileText /></Icon>}
               dense
-              className={fieldClassName}
+              className="shadow-none"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
             />

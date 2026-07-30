@@ -16,8 +16,12 @@ export async function middleware(request: NextRequest) {
   const intlResponse = intlMiddleware(request);
 
   supabaseResponse.cookies.getAll().forEach((cookie) => {
-    intlResponse.cookies.set(cookie.name, cookie.value);
+    intlResponse.cookies.set(cookie);
   });
+  for (const headerName of ['cache-control', 'expires', 'pragma']) {
+    const value = supabaseResponse.headers.get(headerName);
+    if (value) intlResponse.headers.set(headerName, value);
+  }
 
   intlResponse.headers.set('x-correlation-id', correlationId);
   return intlResponse;

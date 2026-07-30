@@ -13,7 +13,7 @@ import { unitsRepository } from '@/lib/repositories/units';
 import { tenantsRepository } from '@/lib/repositories/tenants';
 import { auditService } from '@/lib/services/audit-service';
 import { validationService } from '@/lib/services/validation-service';
-import { isUniqueViolation } from '@/lib/db/postgres-errors';
+import { isUniqueViolation, readErrorMessage } from '@/lib/db/postgres-errors';
 import { calculateContractBillingSchedule } from '@/lib/rental/calculations';
 import {
   applyOpeningBalanceToSchedule,
@@ -823,8 +823,8 @@ export const contractService = {
         );
         return { success: true, data: contract };
       } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        if (message.includes('DUPLICATE_CONTRACT_NUMBER')) {
+        const message = readErrorMessage(error);
+        if (message.includes('DUPLICATE_CONTRACT_NUMBER') || message.includes('contracts_contract_number_unique')) {
           return { success: false, error: 'duplicateContractNumber', errorCode: 'DUPLICATE_CONTRACT_NUMBER' };
         }
         if (message.includes('CONTRACT_NOT_DRAFT')) {
@@ -832,6 +832,24 @@ export const contractService = {
         }
         if (message.includes('FORBIDDEN')) {
           return { success: false, error: 'Unauthorized', errorCode: 'FORBIDDEN' };
+        }
+        if (message.includes('ACTIVE_CONTRACT_EXISTS')) {
+          return { success: false, error: 'activeContractExists', errorCode: 'ACTIVE_CONTRACT_EXISTS' };
+        }
+        if (
+          message.includes('idx_tenants_national_id_unique')
+          || message.includes('duplicate key') && message.includes('national_id')
+        ) {
+          return { success: false, error: 'duplicateNationalId', errorCode: 'DUPLICATE_NATIONAL_ID' };
+        }
+        if (
+          message.includes('contracts_paid_through_in_period')
+          || message.includes('contracts_opening_payment_in_period')
+        ) {
+          return { success: false, error: 'openingBalanceOutOfRange', errorCode: 'VALIDATION' };
+        }
+        if (message.includes('reasonable_contract_dates')) {
+          return { success: false, error: 'contractDatesInvalid', errorCode: 'VALIDATION' };
         }
         logger.error('Failed to save contract draft', {
           ...ctx,

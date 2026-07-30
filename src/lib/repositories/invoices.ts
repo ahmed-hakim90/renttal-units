@@ -217,6 +217,19 @@ export const invoicesRepository = {
     return data ?? [];
   },
 
+  async countByOdooSyncStatus(
+    statuses: Array<'failed' | 'needs_review'>,
+    ctx: LogContext,
+  ): Promise<number> {
+    const supabase = await createClient();
+    const { count, error } = await supabase
+      .from('invoices')
+      .select('id', { count: 'exact', head: true })
+      .in('odoo_sync_status', statuses);
+    if (error) throw error;
+    return count ?? 0;
+  },
+
   async findByUnitId(unitId: string, ctx: LogContext): Promise<Invoice[]> {
     const supabase = await createClient();
     const { data, error } = await supabase

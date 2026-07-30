@@ -39,9 +39,9 @@
     "title": "Load Odoo Products button",
     "description": "Show the Odoo product catalog button on the Units page."
   },
-  "odooCronSync": {
-    "title": "Odoo automatic sync",
-    "description": "Allow the scheduled Odoo cron job to process outbound sync and incremental import."
+  "odooServiceCatalogButton": {
+    "title": "Service products button",
+    "description": "Show the local Odoo service-product catalog and synchronization button on the Units page."
   },
   "odooInvoicesDocuments": {
     "title": "Odoo invoices and documents",

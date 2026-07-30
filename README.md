@@ -31,7 +31,6 @@ Required for production:
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `RATE_LIMIT_HASH_SECRET`
-- `CRON_SECRET`
 - `ODOO_SETTINGS_SECRET`
 
 ### 3. Apply database migrations
@@ -97,8 +96,6 @@ Only system owners can assign the system-owner role.
 2. Link units to Odoo products
 3. Run Import Center preview and commit manually
 4. Issue one local invoice and confirm outbound outbox sync
-5. Enable cron (`vercel.json` schedules `/api/cron/odoo-sync` every 15 minutes) with `CRON_SECRET`
-6. Keep feature flag `odoo_cron_sync` on only after step 5 succeeds
 
 ## Locales
 

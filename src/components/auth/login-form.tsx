@@ -14,6 +14,7 @@ export function LoginForm({ locale }: { locale: string }) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [password, setPassword] = useState('');
 
   function getErrorMessage(code?: string) {
     if (code === 'invalid_credentials') return t('invalidCredentials');
@@ -54,6 +55,8 @@ export function LoginForm({ locale }: { locale: string }) {
           label={t('password')}
           required
           autoComplete="current-password"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
           className="pe-12"
         />
         <button

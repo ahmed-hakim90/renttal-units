@@ -22,6 +22,11 @@ export async function getDashboardStats(locale: string) {
   return invoiceService.getDashboardCounts(auth, { ...await getCtx(), user_id: auth.userId, role: auth.role });
 }
 
+export async function getOverdueInvoices(locale: string) {
+  const auth = await requirePermission(locale, 'invoices.view', await getCtx());
+  return invoiceService.listOverdue(auth, { ...await getCtx(), user_id: auth.userId, role: auth.role });
+}
+
 export async function issueInvoice(locale: string, data: {
   invoice_number: string;
   unit_id: string;

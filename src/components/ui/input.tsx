@@ -74,6 +74,12 @@ export function InputControl(props: InputHTMLAttributes<HTMLInputElement>) {
     return <FormattedNumberInput {...props} />;
   }
 
+  // Password visibility toggles must keep the same input component mounted.
+  // Password values are also intentionally excluded from digit normalization.
+  if (props.autoComplete === 'current-password' || props.autoComplete === 'new-password') {
+    return <input {...props} />;
+  }
+
   if (!props.type || ['text', 'search', 'tel', 'email', 'url'].includes(props.type)) {
     return <DigitNormalizingInput {...props} />;
   }

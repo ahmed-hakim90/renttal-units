@@ -39,9 +39,9 @@
     "title": "زر تحميل منتجات Odoo",
     "description": "إظهار زر كتالوج منتجات Odoo في صفحة الوحدات."
   },
-  "odooCronSync": {
-    "title": "مزامنة Odoo التلقائية",
-    "description": "السماح لمهمة المزامنة المجدولة بمعالجة الطابور والاستيراد التدريجي."
+  "odooServiceCatalogButton": {
+    "title": "زر منتجات الخدمات",
+    "description": "إظهار كتالوج منتجات خدمات Odoo المحلي وزر مزامنته في صفحة الوحدات."
   },
   "odooInvoicesDocuments": {
     "title": "فواتير ومستندات Odoo",

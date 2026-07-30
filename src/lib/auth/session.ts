@@ -55,7 +55,7 @@ export async function requirePermission(
   return auth;
 }
 
-/** System-owner gate kept for cron/compat. Prefer requirePermission. */
+/** Legacy system-owner gate. Prefer requirePermission for scoped authorization. */
 export async function requireAdminEditor(locale: string, ctx: LogContext = {}): Promise<AuthContext> {
   const auth = await requireAuth(locale, ctx);
   if (!auth.isAdminEditor) redirect({ href: '/dashboard', locale });

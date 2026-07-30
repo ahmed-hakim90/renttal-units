@@ -1,3 +1,27 @@
+export function readErrorMessage(error: unknown): string {
+  if (!error) return '';
+  if (typeof error === 'string') return error;
+  if (error instanceof Error && error.message) return error.message;
+  if (typeof error === 'object') {
+    const record = error as {
+      message?: unknown;
+      details?: unknown;
+      hint?: unknown;
+      code?: unknown;
+    };
+    const parts = [record.message, record.details, record.hint]
+      .map((part) => (typeof part === 'string' ? part.trim() : ''))
+      .filter(Boolean);
+    if (parts.length > 0) return parts.join(' | ');
+    if (typeof record.code === 'string' && record.code.trim()) return record.code;
+  }
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return 'Unknown error';
+  }
+}
+
 function readErrorCode(error: unknown): string | undefined {
   if (error && typeof error === 'object' && 'code' in error) {
     return (error as { code?: string }).code;

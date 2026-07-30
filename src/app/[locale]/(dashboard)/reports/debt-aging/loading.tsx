@@ -6,7 +6,7 @@ export default async function Loading() {
 
   return (
     <LoadingRegion label={t('loading')}>
-      <ReportPageSkeleton summaryCount={6} />
+      <ReportPageSkeleton summaryCount={5} />
     </LoadingRegion>
   );
 }

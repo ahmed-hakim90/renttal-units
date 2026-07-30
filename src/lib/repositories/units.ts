@@ -25,31 +25,28 @@ async function loadActiveContractsByUnitId(_ctx: LogContext): Promise<Map<string
   const supabase = await createClient();
   const map = new Map<string, Contract>();
 
-  const { data: lineRows, error: lineError } = await supabase
-    .from('contract_lines')
-    .select('unit_id, contract:contracts!inner(*, tenant:tenants(*))')
-    .eq('line_type', 'rental')
-    .eq('contract.status', 'active')
-    .not('unit_id', 'is', null);
-
-  if (!lineError && lineRows) {
-    for (const row of lineRows) {
-      const unitId = row.unit_id as string | null;
-      const contract = (Array.isArray(row.contract) ? row.contract[0] : row.contract) as Contract | null;
-      if (unitId && contract) map.set(unitId, contract);
-    }
-    return map;
-  }
-
-  // Schema may not be migrated yet — fall back to header-only occupancy.
-  const { data, error } = await supabase
+  // Prefer line-aware occupancy: any rental line on an active contract occupies that unit.
+  const { data: activeContracts, error } = await supabase
     .from('contracts')
-    .select('*, tenant:tenants(*)')
+    .select('*, tenant:tenants(*), lines:contract_lines(unit_id, line_type)')
     .eq('status', 'active');
+
   if (error) throw error;
-  for (const contract of data ?? []) {
-    map.set(contract.unit_id as string, contract as Contract);
+
+  for (const row of activeContracts ?? []) {
+    const contract = row as Contract & {
+      lines?: Array<{ unit_id: string | null; line_type: string }> | null;
+    };
+    if (contract.unit_id) {
+      map.set(contract.unit_id, contract);
+    }
+    for (const line of contract.lines ?? []) {
+      if (line.line_type === 'rental' && line.unit_id) {
+        map.set(line.unit_id, contract);
+      }
+    }
   }
+
   return map;
 }
 

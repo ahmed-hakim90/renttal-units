@@ -8,6 +8,8 @@ import { requirePermission } from '@/lib/auth/session';
 import { hasPermission } from '@/lib/auth/permissions';
 import { getCorrelationId } from '@/lib/observability/correlation-id';
 import { loadFeatureFlags } from '@/lib/features/load-feature-flags';
+import { odooServiceProductsRepository } from '@/lib/repositories/odoo-service-products';
+import { getPublicOdooSettings } from '@/lib/odoo/settings';
 
 export default async function EditDraftContractPage({
   params,
@@ -20,21 +22,19 @@ export default async function EditDraftContractPage({
   const auth = await requirePermission(locale, 'contracts.update', ctx);
   const t = await getTranslations('contracts');
 
-  const [contract, units, featureFlags] = await Promise.all([
+  const authCtx = { ...ctx, user_id: auth.userId, role: auth.role };
+  const [contract, units, featureFlags, serviceProducts, odooSettings] = await Promise.all([
     getContract(locale, id),
     getUnits(locale),
-    loadFeatureFlags({ ...ctx, user_id: auth.userId, role: auth.role }),
+    loadFeatureFlags(authCtx),
+    odooServiceProductsRepository.findActive(authCtx),
+    getPublicOdooSettings(authCtx),
   ]);
 
   if (!contract || contract.status !== 'draft') notFound();
 
-  const draftUnitIds = new Set(
-    (contract.lines ?? [])
-      .filter((line) => line.line_type === 'rental' && line.unit_id)
-      .map((line) => line.unit_id as string),
-  );
   const availableUnits = units.filter(
-    (unit) => !unit.active_contract || draftUnitIds.has(unit.id),
+    (unit) => !unit.active_contract && unit.status !== 'occupied',
   );
 
   return (
@@ -53,6 +53,14 @@ export default async function EditDraftContractPage({
         openingBalanceEnabled={featureFlags.contracts_opening_balance}
         multiLineEnabled={featureFlags.contracts_multi_line}
         canDeleteDraft={hasPermission(auth, 'contracts.update')}
+        initialServiceProducts={serviceProducts
+          .filter((product) => product.category_id === odooSettings.serviceCategoryId)
+          .map((product) => ({
+            id: product.odoo_product_id,
+            name: product.name,
+            display_name: product.display_name,
+            default_code: product.default_code,
+          }))}
       />
     </div>
   );

@@ -174,14 +174,39 @@ export async function getDebtAgingReport(locale: string, filters?: { locationId?
   return reportingService.getDebtAgingInvoices(auth, ctx, filters);
 }
 
-export async function getPortfolioSummary(locale: string) {
+export async function getDashboardOverview(locale: string) {
   const auth = await requireAuth(locale, await getCtx());
-  return reportingService.getPortfolioSummary(auth, { ...await getCtx(), user_id: auth.userId, role: auth.role });
+  return reportingService.getDashboardOverview(auth, {
+    ...await getCtx(),
+    user_id: auth.userId,
+    role: auth.role,
+  });
+}
+
+export async function getPortfolioSummary(locale: string) {
+  const overview = await getDashboardOverview(locale);
+  return overview.summary;
 }
 
 export async function getLocationsOccupancy(locale: string) {
-  const auth = await requireAuth(locale, await getCtx());
-  return reportingService.getLocationsOccupancy(auth, { ...await getCtx(), user_id: auth.userId, role: auth.role });
+  const overview = await getDashboardOverview(locale);
+  return overview.locationsOccupancy;
+}
+
+export async function getDashboardDebtAging(locale: string) {
+  const auth = await requirePermission(locale, 'reports.view', await getCtx());
+  const ctx = { ...await getCtx(), user_id: auth.userId, role: auth.role };
+  const disabled = await requireFeatureEnabled(ctx, 'reports_operational');
+  if (disabled) return null;
+  return reportingService.getDashboardDebtAgingSummary(auth, ctx);
+}
+
+export async function getDashboardOdooHealth(locale: string) {
+  const auth = await requirePermission(locale, 'odoo.manage', await getCtx());
+  const ctx = { ...await getCtx(), user_id: auth.userId, role: auth.role };
+  const disabled = await requireFeatureEnabled(ctx, 'odoo_invoices_documents');
+  if (disabled) return null;
+  return reportingService.getDashboardOdooHealth(auth, ctx);
 }
 
 export async function getLocationStatement(locale: string, locationId: string) {
