@@ -19,6 +19,7 @@ import {
   createContract,
   deleteContractDraft,
   saveContractDraft,
+  updateContract,
 } from '@/lib/actions/contracts';
 import { uploadContractPdf } from '@/lib/actions/contract-attachments';
 import { searchOdooPartners, searchOdooProducts } from '@/lib/actions/odoo';
@@ -157,6 +158,7 @@ function SelectField({
   error,
   icon,
   compact,
+  disabled,
   children,
 }: {
   label?: string;
@@ -167,6 +169,7 @@ function SelectField({
   error?: string;
   icon?: ReactNode;
   compact?: boolean;
+  disabled?: boolean;
   children: ReactNode;
 }) {
   return (
@@ -186,12 +189,14 @@ function SelectField({
         <select
           name={name}
           value={value}
+          disabled={disabled}
           onChange={(e) => onChange(e.target.value)}
           onBlur={onBlur}
           aria-label={label}
           className={cn(
             'flex h-8 w-full appearance-none rounded-md border border-border bg-card text-sm',
             'focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/25',
+            'disabled:cursor-not-allowed disabled:bg-muted/60 disabled:opacity-70',
             icon ? 'ps-8 pe-7' : 'px-2 pe-7',
             compact && 'h-7 rounded border-transparent bg-transparent hover:border-border focus-visible:border-ring',
             error && 'border-destructive',
@@ -289,9 +294,10 @@ export function ContractEditor({
   openingBalanceEnabled,
   multiLineEnabled = true,
   canDeleteDraft = false,
+  scheduleLocked = false,
   initialServiceProducts = [],
 }: {
-  mode: 'create' | 'edit-draft';
+  mode: 'create' | 'edit-draft' | 'edit-active';
   contractId?: string | null;
   initialValues?: ContractEditorInitialValues;
   units: Unit[];
@@ -299,6 +305,8 @@ export function ContractEditor({
   openingBalanceEnabled: boolean;
   multiLineEnabled?: boolean;
   canDeleteDraft?: boolean;
+  /** Active contracts with issued/paid invoices cannot change schedule fields. */
+  scheduleLocked?: boolean;
   initialServiceProducts?: ContractServiceProductOption[];
 }) {
   const t = useTranslations('contracts');
@@ -503,10 +511,16 @@ export function ContractEditor({
     if (error === 'contractDraftDeleteFailed') return t('contractDraftDeleteFailed');
     if (error === 'contractNotFound') return t('contractNotFound');
     if (error === 'contractHasFinancialActivity') return t('contractHasFinancialActivity');
+    if (error === 'contractNotActive') return t('contractNotActive');
+    if (error === 'contractUpdateFailed') return t('contractUpdateFailed');
     if (error === 'openingBalanceOutOfRange') return t('validation.paidThroughOutOfRange');
     if (error === 'contractDatesInvalid') return t('validation.startDateInvalid');
     return t('validationFailed');
   }
+
+  const isActiveEdit = mode === 'edit-active';
+  const structureLocked = isActiveEdit;
+  const showDraftActions = mode === 'create' || mode === 'edit-draft';
 
   function firstValidationMessage(fieldErrors: ReturnType<typeof validateContractForm>) {
     const order: ContractFormField[] = [
@@ -753,6 +767,46 @@ export function ContractEditor({
     }
   }
 
+  async function handleSaveActive() {
+    if (!currentContractId || isSaving) return;
+    setValidationMode('strict');
+    setAttempted(true);
+    const strictErrors = validateContractForm(formValues, { requireUnit: true });
+    if (Object.keys(strictErrors).length > 0) {
+      toast.error(firstValidationMessage(strictErrors));
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const payload = buildActivatePayload();
+      const result = await updateContract(locale, currentContractId, {
+        contract_number: payload.contract_number,
+        start_date: payload.start_date,
+        end_date: payload.end_date,
+        payment_cycle: payload.payment_cycle,
+        tax_mode: payload.tax_mode,
+        notes: payload.notes,
+        tenant_name: payload.tenant_name,
+        tenant_phone: payload.tenant_phone,
+        tenant_email: payload.tenant_email,
+        tenant_national_id: payload.tenant_national_id,
+        lines: payload.lines,
+      });
+
+      if (!result.success || !result.data) {
+        toast.error(result.error ? getActionErrorMessage(result.error) : t('contractUpdateFailed'));
+        return;
+      }
+
+      await uploadPdfIfNeeded(result.data.id);
+      toast.success(tc('success'));
+      router.push(`/contracts/${result.data.id}`);
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   async function handleDeleteDraft() {
     if (!currentContractId || !canDeleteDraft || isSaving) return;
     setIsSaving(true);
@@ -781,7 +835,7 @@ export function ContractEditor({
         <div className="sticky top-16 z-20 flex flex-col gap-2 border-b border-border bg-card/95 px-3 py-2 shadow-sm backdrop-blur-md supports-[backdrop-filter]:bg-card/90 sm:flex-row sm:items-center sm:justify-between sm:px-4">
           <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
             <span className="inline-flex items-center rounded-full bg-slate-200 px-2 py-0.5 text-[11px] font-semibold text-slate-700">
-              {mode === 'edit-draft' ? t('draft') : t('create')}
+              {mode === 'edit-draft' ? t('draft') : mode === 'edit-active' ? t('active') : t('create')}
             </span>
             <div className="flex min-w-0 items-baseline gap-2">
               <span className="text-[11px] text-muted-foreground">{t('totalAmount')}</span>
@@ -792,7 +846,7 @@ export function ContractEditor({
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
             <Link
-              href="/contracts"
+              href={currentContractId ? `/contracts/${currentContractId}` : '/contracts'}
               className={buttonStyles({
                 variant: 'outline',
                 size: 'sm',
@@ -801,27 +855,55 @@ export function ContractEditor({
             >
               {tc('cancel')}
             </Link>
-            <Button type="button" variant="secondary" size="sm" className="h-8 px-2.5" disabled={isSaving} onClick={() => void handleSaveDraft()}>
-              {isSaving ? tc('loading') : t('saveDraft')}
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              className="h-8 px-2.5"
-              disabled={isSaving || (attempted && validationMode === 'strict' && hasErrors)}
-              onClick={() => void handleActivate()}
-            >
-              {isSaving ? tc('loading') : t('activate')}
-            </Button>
-            {mode === 'edit-draft' && canDeleteDraft && currentContractId && (
-              <Button type="button" variant="destructive" size="sm" className="h-8 px-2.5" disabled={isSaving} onClick={() => void handleDeleteDraft()}>
-                {t('deleteDraft')}
+            {showDraftActions ? (
+              <>
+                <Button type="button" variant="secondary" size="sm" className="h-8 px-2.5" disabled={isSaving} onClick={() => void handleSaveDraft()}>
+                  {isSaving ? tc('loading') : t('saveDraft')}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  className="h-8 px-2.5"
+                  disabled={isSaving || (attempted && validationMode === 'strict' && hasErrors)}
+                  onClick={() => void handleActivate()}
+                >
+                  {isSaving ? tc('loading') : t('activate')}
+                </Button>
+                {mode === 'edit-draft' && canDeleteDraft && currentContractId && (
+                  <Button type="button" variant="destructive" size="sm" className="h-8 px-2.5" disabled={isSaving} onClick={() => void handleDeleteDraft()}>
+                    {t('deleteDraft')}
+                  </Button>
+                )}
+              </>
+            ) : (
+              <Button
+                type="button"
+                size="sm"
+                className="h-8 px-2.5"
+                disabled={isSaving || (attempted && validationMode === 'strict' && hasErrors)}
+                onClick={() => void handleSaveActive()}
+              >
+                {isSaving ? tc('loading') : t('saveChanges')}
               </Button>
             )}
           </div>
         </div>
 
         <div className="p-3 sm:p-4">
+          {(scheduleLocked || structureLocked) && (
+            <div className="mb-3 space-y-2">
+              {structureLocked && (
+                <p className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                  {t('unitsLockedHint')}
+                </p>
+              )}
+              {scheduleLocked && (
+                <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                  {t('scheduleLockedHint')}
+                </p>
+              )}
+            </div>
+          )}
           <div className="grid items-start gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(300px,420px)] lg:gap-4">
             <div className="min-w-0 space-y-3">
           {/* Contract + tenant stacked on the left */}
@@ -856,6 +938,7 @@ export function ContractEditor({
                   error={fieldError('start_date')}
                   min="1990-01-01"
                   max="2100-12-31"
+                  disabled={scheduleLocked}
                 />
                 <Input
                   name="end_date"
@@ -870,6 +953,7 @@ export function ContractEditor({
                   error={fieldError('end_date')}
                   min="1990-01-01"
                   max="2100-12-31"
+                  disabled={scheduleLocked}
                 />
               </div>
               <SelectField
@@ -880,15 +964,17 @@ export function ContractEditor({
                 onChange={(value) => setField('payment_cycle', value as PaymentCycle)}
                 onBlur={() => touch('payment_cycle')}
                 error={fieldError('payment_cycle')}
+                disabled={scheduleLocked}
               >
                 {(['quarterly', 'semi_annual', 'yearly'] as const).map((cycle) => (
                   <option key={cycle} value={cycle}>{tc(`paymentCycle.${cycle}`)}</option>
                 ))}
               </SelectField>
-              <label className="flex items-center gap-2 text-sm">
+              <label className={cn('flex items-center gap-2 text-sm', scheduleLocked && 'opacity-70')}>
                 <input
                   type="checkbox"
                   checked={applyVat}
+                  disabled={scheduleLocked}
                   onChange={(event) => {
                     const checked = event.target.checked;
                     setApplyVat(checked);
@@ -1022,6 +1108,7 @@ export function ContractEditor({
                                   label={t('lineType')}
                                   name={`type-${line.key}`}
                                   value={line.line_type}
+                                  disabled={structureLocked}
                                   onChange={(value) => changeLineType(line.key, value as ContractLineType)}
                                 >
                                   <option value="rental">{t('rentalLine')}</option>
@@ -1042,6 +1129,7 @@ export function ContractEditor({
                                   value={line.unit_id}
                                   placeholder={t('selectUnit')}
                                   error={fieldError('unit_id') || fieldError('lines')}
+                                  disabled={structureLocked}
                                   onChange={(value) => updateLine(line.key, { unit_id: value })}
                                   options={[
                                     { value: '', label: t('selectUnit') },
@@ -1062,6 +1150,7 @@ export function ContractEditor({
                                   value={line.odoo_product_id}
                                   placeholder={t('selectServiceProduct')}
                                   error={fieldError('lines')}
+                                  disabled={structureLocked}
                                   onChange={(value) => selectServiceProduct(line.key, value)}
                                   options={[
                                     { value: '', label: t('selectServiceProduct') },
@@ -1100,6 +1189,7 @@ export function ContractEditor({
                                   type="number"
                                   step="0.01"
                                   min="0.01"
+                                  disabled={scheduleLocked}
                                   className={cn(cellInputClass, 'min-w-0 ps-7 pe-2 text-end tabular-nums')}
                                   value={line.amount}
                                   onChange={(e) => updateLine(line.key, { amount: e.target.value })}
@@ -1112,7 +1202,7 @@ export function ContractEditor({
                                 variant="ghost"
                                 size="icon-sm"
                                 onClick={() => removeLine(line.key)}
-                                disabled={!multiLineEnabled && values.lines.length <= 1}
+                                disabled={structureLocked || (!multiLineEnabled && values.lines.length <= 1)}
                                 aria-label={t('removeLine')}
                                 title={t('removeLine')}
                               >
@@ -1132,7 +1222,7 @@ export function ContractEditor({
                             type="button"
                             className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline disabled:pointer-events-none disabled:opacity-50"
                             onClick={() => addLine('rental')}
-                            disabled={!multiLineEnabled && values.lines.length >= 1}
+                            disabled={structureLocked || (!multiLineEnabled && values.lines.length >= 1)}
                           >
                             <Plus className="size-3.5" />
                             {t('addALine')}
@@ -1140,8 +1230,9 @@ export function ContractEditor({
                           {multiLineEnabled && (
                             <button
                               type="button"
-                              className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+                              className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline disabled:pointer-events-none disabled:opacity-50"
                               onClick={() => addLine('service')}
+                              disabled={structureLocked}
                             >
                               <Plus className="size-3.5" />
                               {t('addServiceFee')}
@@ -1175,6 +1266,7 @@ export function ContractEditor({
                                 label={t('lineType')}
                                 name={`type-m-${line.key}`}
                                 value={line.line_type}
+                                disabled={structureLocked}
                                 onChange={(value) => changeLineType(line.key, value as ContractLineType)}
                               >
                                 <option value="rental">{t('rentalLine')}</option>
@@ -1188,7 +1280,7 @@ export function ContractEditor({
                               variant="ghost"
                               size="icon-sm"
                               onClick={() => removeLine(line.key)}
-                              disabled={!multiLineEnabled && values.lines.length <= 1}
+                              disabled={structureLocked || (!multiLineEnabled && values.lines.length <= 1)}
                               aria-label={t('removeLine')}
                             >
                               <Trash2 className="size-3.5" />
@@ -1201,6 +1293,7 @@ export function ContractEditor({
                               name={`unit-m-${line.key}`}
                               value={line.unit_id}
                               placeholder={t('selectUnit')}
+                              disabled={structureLocked}
                               onChange={(value) => updateLine(line.key, { unit_id: value })}
                               options={[
                                 { value: '', label: t('selectUnit') },
@@ -1218,6 +1311,7 @@ export function ContractEditor({
                               name={`service-product-m-${line.key}`}
                               value={line.odoo_product_id}
                               placeholder={t('selectServiceProduct')}
+                              disabled={structureLocked}
                               onChange={(value) => selectServiceProduct(line.key, value)}
                               options={[
                                 { value: '', label: t('selectServiceProduct') },
@@ -1246,6 +1340,7 @@ export function ContractEditor({
                             min="0.01"
                             icon={<Icon><Wallet /></Icon>}
                             dense
+                            disabled={scheduleLocked}
                             value={line.amount}
                             onChange={(e) => updateLine(line.key, { amount: e.target.value })}
                           />
@@ -1260,7 +1355,7 @@ export function ContractEditor({
                       type="button"
                       className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline disabled:pointer-events-none disabled:opacity-50"
                       onClick={() => addLine('rental')}
-                      disabled={!multiLineEnabled && values.lines.length >= 1}
+                      disabled={structureLocked || (!multiLineEnabled && values.lines.length >= 1)}
                     >
                       <Plus className="size-3.5" />
                       {t('addALine')}
@@ -1268,8 +1363,9 @@ export function ContractEditor({
                     {multiLineEnabled && (
                       <button
                         type="button"
-                        className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+                        className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline disabled:pointer-events-none disabled:opacity-50"
                         onClick={() => addLine('service')}
+                        disabled={structureLocked}
                       >
                         <Plus className="size-3.5" />
                         {t('addServiceFee')}

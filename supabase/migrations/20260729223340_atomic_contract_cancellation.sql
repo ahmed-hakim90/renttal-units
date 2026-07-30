@@ -191,8 +191,6 @@ BEGIN
             THEN 'fully_paid'::public.invoice_status
           WHEN paid_amount > 0
             THEN 'partially_paid'::public.invoice_status
-          WHEN due_date < CURRENT_DATE
-            THEN 'overdue'::public.invoice_status
           ELSE 'due'::public.invoice_status
         END
       WHERE id = v_current.id;

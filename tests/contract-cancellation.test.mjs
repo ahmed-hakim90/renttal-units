@@ -10,6 +10,10 @@ const rpcHardeningMigration = readFileSync(
   new URL('../supabase/migrations/20260729224415_secure_contract_cancellation_rpc.sql', import.meta.url),
   'utf8',
 );
+const dueStatusRepairMigration = readFileSync(
+  new URL('../supabase/migrations/20260730121102_keep_cancelled_current_invoice_due.sql', import.meta.url),
+  'utf8',
+);
 
 function inclusiveDays(start, end) {
   return Math.round(
@@ -57,4 +61,17 @@ test('issued or paid future invoices require explicit financial settlement', () 
   assert.match(migration, /paid_amount > 0/);
   assert.match(migration, /odoo_invoice_id IS NOT NULL/);
   assert.match(migration, /CANCELLATION_REQUIRES_SETTLEMENT/);
+});
+
+test('unissued cancellation-period invoice remains due and discoverable', () => {
+  assert.doesNotMatch(
+    migration,
+    /WHEN due_date < CURRENT_DATE\s+THEN 'overdue'::public\.invoice_status/,
+  );
+  assert.match(
+    dueStatusRepairMigration,
+    /status = 'due'::public\.invoice_status/,
+  );
+  assert.match(dueStatusRepairMigration, /invoice\.odoo_invoice_id IS NULL/);
+  assert.match(dueStatusRepairMigration, /invoice\.odoo_invoice_state IS NULL/);
 });

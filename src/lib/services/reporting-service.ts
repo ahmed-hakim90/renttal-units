@@ -10,6 +10,7 @@ import type {
 } from '@/types/database';
 import { invoicesRepository } from '@/lib/repositories/invoices';
 import { buildDashboardDebtAgingSummary } from '@/lib/rental/aging';
+import { hasPermission } from '@/lib/auth/permissions';
 import { withSpan, type LogContext } from '@/lib/observability';
 
 function sumInvoiceRemaining(invoice: Invoice) {
@@ -67,6 +68,7 @@ export const reportingService = {
     const { locationsRepository } = await import('@/lib/repositories/locations');
     const { contractsRepository } = await import('@/lib/repositories/contracts');
     const { calculateContractPaymentSchedule } = await import('@/lib/rental/calculations');
+    const { countContractsExpiringSoon } = await import('@/lib/rental/contract-expiry');
 
     return withSpan('reportingService.getDashboardOverview', { ...ctx, service: 'reporting', user_id: auth.userId }, async () => {
       const [units, locations, activeContracts, contractStats] = await Promise.all([
@@ -119,6 +121,9 @@ export const reportingService = {
           totalContracts: contractStats.totalCount,
           totalContractsValue: contractStats.totalValue,
           activeContracts: contractStats.activeCount,
+          expiringContracts: hasPermission(auth, 'contracts.view')
+            ? countContractsExpiringSoon(activeContracts)
+            : 0,
           vacantUnits,
           maintenanceUnits,
           draftContracts: contractStats.draftCount,

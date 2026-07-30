@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { usersRepository } from '@/lib/repositories/users';
 import { rolesRepository } from '@/lib/repositories/roles';
 import {
+  hasAnyPermission,
   hasPermission as checkPermission,
   isPermissionKey,
   type PermissionKey,
@@ -50,6 +51,18 @@ export async function requirePermission(
 ): Promise<AuthContext> {
   const auth = await requireAuth(locale, ctx);
   if (!checkPermission(auth, permission)) {
+    redirect({ href: '/dashboard', locale });
+  }
+  return auth;
+}
+
+export async function requireAnyPermission(
+  locale: string,
+  permissions: readonly PermissionKey[],
+  ctx: LogContext = {},
+): Promise<AuthContext> {
+  const auth = await requireAuth(locale, ctx);
+  if (!hasAnyPermission(auth, permissions)) {
     redirect({ href: '/dashboard', locale });
   }
   return auth;

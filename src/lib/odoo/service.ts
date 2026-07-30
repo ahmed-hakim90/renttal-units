@@ -529,7 +529,7 @@ async function upsertOdooInvoice(input: {
   if (settings.journalId) values.journal_id = settings.journalId;
   if (settings.companyId) values.company_id = settings.companyId;
 
-  if (!invoice.odoo_invoice_id) {
+  async function findOrCreateDraft() {
     const existing = await client.searchRead('account.move', [
       ['move_type', '=', 'out_invoice'],
       ['ref', '=', getInvoiceRef(invoice)],
@@ -543,8 +543,18 @@ async function upsertOdooInvoice(input: {
     };
   }
 
+  if (!invoice.odoo_invoice_id) {
+    return findOrCreateDraft();
+  }
+
   const current = await getInvoiceState(client, invoice.odoo_invoice_id);
-  if (current && current.state !== 'draft') {
+  // A draft may be deleted directly in Odoo while the local invoice still holds
+  // its old ID. Re-link by the stable reference or recreate it as a new draft.
+  if (!current) {
+    return findOrCreateDraft();
+  }
+
+  if (current.state !== 'draft') {
     return {
       id: invoice.odoo_invoice_id,
       name: typeof current.name === 'string' ? current.name : invoice.odoo_invoice_name,

@@ -84,6 +84,15 @@ export async function ContractDetail({
                 {t('continueDraft')}
               </Link>
             )}
+            {contract.status === 'active' && (
+              <Link
+                href={`/contracts/${contract.id}/edit`}
+                className={buttonStyles()}
+              >
+                <Pencil />
+                {t('edit')}
+              </Link>
+            )}
             <Link href="/contracts" className={buttonStyles({ variant: 'outline' })}>
               <ArrowLeft className="rtl:rotate-180" />
               {tc('back')}
@@ -131,6 +140,26 @@ export async function ContractDetail({
                   {contract.end_date ? formatDate(contract.end_date, loc) : '—'}
                 </dd>
               </div>
+              {contract.status === 'cancelled' && (
+                <>
+                  <div>
+                    <dt className="text-xs text-muted-foreground">{t('cancellationDate')}</dt>
+                    <dd className="mt-1 font-medium">
+                      {contract.cancellation_date ? formatDate(contract.cancellation_date, loc) : '—'}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-muted-foreground">{t('cancellationHandling')}</dt>
+                    <dd className="mt-1 font-medium">
+                      {contract.cancellation_handling
+                        ? t(contract.cancellation_handling === 'prorate_current'
+                          ? 'prorateCurrent'
+                          : 'keepCurrentFull')
+                        : '—'}
+                    </dd>
+                  </div>
+                </>
+              )}
               <div>
                 <dt className="text-xs text-muted-foreground">{t('tenantName')}</dt>
                 <dd className="mt-1 font-medium" dir="auto">{contract.tenant?.full_name ?? '—'}</dd>

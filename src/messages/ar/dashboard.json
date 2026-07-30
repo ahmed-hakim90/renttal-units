@@ -26,6 +26,7 @@
   "totalContractsValue": "إجمالي قيمة العقود",
   "activeContracts": "{count} عقد نشط",
   "activeContractsLabel": "العقود النشطة",
+  "expiringContracts": "عقود تنتهي خلال 30 يوم",
   "vacantUnits": "فاضية",
   "occupiedUnits": "عليها عقد",
   "maintenanceUnits": "صيانة",

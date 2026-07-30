@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { requirePermission } from '@/lib/auth/session';
+import { requireAnyPermission, requirePermission } from '@/lib/auth/session';
 import { getCorrelationId } from '@/lib/observability/correlation-id';
 import { getPublicOdooSettings, saveOdooSettings } from '@/lib/odoo/settings';
 import { odooService } from '@/lib/odoo/service';
@@ -148,7 +148,11 @@ export async function createUnitFromOdooProduct(locale: string, input: {
 }
 
 export async function searchOdooPartners(locale: string, query: string) {
-  const auth = await requirePermission(locale, 'odoo.manage', await getCtx());
+  const auth = await requireAnyPermission(
+    locale,
+    ['contracts.create', 'contracts.update', 'odoo.manage'],
+    await getCtx(),
+  );
   const ctx = { ...(await getCtx()), user_id: auth.userId, role: auth.role };
   return odooService.searchPartners(auth, query, ctx);
 }

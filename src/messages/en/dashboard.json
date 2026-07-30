@@ -26,6 +26,7 @@
   "totalContractsValue": "Total Contract Value",
   "activeContracts": "{count} active",
   "activeContractsLabel": "Active Contracts",
+  "expiringContracts": "Contracts Expiring in 30 Days",
   "vacantUnits": "Vacant",
   "occupiedUnits": "Occupied",
   "maintenanceUnits": "Maintenance",

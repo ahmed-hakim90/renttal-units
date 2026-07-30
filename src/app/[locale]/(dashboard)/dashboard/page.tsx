@@ -125,7 +125,12 @@ export default async function DashboardPage({ params }: { params: Promise<{ loca
         canNavigate={canNavigate}
         showPaymentStatusPages={featureFlags.invoices_payment_status_pages}
       />
-      <PortfolioSummary summary={summary} locale={locale} canNavigate={canNavigate} />
+      <PortfolioSummary
+        summary={summary}
+        locale={locale}
+        canNavigate={canNavigate}
+        canViewContracts={canViewContracts}
+      />
       {debtAging && (
         <DebtAgingSummary
           summary={debtAging}

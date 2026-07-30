@@ -369,8 +369,8 @@ export function DashboardPageSkeleton() {
     <div className="space-y-4">
       <PageHeaderSkeleton withAction />
       <StatsCardsSkeleton count={4} columns="dashboard" />
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-        {Array.from({ length: 5 }, (_, index) => (
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        {Array.from({ length: 6 }, (_, index) => (
           <div
             key={index}
             className="rounded-2xl border border-border bg-card p-4 shadow-sm"

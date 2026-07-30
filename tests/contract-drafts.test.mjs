@@ -143,7 +143,7 @@ test('i18n includes draft keys in EN and AR', () => {
   }
 });
 
-test('full-page routes exist for create and draft edit', () => {
+test('full-page routes exist for create and draft/active edit', () => {
   const newPage = readFileSync(
     join(root, 'src/app/[locale]/(dashboard)/contracts/new/page.tsx'),
     'utf8',
@@ -155,9 +155,12 @@ test('full-page routes exist for create and draft edit', () => {
   const manager = readFileSync(join(root, 'src/components/contracts/contracts-manager.tsx'), 'utf8');
   assert.match(newPage, /ContractEditor/);
   assert.match(newPage, /contracts\.create/);
-  assert.match(editPage, /status !== 'draft'/);
+  assert.match(editPage, /getContractEditAccess/);
+  assert.match(editPage, /editNotAllowedTitle/);
   assert.match(editPage, /contracts\.update/);
   assert.match(manager, /\/contracts\/new/);
   assert.match(manager, /continueDraft/);
+  assert.match(manager, /\/contracts\/\$\{contract\.id\}\/edit/);
   assert.doesNotMatch(manager, /setCreateOpen\(true\)/);
+  assert.doesNotMatch(manager, /setEditOpen\(true\)/);
 });

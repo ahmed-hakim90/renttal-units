@@ -457,6 +457,7 @@ export interface DashboardPortfolioSummary {
   totalContracts: number;
   totalContractsValue: number;
   activeContracts: number;
+  expiringContracts: number;
   vacantUnits: number;
   maintenanceUnits: number;
   draftContracts: number;

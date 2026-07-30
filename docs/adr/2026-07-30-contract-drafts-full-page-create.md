@@ -6,13 +6,15 @@ Operators create multi-line rental contracts (units + service fees). The previou
 
 ## Decision
 
-1. **Full-page editor** at `/contracts/new` and `/contracts/[id]/edit` (drafts only), with a lines-first two-column layout.
-2. **`contract_status` includes `draft`**. Drafts persist in Postgres with relaxed nullability (`unit_id`, dates may be null; `total_amount >= 0`).
-3. **`contract_number` remains required** (unique identity of the draft).
-4. **Save draft** uses `save_contract_draft_atomic` — no invoices, no unit occupancy.
-5. **Activate** uses `activate_contract_draft_atomic` — full validation, occupancy checks, invoice schedule, `status = active`.
-6. Occupancy triggers already ignore non-`active` contracts, so drafts do not block units.
-7. From `/contracts/new`, Activate without a prior draft still uses `createContract` (immediate active path). After Save draft, the operator continues on the edit page and Activates there.
+1. **Full-page editor** at `/contracts/new` and `/contracts/[id]/edit` for **draft and active** contracts, with a lines-first layout.
+2. Cancelled/completed contracts do **not** open the editor: the edit route shows a clear message and back links instead.
+3. **`contract_status` includes `draft`**. Drafts persist in Postgres with relaxed nullability (`unit_id`, dates may be null; `total_amount >= 0`).
+4. **`contract_number` remains required** (unique identity of the draft).
+5. **Save draft** uses `save_contract_draft_atomic` — no invoices, no unit occupancy.
+6. **Activate** uses `activate_contract_draft_atomic` — full validation, occupancy checks, invoice schedule, `status = active`.
+7. Occupancy triggers already ignore non-`active` contracts, so drafts do not block units.
+8. From `/contracts/new`, Activate without a prior draft still uses `createContract` (immediate active path). After Save draft, the operator continues on the edit page and Activates there.
+9. Active-contract edit uses `updateContract`; units/structure stay locked; schedule fields lock when invoices are issued or payments exist.
 
 ## Rejected alternatives
 
