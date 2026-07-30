@@ -1,14 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 64" fill="none" role="img" aria-label="Rental Units">
-  <defs>
-    <linearGradient id="iconBg" x1="8" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#3B82F6"/>
-      <stop offset="1" stop-color="#1D4ED8"/>
-    </linearGradient>
-  </defs>
-  <rect x="4" y="4" width="56" height="56" rx="14" fill="url(#iconBg)"/>
-  <rect x="16" y="24" width="12" height="24" rx="3" fill="#FFFFFF" opacity="0.92"/>
-  <rect x="36" y="18" width="12" height="30" rx="3" fill="#FFFFFF"/>
-  <circle cx="32" cy="44" r="6" fill="#22C55E"/>
-  <path d="M32 38v12M28 44h8" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round"/>
-  <text x="76" y="40" fill="#0A0A0A" font-family="system-ui, -apple-system, Segoe UI, sans-serif" font-size="24" font-weight="700" letter-spacing="-0.02em">Rental Units</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 64" fill="none" role="img" aria-label="Rentara">
+  <rect x="4" y="4" width="56" height="56" rx="14" fill="#061B43"/>
+  <path d="M15 29L23 23V49H15V29ZM41 23L49 29V49H41V23Z" fill="#159A7D"/>
+  <path d="M23 18L30 12V49H23V18ZM34 12L41 18V49H34V12Z" fill="#FFFFFF"/>
+  <circle cx="32" cy="30" r="5" fill="#E8B72F"/>
+  <path d="M30 34H34V49H30V34ZM34 39H38V42H34V39ZM34 44H37V47H34V44Z" fill="#E8B72F"/>
+  <text x="76" y="41" fill="#061B43" font-family="system-ui, -apple-system, Segoe UI, sans-serif" font-size="26" font-weight="750" letter-spacing="-0.02em">Rentara</text>
 </svg>

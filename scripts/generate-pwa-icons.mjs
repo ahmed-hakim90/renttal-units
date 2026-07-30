@@ -27,7 +27,7 @@ async function generate() {
       bottom: 64,
       left: 64,
       right: 64,
-      background: { r: 37, g: 99, b: 235, alpha: 1 },
+      background: { r: 6, g: 27, b: 67, alpha: 1 },
     })
     .png()
     .toBuffer();

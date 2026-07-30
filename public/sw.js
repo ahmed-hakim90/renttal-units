@@ -1,4 +1,4 @@
-const CACHE_NAME = 'renttal-units-static-v2';
+const CACHE_NAME = 'rentara-static-v1';
 const APP_ASSETS = [
   '/brand/logo-icon.svg',
   '/icons/icon-192.png',

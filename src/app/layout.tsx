@@ -20,15 +20,15 @@ const tajawal = Tajawal({
 
 export const metadata: Metadata = {
   title: {
-    default: 'Rental Units | وحدات الإيجار',
-    template: '%s | Rental Units',
+    default: 'Rentara | رنتارا',
+    template: '%s | Rentara',
   },
-  description: 'Bilingual rental units management dashboard for Saudi Arabia',
-  applicationName: 'Rental Units',
+  description: 'Rentara — smarter rental management for Saudi Arabia',
+  applicationName: 'Rentara',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'Rental Units',
+    title: 'Rentara',
   },
   formatDetection: {
     telephone: false,
@@ -37,8 +37,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#1d4ed8' },
-    { media: '(prefers-color-scheme: dark)', color: '#1d4ed8' },
+    { media: '(prefers-color-scheme: light)', color: '#061b43' },
+    { media: '(prefers-color-scheme: dark)', color: '#061b43' },
   ],
   width: 'device-width',
   initialScale: 1,

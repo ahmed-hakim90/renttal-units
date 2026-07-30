@@ -3,14 +3,14 @@ import type { MetadataRoute } from 'next';
 export default function manifest(): MetadataRoute.Manifest {
   return {
     id: '/',
-    name: 'Rental Units | وحدات الإيجار',
-    short_name: 'Rental | الإيجار',
-    description: 'Rental units management | إدارة وحدات الإيجار',
+    name: 'Rentara | رنتارا',
+    short_name: 'Rentara',
+    description: 'Smarter rental management | إدارة الإيجارات بذكاء',
     start_url: '/',
     scope: '/',
     display: 'standalone',
     background_color: '#f7f8fa',
-    theme_color: '#1d4ed8',
+    theme_color: '#061b43',
     prefer_related_applications: false,
     // Language and direction are intentionally omitted because this shared manifest
     // serves both locale routes; each rendered document supplies the correct values.

@@ -1,4 +1,4 @@
-# Rental Units Management System
+# Rentara
 
 Bilingual (English/Arabic) internal dashboard for managing rental units in Saudi Arabia.
 
