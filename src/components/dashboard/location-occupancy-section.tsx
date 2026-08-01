@@ -1,11 +1,10 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { MapPin } from 'lucide-react';
 import { Link } from '@/lib/i18n/navigation';
 import { Card, CardDescription, CardTitle } from '@/components/ui/card';
-import { SearchableSelect } from '@/components/ui/searchable-select';
 import { formatNumber } from '@/lib/i18n/format';
 import type { Locale } from '@/lib/i18n/routing';
 import type { LocationOccupancySummary } from '@/types/database';
@@ -25,12 +24,6 @@ export function LocationOccupancySection({
 }) {
   const t = useTranslations('dashboard');
   const loc = locale as Locale;
-  const [selectedLocationId, setSelectedLocationId] = useState('all');
-
-  const visibleLocations = useMemo(() => {
-    if (selectedLocationId === 'all') return locations;
-    return locations.filter((location) => location.locationId === selectedLocationId);
-  }, [locations, selectedLocationId]);
 
   const hasUnits = locations.some((location) => location.totalUnits > 0);
   const totals = useMemo(() => locations.reduce((sum, location) => ({
@@ -47,43 +40,22 @@ export function LocationOccupancySection({
 
   return (
     <section className="surface-panel mt-4 p-4">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-        <div className="flex items-start gap-3">
-          <div className="icon-tile bg-amber-50 text-amber-700">
-            <MapPin className="h-4 w-4" />
-          </div>
-          <div>
-            <h2 className="text-base font-semibold tracking-tight">{t('locationOccupancyTitle')}</h2>
-            <p className="mt-0.5 text-sm text-muted-foreground">
-              {t('locationOccupancySummary', {
-                occupied: formatNumber(totals.occupiedUnits, loc),
-                total: formatNumber(totals.totalUnits, loc),
-              })}
-            </p>
-            <p className="mt-0.5 text-xs font-medium text-muted-foreground">
-              {t('totalLocationsCount', { count: formatNumber(locations.length, loc) })}
-            </p>
-          </div>
+      <div className="flex items-start gap-3">
+        <div className="icon-tile bg-amber-50 text-amber-700">
+          <MapPin className="h-4 w-4" />
         </div>
-
-        {locations.length > 0 && (
-          <div className="w-full sm:max-w-xs">
-            <SearchableSelect
-              searchable
-              label={t('locationFilter')}
-              value={selectedLocationId}
-              onChange={setSelectedLocationId}
-              options={[
-                { value: 'all', label: t('allLocations') },
-                ...locations.map((location) => ({
-                  value: location.locationId,
-                  label: getLocationName(location, locale),
-                  keywords: [location.name_en, location.name_ar],
-                })),
-              ]}
-            />
-          </div>
-        )}
+        <div>
+          <h2 className="text-base font-semibold tracking-tight">{t('locationOccupancyTitle')}</h2>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            {t('locationOccupancySummary', {
+              occupied: formatNumber(totals.occupiedUnits, loc),
+              total: formatNumber(totals.totalUnits, loc),
+            })}
+          </p>
+          <p className="mt-0.5 text-xs font-medium text-muted-foreground">
+            {t('totalLocationsCount', { count: formatNumber(locations.length, loc) })}
+          </p>
+        </div>
       </div>
 
       {locations.length === 0 || !hasUnits ? (
@@ -93,7 +65,7 @@ export function LocationOccupancySection({
         </Card>
       ) : (
         <div className="mt-4 grid gap-3 xl:grid-cols-2">
-          {visibleLocations.map((location) => {
+          {locations.map((location) => {
             const occupancyRate = location.totalUnits > 0
               ? Math.round((location.occupiedUnits / location.totalUnits) * 100)
               : 0;

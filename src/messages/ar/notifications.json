@@ -1,0 +1,22 @@
+{
+  "view": "عرض",
+  "close": "إغلاق",
+  "bellLabel": "الإشعارات",
+  "badgeLabel": "{count} إشعارات",
+  "panelTitle": "الإشعارات",
+  "empty": "لا توجد تنبيهات الآن",
+  "overdueInvoicesTitle": "فواتير متأخرة",
+  "overdueInvoicesDescription": "{count} فاتورة متأخرة تحتاج متابعة",
+  "dueInvoicesTitle": "مستحق الآن",
+  "dueInvoicesDescription": "{count} فاتورة مستحقة الآن",
+  "awaitingPaymentTitle": "في انتظار الدفع",
+  "awaitingPaymentDescription": "{count} فاتورة صادرة في انتظار الدفع",
+  "partialPaymentsTitle": "مدفوعات جزئية",
+  "partialPaymentsDescription": "{count} فاتورة بمدفوعات جزئية",
+  "draftContractsTitle": "عقود مسودة",
+  "draftContractsDescription": "{count} عقد مسودة بانتظار التفعيل",
+  "expiringContractsTitle": "عقود قرب الانتهاء",
+  "expiringContractsDescription": "{count} عقد ينتهي خلال 30 يوم",
+  "odooSyncIssuesTitle": "مشاكل مزامنة Odoo",
+  "odooSyncIssuesDescription": "{failed} فشل · {needsReview} تحتاج مراجعة"
+}

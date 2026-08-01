@@ -17,7 +17,7 @@ import {
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 test('registers all planned feature flags with enabled defaults', () => {
-  assert.equal(FEATURE_FLAG_KEYS.length, 13);
+  assert.equal(FEATURE_FLAG_KEYS.length, 14);
   for (const key of FEATURE_FLAG_KEYS) {
     assert.equal(FEATURE_FLAG_DEFAULTS[key], true);
     assert.equal(FEATURE_FLAG_REGISTRY[key].default, true);
@@ -148,7 +148,107 @@ test('blocks new multi-line creates while preserving existing multi-line contrac
 });
 
 test('keeps local invoice issue available when Odoo documents are disabled', async () => {
-  const { shouldSyncIssuedInvoiceToOdoo } = await import('../src/lib/features/guards.ts');
-  assert.equal(shouldSyncIssuedInvoiceToOdoo(false), false);
-  assert.equal(shouldSyncIssuedInvoiceToOdoo(true), true);
+  const {
+    shouldAllowManualOdooInvoiceSend,
+    shouldShowOdooInvoiceSendButton,
+    shouldShowOdooInvoiceStatusCheckButton,
+  } = await import('../src/lib/features/guards.ts');
+
+  assert.equal(shouldAllowManualOdooInvoiceSend(false, true), false);
+  assert.equal(shouldAllowManualOdooInvoiceSend(true, false), false);
+  assert.equal(shouldAllowManualOdooInvoiceSend(true, true), true);
+
+  const baseInvoice = {
+    status: 'invoice_issued',
+    odoo_invoice_id: null,
+    odoo_sync_status: 'not_synced',
+    odoo_sync_error: null,
+  };
+
+  assert.equal(shouldShowOdooInvoiceSendButton({
+    odooDocumentsEnabled: true,
+    manualSendEnabled: true,
+    canManageOdoo: true,
+    odooIntegrationEnabled: true,
+    visibleStatus: 'invoice_issued',
+    invoice: baseInvoice,
+  }), true);
+
+  assert.equal(shouldShowOdooInvoiceSendButton({
+    odooDocumentsEnabled: true,
+    manualSendEnabled: true,
+    canManageOdoo: true,
+    odooIntegrationEnabled: true,
+    visibleStatus: 'invoice_issued',
+    invoice: { ...baseInvoice, status: 'partially_paid' },
+  }), false);
+
+  assert.equal(shouldShowOdooInvoiceSendButton({
+    odooDocumentsEnabled: true,
+    manualSendEnabled: false,
+    canManageOdoo: true,
+    odooIntegrationEnabled: true,
+    visibleStatus: 'invoice_issued',
+    invoice: baseInvoice,
+  }), false);
+
+  assert.equal(shouldShowOdooInvoiceSendButton({
+    odooDocumentsEnabled: true,
+    manualSendEnabled: true,
+    canManageOdoo: false,
+    odooIntegrationEnabled: true,
+    visibleStatus: 'invoice_issued',
+    invoice: baseInvoice,
+  }), false);
+
+  assert.equal(shouldShowOdooInvoiceSendButton({
+    odooDocumentsEnabled: true,
+    manualSendEnabled: true,
+    canManageOdoo: true,
+    odooIntegrationEnabled: true,
+    visibleStatus: 'invoice_issued',
+    invoice: {
+      status: 'invoice_issued',
+      odoo_invoice_id: 55,
+      odoo_sync_status: 'synced',
+    },
+  }), false);
+
+  assert.equal(shouldShowOdooInvoiceSendButton({
+    odooDocumentsEnabled: true,
+    manualSendEnabled: true,
+    canManageOdoo: true,
+    odooIntegrationEnabled: true,
+    visibleStatus: 'invoice_issued',
+    invoice: {
+      ...baseInvoice,
+      odoo_invoice_id: 55,
+      odoo_sync_status: 'needs_review',
+      odoo_sync_error: 'odooInvoiceNotFound',
+    },
+  }), true);
+
+  assert.equal(shouldShowOdooInvoiceStatusCheckButton({
+    odooDocumentsEnabled: true,
+    canManageOdoo: true,
+    invoice: { odoo_invoice_id: 55, odoo_sync_error: null },
+  }), true);
+
+  assert.equal(shouldShowOdooInvoiceStatusCheckButton({
+    odooDocumentsEnabled: true,
+    canManageOdoo: true,
+    invoice: { odoo_invoice_id: null, odoo_sync_error: null },
+  }), false);
+
+  assert.equal(shouldShowOdooInvoiceStatusCheckButton({
+    odooDocumentsEnabled: false,
+    canManageOdoo: true,
+    invoice: { odoo_invoice_id: 55, odoo_sync_error: null },
+  }), false);
+
+  assert.equal(shouldShowOdooInvoiceStatusCheckButton({
+    odooDocumentsEnabled: true,
+    canManageOdoo: true,
+    invoice: { odoo_invoice_id: 55, odoo_sync_error: 'odooInvoiceNotFound' },
+  }), false);
 });

@@ -117,18 +117,12 @@ function FormattedNumberInput({
     : uncontrolledValue;
 
   function handleChange(event: ChangeEvent<HTMLInputElement>) {
-    const inputType = 'inputType' in event.nativeEvent
-      ? String((event.nativeEvent as InputEvent).inputType)
-      : '';
-    const enteredValue = inputType.startsWith('delete') && !event.currentTarget.value.includes(',')
-      ? event.currentTarget.value.replaceAll('.', '')
-      : event.currentTarget.value;
-    const normalizedValue = normalizeNumberInputValue(enteredValue);
+    const normalizedValue = normalizeNumberInputValue(event.currentTarget.value);
     if (!controlled) {
       setUncontrolledValue(normalizedValue);
     }
 
-    // Keep existing form state canonical while showing grouped digits.
+    // Keep form state and submission values canonical (ASCII digits + decimal dot).
     event.currentTarget.value = normalizedValue;
     onChange?.(event);
   }

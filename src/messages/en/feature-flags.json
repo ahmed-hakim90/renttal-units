@@ -24,8 +24,8 @@
     "description": "Allow contracts with multiple rental units and service lines."
   },
   "odooImportCenter": {
-    "title": "Odoo import center",
-    "description": "Show and allow Odoo invoice import preview and commit on the Import page."
+    "title": "Odoo invoice reconciliation",
+    "description": "Compare local invoices with Odoo and approve exact links after review."
   },
   "unitsCreateOdooProduct": {
     "title": "Create Odoo product from unit",
@@ -46,6 +46,10 @@
   "odooInvoicesDocuments": {
     "title": "Odoo invoices and documents",
     "description": "Show Odoo invoice documents and allow Odoo invoice sync retries. Local invoice issue and payments stay available."
+  },
+  "odooInvoiceManualSend": {
+    "title": "Manual send invoice to Odoo",
+    "description": "Show the Send to Odoo button on invoices. Local invoice issuing stays available when this is off. Checking Odoo status for already linked invoices stays available."
   },
   "importExcelContracts": {
     "title": "Excel contract import",

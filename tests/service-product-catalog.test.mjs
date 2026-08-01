@@ -24,11 +24,12 @@ test('service product catalog migration is atomic and permission-scoped', () => 
 
 test('service catalog sync is authorized and uses the configured category', () => {
   const actions = readFileSync(join(root, 'src/lib/actions/odoo.ts'), 'utf8');
+  const catalogActions = readFileSync(join(root, 'src/lib/actions/odoo-unit-catalog.ts'), 'utf8');
   const service = readFileSync(join(root, 'src/lib/odoo/service.ts'), 'utf8');
 
   assert.match(actions, /syncOdooServiceProductCatalog/);
-  assert.match(actions, /requirePermission\(locale, 'odoo\.manage'/);
-  assert.match(actions, /requireFeatureEnabled\(ctx, 'odoo_service_catalog_button'\)/);
+  assert.match(catalogActions, /requirePermission\(locale, 'odoo\.manage'/);
+  assert.match(catalogActions, /requireFeatureEnabled\(ctx, 'odoo_service_catalog_button'\)/);
   assert.match(service, /settings\.serviceCategoryId/);
   assert.match(service, /searchProducts\(auth, '', ctx, 5_000, 'service'\)/);
   assert.match(service, /syncCategory\(/);

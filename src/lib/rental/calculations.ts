@@ -37,6 +37,7 @@ export interface ContractBillingLineInput {
   odooProductName?: string | null;
   amount: number;
   taxRate: number;
+  taxTreatment?: 'standard' | 'zero_rated';
   sortOrder?: number;
 }
 
@@ -49,6 +50,7 @@ export interface ContractBillingLinePeriod {
   odooProductName: string | null;
   amountUntaxed: number;
   taxRate: number;
+  taxTreatment: 'standard' | 'zero_rated';
   amountTax: number;
   amountTotal: number;
   sortOrder: number;
@@ -209,9 +211,11 @@ export function calculateContractBillingSchedule(input: {
         throw new Error('Contract line schedules are inconsistent');
       }
       const taxRate = Math.max(0, Number(line.taxRate));
+      const taxTreatment = line.taxTreatment === 'zero_rated' ? 'zero_rated' as const : 'standard' as const;
+      const effectiveTaxRate = taxTreatment === 'zero_rated' ? 0 : taxRate;
       const { amountUntaxed, amountTax, amountTotal } = splitTaxInclusiveAmount(
         period.amount,
-        taxRate,
+        effectiveTaxRate,
       );
       return {
         contractLineId: line.contractLineId ?? null,
@@ -223,7 +227,8 @@ export function calculateContractBillingSchedule(input: {
         odooProductId: line.odooProductId ?? null,
         odooProductName: line.odooProductName ?? null,
         amountUntaxed,
-        taxRate,
+        taxRate: effectiveTaxRate,
+        taxTreatment,
         amountTax,
         amountTotal,
         sortOrder: line.sortOrder ?? lineIndex,

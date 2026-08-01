@@ -81,7 +81,6 @@ export async function globalSearch(locale: string, query: string): Promise<Globa
   }).catch(() => FEATURE_FLAG_DEFAULTS);
 
   const supabase = await createClient();
-  const encodedTerm = encodeURIComponent(term);
   const canLocations = hasPermission(auth, 'locations.view');
   const canUnits = hasPermission(auth, 'units.view');
   const canContracts = hasPermission(auth, 'contracts.view');
@@ -142,7 +141,7 @@ export async function globalSearch(locale: string, query: string): Promise<Globa
     type: 'location',
     title: locale === 'ar' ? location.name_ar : location.name_en,
     subtitle: [location.city, location.region].filter(Boolean).join(' · '),
-    href: `/locations?search=${encodedTerm}`,
+    href: `/locations/${location.id}`,
   }));
 
   const units: GlobalSearchResult[] = (unitsResult.data ?? []).map((unit) => {
@@ -154,7 +153,7 @@ export async function globalSearch(locale: string, query: string): Promise<Globa
       subtitle: locale === 'ar'
         ? location?.name_ar ?? location?.name_en ?? ''
         : location?.name_en ?? location?.name_ar ?? '',
-      href: `/units?search=${encodedTerm}`,
+      href: `/units/${unit.id}`,
     };
   });
 

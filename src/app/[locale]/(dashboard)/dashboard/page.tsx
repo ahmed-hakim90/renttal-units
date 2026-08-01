@@ -12,9 +12,11 @@ import {
   getDashboardOdooHealth,
   getDashboardOverview,
 } from '@/lib/actions/admin';
+import { getLocations } from '@/lib/actions/locations';
 import { DashboardStatsCards } from '@/components/dashboard/stats-cards';
 import { PortfolioSummary } from '@/components/dashboard/portfolio-summary';
 import { LocationOccupancySection } from '@/components/dashboard/location-occupancy-section';
+import { DashboardLocationFilter } from '@/components/dashboard/dashboard-location-filter';
 import { RecentActivity } from '@/components/dashboard/recent-activity';
 import { DashboardQuickActions } from '@/components/dashboard/quick-actions';
 import { DebtAgingSummary } from '@/components/dashboard/debt-aging-summary';
@@ -30,16 +32,19 @@ async function DashboardRecentActivitySection({
   locale,
   canEdit,
   showPaymentStatusPages,
+  locationId,
 }: {
   locale: string;
   canEdit: boolean;
   showPaymentStatusPages: boolean;
+  locationId?: string;
 }) {
+  const locationFilter = locationId ? { locationId } : undefined;
   const [overdueInvoices, dueInvoices, partialInvoices] = await Promise.all([
-    getOverdueInvoices(locale),
-    getDueThisMonth(locale),
+    getOverdueInvoices(locale, locationFilter),
+    getDueThisMonth(locale, locationFilter),
     showPaymentStatusPages
-      ? getInvoices(locale, { status: 'partially_paid' })
+      ? getInvoices(locale, { status: 'partially_paid', ...locationFilter })
       : Promise.resolve([]),
   ]);
 
@@ -55,8 +60,15 @@ async function DashboardRecentActivitySection({
   );
 }
 
-export default async function DashboardPage({ params }: { params: Promise<{ locale: string }> }) {
+export default async function DashboardPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ locale: string }>;
+  searchParams: Promise<{ locationId?: string }>;
+}) {
   const { locale } = await params;
+  const { locationId: rawLocationId } = await searchParams;
   setRequestLocale(locale);
   const ctx = { correlation_id: await getCorrelationId() };
   const t = await getTranslations('dashboard');
@@ -66,14 +78,8 @@ export default async function DashboardPage({ params }: { params: Promise<{ loca
     ? await loadFeatureFlags({ ...ctx, user_id: auth.userId, role: auth.role }).catch(() => FEATURE_FLAG_DEFAULTS)
     : FEATURE_FLAG_DEFAULTS;
 
-  const canNavigate = Boolean(
-    auth && (
-      hasPermission(auth, 'locations.view')
-      || hasPermission(auth, 'units.view')
-      || hasPermission(auth, 'invoices.view')
-    ),
-  );
-  const canShowActivity = Boolean(auth && hasPermission(auth, 'invoices.view'));
+  const canViewInvoices = Boolean(auth && hasPermission(auth, 'invoices.view'));
+  const canShowActivity = canViewInvoices;
   const canEditActivity = Boolean(auth && (
     canMutateModule(auth, 'invoices') || hasPermission(auth, 'payments.record')
   ));
@@ -81,6 +87,7 @@ export default async function DashboardPage({ params }: { params: Promise<{ loca
   const canRecordPayment = Boolean(auth && hasPermission(auth, 'payments.record'));
   const canSyncDue = Boolean(auth && hasPermission(auth, 'invoices.create'));
   const canViewContracts = Boolean(auth && hasPermission(auth, 'contracts.view'));
+  const canViewLocations = Boolean(auth && hasPermission(auth, 'locations.view'));
   const canViewReports = Boolean(
     auth
     && hasPermission(auth, 'reports.view')
@@ -95,10 +102,16 @@ export default async function DashboardPage({ params }: { params: Promise<{ loca
     ? '/partial-payments' as const
     : '/invoices' as const;
 
+  const locations = canViewLocations ? await getLocations(locale) : [];
+  const selectedLocationId = locations.some((location) => location.id === rawLocationId)
+    ? rawLocationId
+    : undefined;
+  const locationFilter = selectedLocationId ? { locationId: selectedLocationId } : undefined;
+
   const [stats, overview, debtAging, odooHealth] = await Promise.all([
-    getDashboardStats(locale),
-    getDashboardOverview(locale),
-    canViewReports ? getDashboardDebtAging(locale) : Promise.resolve(null),
+    getDashboardStats(locale, locationFilter),
+    getDashboardOverview(locale, locationFilter),
+    canViewReports ? getDashboardDebtAging(locale, locationFilter) : Promise.resolve(null),
     canManageOdoo ? getDashboardOdooHealth(locale) : Promise.resolve(null),
   ]);
   const { summary, locationsOccupancy } = overview;
@@ -110,26 +123,36 @@ export default async function DashboardPage({ params }: { params: Promise<{ loca
         title={t('title')}
         subtitle={t('subtitle')}
         actions={(
-          <DashboardQuickActions
-            locale={locale}
-            canCreateContract={canCreateContract}
-            canRecordPayment={canRecordPayment}
-            canSyncDue={canSyncDue}
-            paymentHref={paymentHref}
-          />
+          <>
+            {canViewLocations && (
+              <DashboardLocationFilter
+                locations={locations}
+                selectedLocationId={selectedLocationId ?? ''}
+                locale={locale}
+              />
+            )}
+            <DashboardQuickActions
+              locale={locale}
+              canCreateContract={canCreateContract}
+              canRecordPayment={canRecordPayment}
+              canSyncDue={canSyncDue}
+              paymentHref={paymentHref}
+            />
+          </>
         )}
       />
       <DashboardStatsCards
         stats={stats}
         locale={locale}
-        canNavigate={canNavigate}
+        canNavigate={canViewInvoices}
         showPaymentStatusPages={featureFlags.invoices_payment_status_pages}
       />
       <PortfolioSummary
         summary={summary}
         locale={locale}
-        canNavigate={canNavigate}
         canViewContracts={canViewContracts}
+        canViewInvoices={canViewInvoices}
+        dueBuckets={stats.dueBuckets}
       />
       {debtAging && (
         <DebtAgingSummary
@@ -151,6 +174,7 @@ export default async function DashboardPage({ params }: { params: Promise<{ loca
             locale={locale}
             canEdit={canEditActivity}
             showPaymentStatusPages={featureFlags.invoices_payment_status_pages}
+            locationId={selectedLocationId}
           />
         </Suspense>
       )}

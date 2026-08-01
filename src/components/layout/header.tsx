@@ -3,13 +3,23 @@
 import { useTranslations } from 'next-intl';
 import { InstallAppHint } from '@/components/pwa/install-app-button';
 import { LogoMark } from '@/components/brand/logo';
+import { HeaderNotifications } from '@/components/notifications/header-notifications';
 import { GlobalSearch } from './global-search';
 import { LanguageSwitcher } from './language-switcher';
 import { hasAnyPermission } from '@/lib/auth/permissions';
+import type { ActionableNotification } from '@/lib/notifications/guards';
 import type { AuthContext } from '@/types/database';
 import { Eye } from 'lucide-react';
 
-export function Header({ auth }: { auth: AuthContext }) {
+export function Header({
+  auth,
+  notifications,
+  locale,
+}: {
+  auth: AuthContext;
+  notifications: ActionableNotification[];
+  locale: string;
+}) {
   const t = useTranslations('common');
   const isViewOnly = !hasAnyPermission(auth, [
     'locations.create', 'locations.update', 'locations.delete',
@@ -35,6 +45,7 @@ export function Header({ auth }: { auth: AuthContext }) {
       </div>
       <GlobalSearch />
       <div className="flex items-center gap-2">
+        <HeaderNotifications notifications={notifications} locale={locale} />
         <LanguageSwitcher />
         <InstallAppHint />
       </div>

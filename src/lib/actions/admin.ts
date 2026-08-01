@@ -174,13 +174,13 @@ export async function getDebtAgingReport(locale: string, filters?: { locationId?
   return reportingService.getDebtAgingInvoices(auth, ctx, filters);
 }
 
-export async function getDashboardOverview(locale: string) {
+export async function getDashboardOverview(locale: string, filters?: { locationId?: string }) {
   const auth = await requireAuth(locale, await getCtx());
   return reportingService.getDashboardOverview(auth, {
     ...await getCtx(),
     user_id: auth.userId,
     role: auth.role,
-  });
+  }, filters);
 }
 
 export async function getPortfolioSummary(locale: string) {
@@ -193,12 +193,12 @@ export async function getLocationsOccupancy(locale: string) {
   return overview.locationsOccupancy;
 }
 
-export async function getDashboardDebtAging(locale: string) {
+export async function getDashboardDebtAging(locale: string, filters?: { locationId?: string }) {
   const auth = await requirePermission(locale, 'reports.view', await getCtx());
   const ctx = { ...await getCtx(), user_id: auth.userId, role: auth.role };
   const disabled = await requireFeatureEnabled(ctx, 'reports_operational');
   if (disabled) return null;
-  return reportingService.getDashboardDebtAgingSummary(auth, ctx);
+  return reportingService.getDashboardDebtAgingSummary(auth, ctx, filters);
 }
 
 export async function getDashboardOdooHealth(locale: string) {
@@ -621,6 +621,10 @@ async function recordImportRateLimitFailure(userId: string) {
 const ALLOWED_SETTING_KEYS = new Set([
   'company_name',
   'company_name_ar',
+  'default_payment_terms_days',
+  'overdue_grace_days',
+  'due_reminder_days',
+  'dashboard_due_horizons',
   'default_payment_cycle',
   'default_tax_mode',
   'vat_rate',
@@ -638,10 +642,50 @@ export async function updateSetting(locale: string, key: string, value: unknown)
   if (key === 'odoo_integration') {
     return { success: false as const, error: 'Use the Odoo settings action instead' };
   }
+  if (key === 'company_name') {
+    const companyName = value as { en?: unknown; ar?: unknown } | null;
+    if (
+      !companyName
+      || typeof companyName !== 'object'
+      || typeof companyName.en !== 'string'
+      || typeof companyName.ar !== 'string'
+      || companyName.en.length > 200
+      || companyName.ar.length > 200
+    ) {
+      return { success: false as const, error: 'Invalid company name' };
+    }
+  }
+  if (key === 'default_payment_terms_days' && (
+    typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0 || value > 3650
+  )) {
+    return { success: false as const, error: 'Invalid payment terms' };
+  }
+  if (key === 'overdue_grace_days' && (
+    typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0 || value > 365
+  )) {
+    return { success: false as const, error: 'Invalid overdue grace period' };
+  }
+  if (key === 'due_reminder_days' && (
+    typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0 || value > 90
+  )) {
+    return { success: false as const, error: 'Invalid due reminder period' };
+  }
+  if (key === 'dashboard_due_horizons' && (
+    !Array.isArray(value)
+    || value.length !== 3
+    || value.some((days) => !Number.isSafeInteger(days) || days < 1 || days > 90)
+    || !(value[0] < value[1] && value[1] < value[2])
+  )) {
+    return { success: false as const, error: 'Invalid dashboard due horizons' };
+  }
   const old = await settingsRepository.findByKey(key, ctx);
   const setting = await settingsRepository.upsert(key, value, auth.userId, ctx);
   await auditService.log(auth, 'update', 'setting', setting.id, old, setting, ctx);
   revalidatePath(`/${locale}/settings`);
+  if (key === 'due_reminder_days' || key === 'dashboard_due_horizons') {
+    revalidatePath(`/${locale}/dashboard`);
+    revalidatePath(`/${locale}/due-this-month`);
+  }
   return { success: true, data: setting };
 }
 

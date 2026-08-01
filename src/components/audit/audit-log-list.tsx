@@ -75,9 +75,14 @@ export function AuditLogList({
                   <td>{t(`entities.${log.entity_type}`)}</td>
                   <td className="whitespace-nowrap">{formatDateTime(log.created_at, loc)}</td>
                   <td className="text-end">
-                    <Button variant="ghost" size="sm" onClick={() => setSelected(log)}>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      title={t('view')}
+                      aria-label={t('view')}
+                      onClick={() => setSelected(log)}
+                    >
                       <Eye aria-hidden="true" />
-                      {t('view')}
                     </Button>
                   </td>
                 </tr>

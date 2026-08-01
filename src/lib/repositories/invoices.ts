@@ -1,8 +1,17 @@
 import { createClient } from '@/lib/supabase/server';
 import type { Invoice, InvoiceStatus, OdooSyncStatus } from '@/types/database';
 import type { LogContext } from '@/lib/observability';
+import { getDashboardDueDateRange } from '@/lib/rental/dashboard-due-buckets';
 
 const INVOICE_SELECT = '*, contract:contracts(*), unit:units(*, location:locations(*)), tenant:tenants(*), lines:invoice_lines(*)';
+
+function filterInvoicesByLocation<T extends { unit?: { location_id?: string | null } | null }>(
+  invoices: T[],
+  locationId?: string,
+): T[] {
+  if (!locationId) return invoices;
+  return invoices.filter((invoice) => invoice.unit?.location_id === locationId);
+}
 
 export const invoicesRepository = {
   async findAll(ctx: LogContext, filters?: { status?: InvoiceStatus | InvoiceStatus[]; locationId?: string }): Promise<Invoice[]> {
@@ -17,11 +26,7 @@ export const invoicesRepository = {
     }
     const { data, error } = await query;
     if (error) throw error;
-    let results = data ?? [];
-    if (filters?.locationId) {
-      results = results.filter((inv) => inv.unit?.location_id === filters.locationId);
-    }
-    return results;
+    return filterInvoicesByLocation(data ?? [], filters?.locationId);
   },
 
   async findById(id: string, ctx: LogContext): Promise<Invoice | null> {
@@ -130,6 +135,52 @@ export const invoicesRepository = {
     return data;
   },
 
+  async createLines(
+    invoiceId: string,
+    lines: Array<{
+      contract_line_id?: string | null;
+      line_type: 'rental' | 'service';
+      unit_id?: string | null;
+      description: string;
+      odoo_product_id?: number | null;
+      odoo_product_name?: string | null;
+      quantity?: number;
+      amount_untaxed: number;
+      tax_rate: number;
+      tax_treatment?: 'standard' | 'zero_rated';
+      amount_tax: number;
+      amount_total: number;
+      period_start: string;
+      period_end: string;
+      sort_order: number;
+    }>,
+    ctx: LogContext,
+  ): Promise<void> {
+    if (lines.length === 0) return;
+    const supabase = await createClient();
+    const { error } = await supabase.from('invoice_lines').insert(
+      lines.map((line) => ({
+        invoice_id: invoiceId,
+        contract_line_id: line.contract_line_id ?? null,
+        line_type: line.line_type,
+        unit_id: line.unit_id ?? null,
+        description: line.description,
+        odoo_product_id: line.odoo_product_id ?? null,
+        odoo_product_name: line.odoo_product_name ?? null,
+        quantity: line.quantity ?? 1,
+        amount_untaxed: line.amount_untaxed,
+        tax_rate: line.tax_rate,
+        tax_treatment: line.tax_treatment ?? 'standard',
+        amount_tax: line.amount_tax,
+        amount_total: line.amount_total,
+        period_start: line.period_start,
+        period_end: line.period_end,
+        sort_order: line.sort_order,
+      })),
+    );
+    if (error) throw error;
+  },
+
   async update(id: string, input: Partial<Invoice>, ctx: LogContext): Promise<Invoice> {
     const supabase = await createClient();
     const { data, error } = await supabase.from('invoices').update(input).eq('id', id).select(INVOICE_SELECT).single();
@@ -137,29 +188,46 @@ export const invoicesRepository = {
     return data;
   },
 
-  async issueDueInvoice(id: string, invoiceNumber: string, ctx: LogContext): Promise<Invoice> {
+  async issueDueInvoice(id: string, ctx: LogContext): Promise<Invoice> {
     const supabase = await createClient();
     const { data, error } = await supabase.rpc('issue_due_invoice_atomic', {
       p_invoice_id: id,
-      p_invoice_number: invoiceNumber,
     });
     if (error) throw error;
     if (!data) throw new Error('Invoice was not issued');
     return data as Invoice;
   },
 
-  async countByStatus(status: InvoiceStatus | InvoiceStatus[], ctx: LogContext): Promise<number> {
+  async countByStatus(
+    status: InvoiceStatus | InvoiceStatus[],
+    ctx: LogContext,
+    filters?: { locationId?: string },
+  ): Promise<number> {
     const supabase = await createClient();
     const statuses = Array.isArray(status) ? status : [status];
-    const { count, error } = await supabase
+    if (!filters?.locationId) {
+      const { count, error } = await supabase
+        .from('invoices')
+        .select('*', { count: 'exact', head: true })
+        .in('status', statuses);
+      if (error) throw error;
+      return count ?? 0;
+    }
+
+    const { data, error } = await supabase
       .from('invoices')
-      .select('*', { count: 'exact', head: true })
-      .in('status', statuses);
+      .select('id, unit:units!inner(location_id)')
+      .in('status', statuses)
+      .eq('unit.location_id', filters.locationId);
     if (error) throw error;
-    return count ?? 0;
+    return data?.length ?? 0;
   },
 
-  async findDueThisMonth(ctx: LogContext, alertWindowDays = 3): Promise<Invoice[]> {
+  async findDueThisMonth(
+    ctx: LogContext,
+    alertWindowDays = 3,
+    filters?: { locationId?: string },
+  ): Promise<Invoice[]> {
     const end = new Date(Date.now() + alertWindowDays * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     const supabase = await createClient();
     const { data, error } = await supabase
@@ -170,41 +238,74 @@ export const invoicesRepository = {
       .eq('status', 'due')
       .order('due_date');
     if (error) throw error;
-    return data ?? [];
+    return filterInvoicesByLocation(data ?? [], filters?.locationId);
   },
 
-  async countDueThisMonth(ctx: LogContext, alertWindowDays = 3): Promise<number> {
-    const end = new Date(Date.now() + alertWindowDays * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-    const supabase = await createClient();
-    const { count, error } = await supabase
-      .from('invoices')
-      .select('id', { count: 'exact', head: true })
-      .gte('due_date', '2000-01-01')
-      .lte('due_date', end)
-      .eq('status', 'due');
-    if (error) throw error;
-    return count ?? 0;
+  async countDueThisMonth(
+    ctx: LogContext,
+    alertWindowDays = 3,
+    filters?: { locationId?: string },
+  ): Promise<number> {
+    const invoices = await this.findDueThisMonth(ctx, alertWindowDays, filters);
+    return invoices.length;
   },
 
-  async findUpcomingStats(days: number, ctx: LogContext): Promise<{ count: number; amount: number }> {
+  async findUpcomingStats(
+    days: number,
+    ctx: LogContext,
+    filters?: { locationId?: string },
+  ): Promise<{ count: number; amount: number }> {
     const today = new Date().toISOString().split('T')[0];
     const future = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     const supabase = await createClient();
     const { data, error } = await supabase
       .from('invoices')
-      .select('amount, paid_amount')
+      .select('amount, paid_amount, unit:units(location_id)')
       .gte('due_date', today)
       .lte('due_date', future)
       .in('status', ['invoice_issued', 'partially_paid']);
     if (error) throw error;
-    const rows = data ?? [];
+    const rows = (data ?? []).filter((row) => {
+      if (!filters?.locationId) return true;
+      const unit = Array.isArray(row.unit) ? row.unit[0] : row.unit;
+      return unit?.location_id === filters.locationId;
+    });
     return {
       count: rows.length,
       amount: rows.reduce((sum, r) => sum + Number(r.amount) - Number(r.paid_amount), 0),
     };
   },
 
-  async findOverdue(ctx: LogContext): Promise<Invoice[]> {
+  async findScheduledDueWithin(
+    days: number,
+    ctx: LogContext,
+    filters?: { locationId?: string },
+  ): Promise<Array<{ due_date: string; amount: number; paid_amount: number }>> {
+    const { startDate, endDate } = getDashboardDueDateRange(days);
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from('invoices')
+      .select('due_date, amount, paid_amount, unit:units(location_id)')
+      .eq('status', 'due')
+      .gte('due_date', startDate)
+      .lte('due_date', endDate)
+      .order('due_date');
+    if (error) throw error;
+
+    return (data ?? [])
+      .filter((row) => {
+        if (!filters?.locationId) return true;
+        const unit = Array.isArray(row.unit) ? row.unit[0] : row.unit;
+        return unit?.location_id === filters.locationId;
+      })
+      .map((row) => ({
+        due_date: row.due_date,
+        amount: Number(row.amount),
+        paid_amount: Number(row.paid_amount),
+      }));
+  },
+
+  async findOverdue(ctx: LogContext, filters?: { locationId?: string }): Promise<Invoice[]> {
     const today = new Date().toISOString().split('T')[0];
     const supabase = await createClient();
     const { data, error } = await supabase
@@ -214,7 +315,24 @@ export const invoicesRepository = {
       .in('status', ['invoice_issued', 'partially_paid', 'overdue'])
       .order('due_date');
     if (error) throw error;
-    return data ?? [];
+    return filterInvoicesByLocation(data ?? [], filters?.locationId);
+  },
+
+  async countOverdue(ctx: LogContext, filters?: { locationId?: string }): Promise<number> {
+    if (filters?.locationId) {
+      const overdue = await this.findOverdue(ctx, filters);
+      return overdue.length;
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+    const supabase = await createClient();
+    const { count, error } = await supabase
+      .from('invoices')
+      .select('id', { count: 'exact', head: true })
+      .lt('due_date', today)
+      .in('status', ['invoice_issued', 'partially_paid', 'overdue']);
+    if (error) throw error;
+    return count ?? 0;
   },
 
   async countByOdooSyncStatus(
@@ -289,7 +407,7 @@ export const invoicesRepository = {
     if (error) throw error;
   },
 
-  async findOutstanding(ctx: LogContext): Promise<Invoice[]> {
+  async findOutstanding(ctx: LogContext, filters?: { locationId?: string }): Promise<Invoice[]> {
     const supabase = await createClient();
     const { data, error } = await supabase
       .from('invoices')
@@ -297,6 +415,9 @@ export const invoicesRepository = {
       .in('status', ['due', 'invoice_issued', 'partially_paid', 'overdue'])
       .order('due_date');
     if (error) throw error;
-    return (data ?? []).filter((inv) => Number(inv.amount) - Number(inv.paid_amount) > 0);
+    return filterInvoicesByLocation(
+      (data ?? []).filter((inv) => Number(inv.amount) - Number(inv.paid_amount) > 0),
+      filters?.locationId,
+    );
   },
 };

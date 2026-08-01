@@ -14,11 +14,25 @@ import { Card, CardDescription, CardTitle } from '@/components/ui/card';
 import { PageHeader } from '@/components/layout/page-header';
 import { Link } from '@/lib/i18n/navigation';
 import { formatCurrency, formatDate, formatNumber } from '@/lib/i18n/format';
-import { getContractDisplayStatus } from '@/lib/rental/calculations';
+import {
+  calculateContractBillingSchedule,
+  getContractDisplayStatus,
+} from '@/lib/rental/calculations';
+import { applyOpeningBalanceToSchedule } from '@/lib/rental/contract-opening-balance';
 import { getInvoiceDisplayStatus } from '@/lib/rental/invoice-display';
 import { cn } from '@/lib/utils';
 import type { Locale } from '@/lib/i18n/routing';
-import type { Contract, ContractAttachment } from '@/types/database';
+import type { Contract, ContractAttachment, InvoiceStatus } from '@/types/database';
+
+interface ContractScheduleRow {
+  key: string;
+  periodStart: string;
+  periodEnd: string;
+  dueDate: string;
+  amount: number;
+  paidAmount: number;
+  status: InvoiceStatus | 'overdue';
+}
 
 function contractUnitLabels(contract: Contract) {
   const rentalLines = (contract.lines ?? []).filter(
@@ -37,6 +51,54 @@ function locationName(contract: Contract, locale: string) {
   return locale === 'ar'
     ? location.name_ar || location.name_en
     : location.name_en || location.name_ar;
+}
+
+function draftScheduleRows(contract: Contract): ContractScheduleRow[] {
+  if (
+    contract.status !== 'draft'
+    || !contract.start_date
+    || !contract.end_date
+    || !contract.lines?.length
+  ) {
+    return [];
+  }
+
+  try {
+    return applyOpeningBalanceToSchedule(
+      calculateContractBillingSchedule({
+        start_date: contract.start_date,
+        end_date: contract.end_date,
+        payment_cycle: contract.payment_cycle,
+        lines: contract.lines.map((line) => ({
+          contractLineId: line.id,
+          lineType: line.line_type,
+          unitId: line.unit_id,
+          description: line.description,
+          odooProductId: line.odoo_product_id,
+          odooProductName: line.odoo_product_name,
+          amount: Number(line.amount),
+          taxRate: Number(line.tax_rate),
+          taxTreatment: line.tax_treatment,
+          sortOrder: line.sort_order,
+        })),
+      }),
+      {
+        paid_through_date: contract.paid_through_date,
+        opening_paid_amount: contract.opening_paid_amount,
+      },
+    ).map((period) => ({
+      key: `${period.periodStart}-${period.periodEnd}`,
+      periodStart: period.periodStart,
+      periodEnd: period.periodEnd,
+      dueDate: period.periodStart,
+      amount: period.amount,
+      paidAmount: period.paid_amount,
+      status: period.status,
+    }));
+  } catch {
+    // Incomplete drafts remain editable; the form will show schedule validation errors.
+    return [];
+  }
 }
 
 export async function ContractDetail({
@@ -63,10 +125,24 @@ export async function ContractDetail({
   const invoices = [...(contract.invoices ?? [])].sort(
     (a, b) => a.due_date.localeCompare(b.due_date),
   );
+  const projectedSchedule = invoices.length === 0 ? draftScheduleRows(contract) : [];
+  const isProjectedSchedule = projectedSchedule.length > 0;
+  const scheduleRows: ContractScheduleRow[] = invoices.length > 0
+    ? invoices.map((invoice) => ({
+        key: invoice.id,
+        periodStart: invoice.period_start,
+        periodEnd: invoice.period_end,
+        dueDate: invoice.due_date,
+        amount: Number(invoice.amount),
+        paidAmount: Number(invoice.paid_amount),
+        status: getInvoiceDisplayStatus(invoice),
+      }))
+    : projectedSchedule;
 
   return (
     <div>
       <PageHeader
+        compact
         title={contract.contract_number}
         subtitle={[
           contract.tenant?.full_name,
@@ -78,7 +154,7 @@ export async function ContractDetail({
             {contract.status === 'draft' && (
               <Link
                 href={`/contracts/${contract.id}/edit`}
-                className={buttonStyles()}
+                className={buttonStyles({ size: 'sm' })}
               >
                 <Pencil />
                 {t('continueDraft')}
@@ -87,13 +163,13 @@ export async function ContractDetail({
             {contract.status === 'active' && (
               <Link
                 href={`/contracts/${contract.id}/edit`}
-                className={buttonStyles()}
+                className={buttonStyles({ size: 'sm' })}
               >
                 <Pencil />
                 {t('edit')}
               </Link>
             )}
-            <Link href="/contracts" className={buttonStyles({ variant: 'outline' })}>
+            <Link href="/contracts" className={buttonStyles({ variant: 'outline', size: 'sm' })}>
               <ArrowLeft className="rtl:rotate-180" />
               {tc('back')}
             </Link>
@@ -101,40 +177,44 @@ export async function ContractDetail({
         )}
       />
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(28rem,0.95fr)]">
-        <div className="min-w-0 space-y-6">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <Card>
-              <CardDescription>{t('status')}</CardDescription>
-              <div className="mt-3">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(28rem,0.95fr)]">
+        <div className="min-w-0 space-y-4">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <Card className="p-3 sm:p-4">
+              <CardDescription className="text-xs">{t('status')}</CardDescription>
+              <div className="mt-2">
                 <Badge status={displayStatus} label={t(displayStatus)} />
               </div>
             </Card>
-            <Card>
-              <CardDescription>{t('totalAmount')}</CardDescription>
-              <CardTitle className="mt-2">{formatCurrency(Number(contract.total_amount), loc)}</CardTitle>
+            <Card className="p-3 sm:p-4">
+              <CardDescription className="text-xs">{t('totalAmount')}</CardDescription>
+              <CardTitle className="mt-1.5 text-sm sm:text-base">
+                {formatCurrency(Number(contract.total_amount), loc)}
+              </CardTitle>
             </Card>
-            <Card>
-              <CardDescription>{t('paymentCycle')}</CardDescription>
-              <CardTitle className="mt-2 text-base">{tc(`paymentCycle.${contract.payment_cycle}`)}</CardTitle>
+            <Card className="p-3 sm:p-4">
+              <CardDescription className="text-xs">{t('paymentCycle')}</CardDescription>
+              <CardTitle className="mt-1.5 text-sm sm:text-base">
+                {tc(`paymentCycle.${contract.payment_cycle}`)}
+              </CardTitle>
             </Card>
-            <Card>
-              <CardDescription>{t('taxMode')}</CardDescription>
-              <CardTitle className="mt-2 text-base">
+            <Card className="p-3 sm:p-4">
+              <CardDescription className="text-xs">{t('taxMode')}</CardDescription>
+              <CardTitle className="mt-1.5 text-sm sm:text-base">
                 {t(contract.tax_mode === 'taxable' ? 'taxable' : 'nonTaxable')}
               </CardTitle>
             </Card>
           </div>
 
           <section className="surface-panel overflow-hidden">
-            <div className="flex items-center gap-3 border-b border-border px-5 py-4 sm:px-6">
-              <UserRound className="size-5 text-muted-foreground" />
-              <h2 className="font-semibold">{t('contractDetails')}</h2>
+            <div className="flex items-center gap-2.5 border-b border-border px-4 py-3">
+              <UserRound className="size-4 text-muted-foreground" />
+              <h2 className="text-sm font-semibold">{t('contractDetails')}</h2>
             </div>
-            <dl className="grid gap-x-6 gap-y-5 px-5 py-5 sm:grid-cols-2 sm:px-6">
+            <dl className="grid gap-x-5 gap-y-3 px-4 py-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
               <div>
                 <dt className="text-xs text-muted-foreground">{t('period')}</dt>
-                <dd className="mt-1 font-medium">
+                <dd className="mt-0.5 font-medium">
                   {contract.start_date ? formatDate(contract.start_date, loc) : '—'}
                   {' - '}
                   {contract.end_date ? formatDate(contract.end_date, loc) : '—'}
@@ -144,13 +224,13 @@ export async function ContractDetail({
                 <>
                   <div>
                     <dt className="text-xs text-muted-foreground">{t('cancellationDate')}</dt>
-                    <dd className="mt-1 font-medium">
+                    <dd className="mt-0.5 font-medium">
                       {contract.cancellation_date ? formatDate(contract.cancellation_date, loc) : '—'}
                     </dd>
                   </div>
                   <div>
                     <dt className="text-xs text-muted-foreground">{t('cancellationHandling')}</dt>
-                    <dd className="mt-1 font-medium">
+                    <dd className="mt-0.5 font-medium">
                       {contract.cancellation_handling
                         ? t(contract.cancellation_handling === 'prorate_current'
                           ? 'prorateCurrent'
@@ -162,47 +242,47 @@ export async function ContractDetail({
               )}
               <div>
                 <dt className="text-xs text-muted-foreground">{t('tenantName')}</dt>
-                <dd className="mt-1 font-medium" dir="auto">{contract.tenant?.full_name ?? '—'}</dd>
+                <dd className="mt-0.5 font-medium" dir="auto">{contract.tenant?.full_name ?? '—'}</dd>
               </div>
               <div>
                 <dt className="text-xs text-muted-foreground">{t('tenantPhone')}</dt>
-                <dd className="mt-1 font-medium" dir="ltr">{contract.tenant?.phone ?? '—'}</dd>
+                <dd className="mt-0.5 font-medium" dir="ltr">{contract.tenant?.phone ?? '—'}</dd>
               </div>
               <div>
                 <dt className="text-xs text-muted-foreground">{t('tenantEmail')}</dt>
-                <dd className="mt-1 break-words font-medium" dir="ltr">{contract.tenant?.email ?? '—'}</dd>
+                <dd className="mt-0.5 break-words font-medium" dir="ltr">{contract.tenant?.email ?? '—'}</dd>
               </div>
               <div>
                 <dt className="text-xs text-muted-foreground">{t('tenantNationalId')}</dt>
-                <dd className="mt-1 font-medium" dir="ltr">{contract.tenant?.national_id ?? '—'}</dd>
+                <dd className="mt-0.5 font-medium" dir="ltr">{contract.tenant?.national_id ?? '—'}</dd>
               </div>
               <div>
                 <dt className="text-xs text-muted-foreground">{t('notes')}</dt>
-                <dd className="mt-1 whitespace-pre-wrap font-medium" dir="auto">{contract.notes ?? '—'}</dd>
+                <dd className="mt-0.5 whitespace-pre-wrap font-medium" dir="auto">{contract.notes ?? '—'}</dd>
               </div>
             </dl>
           </section>
 
           <section className="surface-panel overflow-hidden">
-            <div className="flex items-center gap-3 border-b border-border px-5 py-4 sm:px-6">
-              <Home className="size-5 text-muted-foreground" />
+            <div className="flex items-center gap-2.5 border-b border-border px-4 py-3">
+              <Home className="size-4 text-muted-foreground" />
               <div>
-                <h2 className="font-semibold">{t('linesSection')}</h2>
-                <p className="text-sm text-muted-foreground">
+                <h2 className="text-sm font-semibold">{t('linesSection')}</h2>
+                <p className="text-xs text-muted-foreground">
                   {t('lineCount', { count: contract.lines?.length ?? 0 })}
                 </p>
               </div>
             </div>
             <div className="divide-y divide-border">
               {(contract.lines ?? []).map((line) => (
-                <div key={line.id} className="flex items-start justify-between gap-4 px-5 py-4 sm:px-6">
+                <div key={line.id} className="flex items-start justify-between gap-4 px-4 py-3 text-sm">
                   <div className="min-w-0">
                     <p className="font-medium" dir="auto">
                       {line.line_type === 'rental'
                         ? line.unit?.unit_number ?? t('rentalLine')
                         : line.description || t('serviceLine')}
                     </p>
-                    <p className="mt-1 text-sm text-muted-foreground">
+                    <p className="mt-0.5 text-xs text-muted-foreground">
                       {line.line_type === 'rental'
                         ? t('rentalLine')
                         : line.odoo_product_name || t('serviceLine')}
@@ -217,44 +297,54 @@ export async function ContractDetail({
           </section>
 
           <section className="surface-panel overflow-hidden">
-            <div className="flex items-center gap-3 border-b border-border px-5 py-4 sm:px-6">
-              <ReceiptText className="size-5 text-muted-foreground" />
+            <div className="flex items-center gap-2.5 border-b border-border px-4 py-3">
+              <ReceiptText className="size-4 text-muted-foreground" />
               <div>
-                <h2 className="font-semibold">{t('schedule')}</h2>
-                <p className="text-sm text-muted-foreground">{t('invoiceCount', { count: invoices.length })}</p>
+                <h2 className="text-sm font-semibold">{t('schedule')}</h2>
+                <p className="text-xs text-muted-foreground">
+                  {isProjectedSchedule
+                    ? t('plannedInvoiceCount', { count: scheduleRows.length })
+                    : t('invoiceCount', { count: scheduleRows.length })}
+                </p>
               </div>
             </div>
-            {invoices.length === 0 ? (
-              <p className="px-5 py-10 text-center text-sm text-muted-foreground">{t('noInvoices')}</p>
+            {isProjectedSchedule && (
+              <p className="border-b border-border bg-muted/30 px-4 py-2 text-xs text-muted-foreground">
+                {t('draftScheduleHint')}
+              </p>
+            )}
+            {scheduleRows.length === 0 ? (
+              <p className="px-4 py-8 text-center text-sm text-muted-foreground">{t('noInvoices')}</p>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[34rem] text-sm">
+                <table className="w-full min-w-[42rem] text-xs">
                   <thead className="bg-muted/50">
                     <tr>
-                      <th className="px-5 py-3 text-start font-medium">{t('dueDate')}</th>
-                      <th className="px-5 py-3 text-start font-medium">{t('amount')}</th>
-                      <th className="px-5 py-3 text-start font-medium">{t('paidAmount')}</th>
-                      <th className="px-5 py-3 text-start font-medium">{t('status')}</th>
+                      <th className="px-4 py-2 text-start font-medium">{t('period')}</th>
+                      <th className="px-4 py-2 text-start font-medium">{t('dueDate')}</th>
+                      <th className="px-4 py-2 text-start font-medium">{t('amount')}</th>
+                      <th className="px-4 py-2 text-start font-medium">{t('paidAmount')}</th>
+                      <th className="px-4 py-2 text-start font-medium">{t('status')}</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {invoices.map((invoice) => {
-                      const invoiceStatus = getInvoiceDisplayStatus(invoice);
-                      return (
-                        <tr key={invoice.id} className="border-t border-border">
-                          <td className="px-5 py-3">{formatDate(invoice.due_date, loc)}</td>
-                          <td className="px-5 py-3 tabular-nums">
-                            {formatCurrency(Number(invoice.amount), loc)}
-                          </td>
-                          <td className="px-5 py-3 tabular-nums">
-                            {formatCurrency(Number(invoice.paid_amount), loc)}
-                          </td>
-                          <td className="px-5 py-3">
-                            <Badge status={invoiceStatus} label={ts(invoiceStatus)} />
-                          </td>
-                        </tr>
-                      );
-                    })}
+                    {scheduleRows.map((row) => (
+                      <tr key={row.key} className="border-t border-border">
+                        <td className="whitespace-nowrap px-4 py-2">
+                          {formatDate(row.periodStart, loc)} – {formatDate(row.periodEnd, loc)}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-2">{formatDate(row.dueDate, loc)}</td>
+                        <td className="whitespace-nowrap px-4 py-2 tabular-nums">
+                          {formatCurrency(row.amount, loc)}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-2 tabular-nums">
+                          {formatCurrency(row.paidAmount, loc)}
+                        </td>
+                        <td className="px-4 py-2">
+                          <Badge status={row.status} label={ts(row.status)} className="text-[11px]" />
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
@@ -264,11 +354,11 @@ export async function ContractDetail({
 
         <aside className="min-w-0 xl:sticky xl:top-6 xl:self-start">
           <section className="surface-panel overflow-hidden">
-            <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-4">
+            <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
               <div className="min-w-0">
-                <h2 className="font-semibold">{t('documentPreview')}</h2>
+                <h2 className="text-sm font-semibold">{t('documentPreview')}</h2>
                 {selectedAttachment && (
-                  <p className="mt-1 truncate text-sm text-muted-foreground" dir="auto">
+                  <p className="mt-0.5 truncate text-xs text-muted-foreground" dir="auto">
                     {selectedAttachment.original_filename}
                   </p>
                 )}

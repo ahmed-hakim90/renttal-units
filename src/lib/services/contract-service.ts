@@ -21,6 +21,12 @@ import {
 } from '@/lib/rental/contract-opening-balance';
 import { validateContractOpeningBalance } from '@/lib/rental/validate-opening-balance';
 import { logger, withSpan, type LogContext } from '@/lib/observability';
+import { getOdooSettings } from '@/lib/odoo/settings';
+import {
+  applyContractWideOdooTaxRates,
+  contractTaxSelectionFromPayload,
+  resolveTaxRateForSelection,
+} from '@/lib/rental/contract-tax-rates';
 
 function rentalUnitIds(lines: ContractLineInput[] | undefined, fallbackUnitId?: string | null) {
   const fromLines = (lines ?? [])
@@ -28,6 +34,20 @@ function rentalUnitIds(lines: ContractLineInput[] | undefined, fallbackUnitId?: 
     .map((line) => line.unit_id as string);
   if (fromLines.length > 0) return Array.from(new Set(fromLines));
   return fallbackUnitId ? [fallbackUnitId] : [];
+}
+
+async function applyOdooTaxRatesToContractLines(
+  lines: ContractLineInput[],
+  taxMode: 'taxable' | 'non_taxable' | undefined,
+  ctx: LogContext,
+) {
+  const settings = await getOdooSettings(ctx);
+  const selection = contractTaxSelectionFromPayload({ tax_mode: taxMode, lines });
+  return {
+    lines: applyContractWideOdooTaxRates(lines, selection, settings),
+    selection,
+    taxRate: resolveTaxRateForSelection(selection, settings),
+  };
 }
 
 async function createContractInvoices(
@@ -52,6 +72,7 @@ async function createContractInvoices(
         odooProductName: line.odoo_product_name,
         amount: Number(line.amount),
         taxRate: Number(line.tax_rate),
+        taxTreatment: line.tax_treatment === 'zero_rated' ? 'zero_rated' : 'standard',
         sortOrder: line.sort_order,
       })),
     }),
@@ -70,7 +91,7 @@ async function createContractInvoices(
     if (existing) continue;
 
     try {
-      await invoicesRepository.create({
+      const invoice = await invoicesRepository.create({
         contract_id: contract.id,
         unit_id: contract.unit_id,
         tenant_id: contract.tenant_id,
@@ -86,6 +107,26 @@ async function createContractInvoices(
         issued_at: null,
         notes: null,
       }, ctx);
+      await invoicesRepository.createLines(
+        invoice.id,
+        period.lineItems.map((line) => ({
+          contract_line_id: line.contractLineId,
+          line_type: line.lineType,
+          unit_id: line.unitId,
+          description: line.description,
+          odoo_product_id: line.odooProductId,
+          odoo_product_name: line.odooProductName,
+          amount_untaxed: line.amountUntaxed,
+          tax_rate: line.taxRate,
+          tax_treatment: line.taxTreatment,
+          amount_tax: line.amountTax,
+          amount_total: line.amountTotal,
+          period_start: period.periodStart,
+          period_end: period.periodEnd,
+          sort_order: line.sortOrder,
+        })),
+        ctx,
+      );
       created++;
     } catch (error) {
       if (isUniqueViolation(error)) continue;
@@ -253,7 +294,12 @@ export const contractService = {
       }
 
       const validated = validation.data;
-      let lines = validated.lines;
+      const taxed = await applyOdooTaxRatesToContractLines(
+        validated.lines,
+        validated.tax_mode,
+        ctx,
+      );
+      let lines = taxed.lines;
       const primaryUnitId = validated.unit_id;
       const totalAmount = validated.total_amount;
       const unitIds = rentalUnitIds(lines, primaryUnitId);
@@ -350,6 +396,7 @@ export const contractService = {
               odooProductName: line.odoo_product_name ?? null,
               amount: line.amount,
               taxRate: line.tax_rate ?? 0,
+              taxTreatment: line.tax_treatment === 'zero_rated' ? 'zero_rated' : 'standard',
               sortOrder: line.sort_order ?? index,
             })),
           }),
@@ -429,6 +476,7 @@ export const contractService = {
             odoo_product_id: line.odoo_product_id ?? null,
             odoo_product_name: line.odoo_product_name ?? null,
             tax_rate: line.tax_rate ?? 0,
+            tax_treatment: line.tax_treatment === 'zero_rated' ? 'zero_rated' : 'standard',
             sort_order: line.sort_order ?? index,
           })),
         }, ctx);
@@ -505,6 +553,7 @@ export const contractService = {
           odoo_product_id: line.odoo_product_id,
           odoo_product_name: line.odoo_product_name,
           tax_rate: Number(line.tax_rate),
+            tax_treatment: line.tax_treatment === 'zero_rated' ? 'zero_rated' : 'standard',
           sort_order: line.sort_order,
         })),
         total_amount: contractInput.total_amount ?? Number(contract.total_amount),
@@ -514,6 +563,12 @@ export const contractService = {
       }
 
       const validated = validation.data;
+      const taxed = await applyOdooTaxRatesToContractLines(
+        validated.lines,
+        validated.tax_mode ?? contractInput.tax_mode,
+        ctx,
+      );
+      const lines = taxed.lines;
       const invoices = await invoicesRepository.findByContractId(id, ctx);
       const scheduleFieldsChanged = scheduleChanged(contract, {
         start_date: validated.start_date,
@@ -527,7 +582,7 @@ export const contractService = {
         return { success: false, error: 'contractHasFinancialActivity', errorCode: 'VALIDATION' };
       }
 
-      for (const unitId of rentalUnitIds(validated.lines, validated.unit_id)) {
+      for (const unitId of rentalUnitIds(lines, validated.unit_id)) {
         const active = await contractsRepository.findActiveByUnitId(unitId, ctx);
         if (active && active.id !== id) {
           return { success: false, error: 'activeContractExists', errorCode: 'ACTIVE_CONTRACT_EXISTS' };
@@ -537,7 +592,7 @@ export const contractService = {
       const tenantResult = await syncContractTenant(
         {
           ...contract,
-          lines: validated.lines.map((line, index) => ({
+          lines: lines.map((line, index) => ({
             id: `temp-${index}`,
             contract_id: id,
             line_type: line.line_type,
@@ -550,6 +605,7 @@ export const contractService = {
             odoo_product_id: line.odoo_product_id ?? null,
             odoo_product_name: line.odoo_product_name ?? null,
             tax_rate: line.tax_rate ?? 0,
+            tax_treatment: line.tax_treatment === 'zero_rated' ? 'zero_rated' : 'standard',
             sort_order: line.sort_order ?? index,
             created_at: contract.created_at,
             updated_at: contract.updated_at,
@@ -567,7 +623,7 @@ export const contractService = {
 
       let updated: Contract;
       try {
-        await contractsRepository.replaceLinesAtomic(id, validated.lines.map((line, index) => ({
+        await contractsRepository.replaceLinesAtomic(id, lines.map((line, index) => ({
           line_type: line.line_type,
           unit_id: line.unit_id ?? null,
           description: line.description ?? null,
@@ -578,6 +634,7 @@ export const contractService = {
           odoo_product_id: line.odoo_product_id ?? null,
           odoo_product_name: line.odoo_product_name ?? null,
           tax_rate: line.tax_rate ?? 0,
+            tax_treatment: line.tax_treatment === 'zero_rated' ? 'zero_rated' : 'standard',
           sort_order: line.sort_order ?? index,
         })), ctx);
 
@@ -753,6 +810,12 @@ export const contractService = {
         return { success: false, error: validation.errors.join(', '), errorCode: 'VALIDATION' };
       }
 
+      const taxedDraft = await applyOdooTaxRatesToContractLines(
+        validation.data.lines,
+        validation.data.tax_mode,
+        ctx,
+      );
+
       const tenantValidation = validationService.validateOptionalTenant({
         full_name: input.tenant_name,
         phone: input.tenant_phone,
@@ -797,7 +860,7 @@ export const contractService = {
                 countryCode: tenantValidation.data.country_code,
               }
             : null,
-          lines: validation.data.lines.map((line, index) => ({
+          lines: taxedDraft.lines.map((line, index) => ({
             line_type: line.line_type,
             unit_id: line.unit_id ?? null,
             description: line.description ?? null,
@@ -808,6 +871,7 @@ export const contractService = {
             odoo_product_id: line.odoo_product_id ?? null,
             odoo_product_name: line.odoo_product_name ?? null,
             tax_rate: line.tax_rate ?? 0,
+            tax_treatment: line.tax_treatment === 'zero_rated' ? 'zero_rated' : 'standard',
             sort_order: line.sort_order ?? index,
           })),
         }, ctx);
@@ -938,7 +1002,12 @@ export const contractService = {
       }
 
       const validated = validation.data;
-      let lines = validated.lines;
+      const taxed = await applyOdooTaxRatesToContractLines(
+        validated.lines,
+        validated.tax_mode,
+        ctx,
+      );
+      let lines = taxed.lines;
       const primaryUnitId = validated.unit_id;
       const totalAmount = validated.total_amount;
       const unitIds = rentalUnitIds(lines, primaryUnitId);
@@ -1034,6 +1103,7 @@ export const contractService = {
               odooProductName: line.odoo_product_name ?? null,
               amount: line.amount,
               taxRate: line.tax_rate ?? 0,
+              taxTreatment: line.tax_treatment === 'zero_rated' ? 'zero_rated' : 'standard',
               sortOrder: line.sort_order ?? index,
             })),
           }),
@@ -1104,6 +1174,7 @@ export const contractService = {
             odoo_product_id: line.odoo_product_id ?? null,
             odoo_product_name: line.odoo_product_name ?? null,
             tax_rate: line.tax_rate ?? 0,
+            tax_treatment: line.tax_treatment === 'zero_rated' ? 'zero_rated' : 'standard',
             sort_order: line.sort_order ?? index,
           })),
         }, ctx);

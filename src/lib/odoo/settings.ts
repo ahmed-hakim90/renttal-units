@@ -4,8 +4,18 @@ import crypto from 'node:crypto';
 import { settingsRepository } from '@/lib/repositories/settings';
 import type { ContractTaxMode, Setting } from '@/types/database';
 import type { LogContext } from '@/lib/observability';
+import {
+  isOdooInvoiceSendVisibleStatus,
+  type OdooInvoiceSendVisibleStatus,
+} from '@/lib/odoo/invoice-send-settings';
 
 export const ODOO_SETTING_KEY = 'odoo_integration';
+
+export {
+  ODOO_INVOICE_SEND_VISIBLE_STATUSES,
+  isOdooInvoiceSendVisibleStatus,
+  type OdooInvoiceSendVisibleStatus,
+} from '@/lib/odoo/invoice-send-settings';
 
 export interface OdooSettings {
   enabled: boolean;
@@ -16,14 +26,18 @@ export interface OdooSettings {
   companyId: number | null;
   journalId: number | null;
   vatTaxId: number | null;
+  zeroRatedTaxId: number | null;
   incomeAccountId: number | null;
   productCategoryId: number | null;
   additionalProductCategoryIds: number[];
   serviceCategoryId: number | null;
   vatRate: number;
+  zeroRatedTaxRate: number;
   defaultTaxMode: ContractTaxMode;
   startDateField: string;
   endDateField: string;
+  /** Local invoice status at which the Send to Odoo button is shown. */
+  invoiceSendVisibleStatus: OdooInvoiceSendVisibleStatus;
 }
 
 export type PublicOdooSettings = Omit<OdooSettings, 'apiKey'> & {
@@ -39,14 +53,17 @@ const DEFAULT_ODOO_SETTINGS: OdooSettings = {
   companyId: null,
   journalId: null,
   vatTaxId: null,
+  zeroRatedTaxId: null,
   incomeAccountId: null,
   productCategoryId: null,
   additionalProductCategoryIds: [],
   serviceCategoryId: null,
   vatRate: 15,
+  zeroRatedTaxRate: 0,
   defaultTaxMode: 'taxable',
   startDateField: 'deferred_start_date',
   endDateField: 'deferred_end_date',
+  invoiceSendVisibleStatus: 'invoice_issued',
 };
 
 function encryptionKey() {
@@ -114,11 +131,13 @@ function normalize(raw: unknown): OdooSettings {
     companyId: asNumber(value.companyId),
     journalId: asNumber(value.journalId),
     vatTaxId: asNumber(value.vatTaxId),
+    zeroRatedTaxId: asNumber(value.zeroRatedTaxId),
     incomeAccountId: asNumber(value.incomeAccountId),
     productCategoryId,
     additionalProductCategoryIds,
     serviceCategoryId: asNumber(value.serviceCategoryId),
     vatRate: Math.min(100, Math.max(0, asNumber(value.vatRate) ?? 15)),
+    zeroRatedTaxRate: Math.min(100, Math.max(0, asNumber(value.zeroRatedTaxRate) ?? 0)),
     defaultTaxMode: value.defaultTaxMode === 'non_taxable' ? 'non_taxable' : 'taxable',
     startDateField: typeof value.startDateField === 'string' && value.startDateField.trim()
       ? value.startDateField.trim()
@@ -126,6 +145,9 @@ function normalize(raw: unknown): OdooSettings {
     endDateField: typeof value.endDateField === 'string' && value.endDateField.trim()
       ? value.endDateField.trim()
       : DEFAULT_ODOO_SETTINGS.endDateField,
+    invoiceSendVisibleStatus: isOdooInvoiceSendVisibleStatus(value.invoiceSendVisibleStatus)
+      ? value.invoiceSendVisibleStatus
+      : DEFAULT_ODOO_SETTINGS.invoiceSendVisibleStatus,
   };
 }
 
@@ -166,9 +188,20 @@ export async function saveOdooSettings(input: Partial<OdooSettings> & { apiKey?:
     additionalProductCategoryIds,
     url: normalizeUrl(input.url ?? current.url),
     apiKey: input.apiKey ? input.apiKey : current.apiKey,
+    vatTaxId: input.vatTaxId === undefined ? current.vatTaxId : asNumber(input.vatTaxId),
+    zeroRatedTaxId: input.zeroRatedTaxId === undefined ? current.zeroRatedTaxId : asNumber(input.zeroRatedTaxId),
+    vatRate: input.vatRate === undefined
+      ? current.vatRate
+      : Math.min(100, Math.max(0, asNumber(input.vatRate) ?? current.vatRate)),
+    zeroRatedTaxRate: input.zeroRatedTaxRate === undefined
+      ? current.zeroRatedTaxRate
+      : Math.min(100, Math.max(0, asNumber(input.zeroRatedTaxRate) ?? current.zeroRatedTaxRate)),
     defaultTaxMode: input.defaultTaxMode === 'non_taxable' ? 'non_taxable' : 'taxable',
     startDateField: input.startDateField?.trim() || current.startDateField,
     endDateField: input.endDateField?.trim() || current.endDateField,
+    invoiceSendVisibleStatus: isOdooInvoiceSendVisibleStatus(input.invoiceSendVisibleStatus)
+      ? input.invoiceSendVisibleStatus
+      : current.invoiceSendVisibleStatus,
   };
   return settingsRepository.upsert(ODOO_SETTING_KEY, {
     ...next,

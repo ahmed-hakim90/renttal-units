@@ -1,8 +1,8 @@
 const ARABIC_INDIC_ZERO = 0x0660;
 const EASTERN_ARABIC_ZERO = 0x06f0;
 
-export const NUMBER_GROUP_SEPARATOR = '.';
-export const NUMBER_DECIMAL_SEPARATOR = ',';
+export const NUMBER_GROUP_SEPARATOR = ',';
+export const NUMBER_DECIMAL_SEPARATOR = '.';
 
 export function normalizeArabicDigits(value: string): string {
   return value.replace(/[\u0660-\u0669\u06f0-\u06f9]/g, (digit) => {
@@ -19,21 +19,22 @@ export function normalizeArabicDigits(value: string): string {
 export function normalizeNumberInputValue(value: string): string {
   const normalized = normalizeArabicDigits(value)
     .replace(/\u2212/g, '-')
-    .replace(/\u066c/g, NUMBER_GROUP_SEPARATOR)
-    .replace(/[\u066b,]/g, NUMBER_DECIMAL_SEPARATOR)
+    .replace(/\u066c/g, ',')
+    .replace(/\u066b/g, '.')
     .replace(/\s/g, '');
 
   const negative = normalized.startsWith('-');
   const unsigned = normalized.replace(/-/g, '').replace(/[^0-9.,]/g, '');
-  const commaIndex = unsigned.lastIndexOf(NUMBER_DECIMAL_SEPARATOR);
-  const lastDotIndex = unsigned.lastIndexOf(NUMBER_GROUP_SEPARATOR);
+  const commaIndex = unsigned.lastIndexOf(',');
+  const lastDotIndex = unsigned.lastIndexOf('.');
 
   let integerPart: string;
   let decimalPart: string | null = null;
 
-  if (commaIndex >= 0 && lastDotIndex > commaIndex) {
-    integerPart = unsigned.slice(0, lastDotIndex).replace(/[.,]/g, '');
-    decimalPart = unsigned.slice(lastDotIndex + 1).replace(/[.,]/g, '');
+  if (commaIndex >= 0 && lastDotIndex >= 0) {
+    const decimalIndex = Math.max(commaIndex, lastDotIndex);
+    integerPart = unsigned.slice(0, decimalIndex).replace(/[.,]/g, '');
+    decimalPart = unsigned.slice(decimalIndex + 1).replace(/[.,]/g, '');
   } else if (commaIndex >= 0) {
     const commaCount = [...unsigned.matchAll(/,/g)].length;
     const digitsAfterComma = unsigned.length - commaIndex - 1;
@@ -47,9 +48,7 @@ export function normalizeNumberInputValue(value: string): string {
   } else {
     const dotIndexes = [...unsigned.matchAll(/\./g)].map((match) => match.index ?? -1);
     const finalDotIndex = dotIndexes.at(-1) ?? -1;
-    const digitsAfterLastDot = finalDotIndex >= 0 ? unsigned.length - finalDotIndex - 1 : -1;
-    const dotIsDecimal = dotIndexes.length > 0
-      && (digitsAfterLastDot === 0 || (dotIndexes.length === 1 && digitsAfterLastDot <= 2));
+    const dotIsDecimal = dotIndexes.length === 1;
 
     if (dotIsDecimal) {
       integerPart = unsigned.slice(0, finalDotIndex).replace(/\./g, '');
@@ -84,12 +83,11 @@ export function formatNumberInputValue(value: string | number | readonly string[
   const decimalPart = decimalIndex >= 0
     ? unsigned.slice(decimalIndex + 1).replace(/\D/g, '')
     : null;
-  const groupedInteger = (integerPart || '0').replace(/\B(?=(\d{3})+(?!\d))/g, NUMBER_GROUP_SEPARATOR);
   const sign = negative ? '-' : '';
 
   return decimalPart === null
-    ? `${sign}${groupedInteger}`
-    : `${sign}${groupedInteger}${NUMBER_DECIMAL_SEPARATOR}${decimalPart}`;
+    ? `${sign}${integerPart || '0'}`
+    : `${sign}${integerPart || '0'}${NUMBER_DECIMAL_SEPARATOR}${decimalPart}`;
 }
 
 export function formatNumberParts(parts: Intl.NumberFormatPart[]): string {

@@ -14,6 +14,7 @@ import { useSingleSubmit } from '@/lib/hooks/use-single-submit';
 import { formatNumberParts } from '@/lib/i18n/numbers';
 import { toast } from 'sonner';
 import type { ContractTaxMode, OdooSyncLog, Setting } from '@/types/database';
+import type { OdooInvoiceSendVisibleStatus } from '@/lib/odoo/invoice-send-settings';
 
 type OdooIntegrationData = {
   settings: {
@@ -25,14 +26,17 @@ type OdooIntegrationData = {
     companyId: number | null;
     journalId: number | null;
     vatTaxId: number | null;
+    zeroRatedTaxId: number | null;
     incomeAccountId: number | null;
     productCategoryId: number | null;
     additionalProductCategoryIds: number[];
     serviceCategoryId: number | null;
     vatRate: number;
+    zeroRatedTaxRate: number;
     defaultTaxMode: ContractTaxMode;
     startDateField: string;
     endDateField: string;
+    invoiceSendVisibleStatus: OdooInvoiceSendVisibleStatus;
   };
   logs: OdooSyncLog[];
 };
@@ -40,6 +44,7 @@ type OdooIntegrationData = {
 type OdooOption = {
   id: number;
   label: string;
+  amount?: number | null;
 };
 
 type OdooSetupOptions = {
@@ -80,6 +85,13 @@ export function SettingsForm({
   const termsSetting = settings.find((s) => s.key === 'default_payment_terms_days');
   const graceSetting = settings.find((s) => s.key === 'overdue_grace_days');
   const reminderSetting = settings.find((s) => s.key === 'due_reminder_days');
+  const dashboardDueSetting = settings.find((s) => s.key === 'dashboard_due_horizons');
+  const dashboardDueHorizons = (
+    Array.isArray(dashboardDueSetting?.value)
+    && dashboardDueSetting.value.length === 3
+  )
+    ? dashboardDueSetting.value.map(Number)
+    : [3, 7, 15];
   const { isSubmitting, runOnce } = useSingleSubmit();
 
   const companyValue = companySetting?.value as { en?: string; ar?: string } | undefined;
@@ -92,6 +104,7 @@ export function SettingsForm({
   const [companyId, setCompanyId] = useState(odooSettings?.companyId ? String(odooSettings.companyId) : '');
   const [journalId, setJournalId] = useState(odooSettings?.journalId ? String(odooSettings.journalId) : '');
   const [vatTaxId, setVatTaxId] = useState(odooSettings?.vatTaxId ? String(odooSettings.vatTaxId) : '');
+  const [zeroRatedTaxId, setZeroRatedTaxId] = useState(odooSettings?.zeroRatedTaxId ? String(odooSettings.zeroRatedTaxId) : '');
   const [incomeAccountId, setIncomeAccountId] = useState(odooSettings?.incomeAccountId ? String(odooSettings.incomeAccountId) : '');
   const [productCategoryId, setProductCategoryId] = useState(odooSettings?.productCategoryId ? String(odooSettings.productCategoryId) : '');
   const [additionalProductCategoryIds, setAdditionalProductCategoryIds] = useState(
@@ -99,10 +112,14 @@ export function SettingsForm({
   );
   const [serviceCategoryId, setServiceCategoryId] = useState(odooSettings?.serviceCategoryId ? String(odooSettings.serviceCategoryId) : '');
   const [vatRate, setVatRate] = useState(String(odooSettings?.vatRate ?? 15));
+  const [zeroRatedTaxRate, setZeroRatedTaxRate] = useState(String(odooSettings?.zeroRatedTaxRate ?? 0));
   const [testProductId, setTestProductId] = useState('9025');
   const [defaultTaxMode, setDefaultTaxMode] = useState<ContractTaxMode>(odooSettings?.defaultTaxMode ?? 'taxable');
   const [startDateField, setStartDateField] = useState(odooSettings?.startDateField ?? '');
   const [endDateField, setEndDateField] = useState(odooSettings?.endDateField ?? '');
+  const [invoiceSendVisibleStatus, setInvoiceSendVisibleStatus] = useState<OdooInvoiceSendVisibleStatus>(
+    odooSettings?.invoiceSendVisibleStatus ?? 'invoice_issued',
+  );
   const [setupOptions, setSetupOptions] = useState<OdooSetupOptions | null>(null);
   const [showAdvancedOdoo, setShowAdvancedOdoo] = useState(false);
   const [showManualOdooIds, setShowManualOdooIds] = useState(false);
@@ -128,6 +145,23 @@ export function SettingsForm({
     return options[0] ? String(options[0].id) : current;
   }
 
+  function taxAmountForId(taxId: string, taxes: OdooOption[]) {
+    const match = taxes.find((tax) => String(tax.id) === taxId);
+    if (match?.amount == null || !Number.isFinite(Number(match.amount))) return null;
+    return String(Number(match.amount));
+  }
+
+  function applyTaxRateFromSelection(
+    nextVatTaxId: string,
+    nextZeroRatedTaxId: string,
+    taxes: OdooOption[],
+  ) {
+    const nextVatRate = taxAmountForId(nextVatTaxId, taxes);
+    const nextZeroRate = taxAmountForId(nextZeroRatedTaxId, taxes);
+    if (nextVatRate != null) setVatRate(nextVatRate);
+    if (nextZeroRate != null) setZeroRatedTaxRate(nextZeroRate);
+  }
+
   function getOdooLogActionLabel(action: string) {
     const known = [
       'test_connection',
@@ -145,6 +179,7 @@ export function SettingsForm({
       'find_or_create_partner',
       'import_legacy_invoices',
       'create_unit_from_product',
+      'check_invoice_status',
     ] as const;
     return known.includes(action as typeof known[number])
       ? t(`odooLogActions.${action}` as `odooLogActions.${typeof known[number]}`)
@@ -159,7 +194,6 @@ export function SettingsForm({
   }
 
   function getOdooLogMessage(log: OdooSyncLog) {
-    if (log.message?.trim()) return log.message;
     if (log.status === 'synced') return t('odooLogMessages.success');
     if (log.status === 'needs_review') return t('odooLogMessages.needsReview');
     if (log.action === 'test_connection') return t('odooLogMessages.connectionFailed');
@@ -292,12 +326,6 @@ export function SettingsForm({
               {log.entity_type}{log.entity_id ? ` · ${log.entity_id}` : ''}
             </dd>
           </div>
-          {log.message && (
-            <div className="sm:col-span-2">
-              <dt className="font-semibold text-foreground">{t('odooLogTechnicalMessage')}</dt>
-              <dd className="mt-0.5 break-words text-muted-foreground" dir="auto">{log.message}</dd>
-            </div>
-          )}
         </dl>
         {log.payload && Object.keys(log.payload).length > 0 && (
           <div className="mt-4 border-t border-border pt-4">
@@ -321,8 +349,20 @@ export function SettingsForm({
     if (!canEdit) return;
     await runOnce(async () => {
     const fd = new FormData(e.currentTarget);
+    const dashboardHorizons = [
+      Number(fd.get('dashboard_due_first')),
+      Number(fd.get('dashboard_due_second')),
+      Number(fd.get('dashboard_due_third')),
+    ];
+    if (
+      dashboardHorizons.some((days) => !Number.isSafeInteger(days) || days < 1 || days > 90)
+      || !(dashboardHorizons[0] < dashboardHorizons[1] && dashboardHorizons[1] < dashboardHorizons[2])
+    ) {
+      toast.error(t('dashboardDueHorizonsInvalid'));
+      return;
+    }
 
-    await Promise.all([
+    const results = await Promise.all([
       updateSetting(locale, 'company_name', {
         en: fd.get('company_name_en'),
         ar: fd.get('company_name_ar'),
@@ -330,9 +370,11 @@ export function SettingsForm({
       updateSetting(locale, 'default_payment_terms_days', Number(fd.get('payment_terms'))),
       updateSetting(locale, 'overdue_grace_days', Number(fd.get('grace_days'))),
       updateSetting(locale, 'due_reminder_days', Number(fd.get('reminder_days'))),
+      updateSetting(locale, 'dashboard_due_horizons', dashboardHorizons),
     ]);
 
-    toast.success(t('saved'));
+    if (results.every((result) => result.success)) toast.success(t('saved'));
+    else toast.error(t('saveFailed'));
     });
   }
 
@@ -349,14 +391,17 @@ export function SettingsForm({
         companyId: numberOrNull(companyId),
         journalId: numberOrNull(journalId),
         vatTaxId: numberOrNull(vatTaxId),
+        zeroRatedTaxId: numberOrNull(zeroRatedTaxId),
         incomeAccountId: numberOrNull(incomeAccountId),
         productCategoryId: numberOrNull(productCategoryId),
         additionalProductCategoryIds: positiveNumberList(additionalProductCategoryIds),
         serviceCategoryId: numberOrNull(serviceCategoryId),
         vatRate: Number(vatRate),
+        zeroRatedTaxRate: Number(zeroRatedTaxRate),
         defaultTaxMode,
         startDateField,
         endDateField,
+        invoiceSendVisibleStatus,
       });
       if (result.success) toast.success(t('odooSettingsSaved'));
       else toast.error(t('odooSettingsSaveFailed'));
@@ -377,11 +422,15 @@ export function SettingsForm({
           return;
         }
         setSetupOptions(options);
+        const nextVatTaxId = chooseExistingOrFirst(vatTaxId, options.taxes);
+        const nextZeroRatedTaxId = chooseExistingOrFirst(zeroRatedTaxId, options.taxes);
         setCompanyId((current) => chooseExistingOrFirst(current, options.companies));
         setJournalId((current) => chooseExistingOrFirst(current, options.journals));
-        setVatTaxId((current) => chooseExistingOrFirst(current, options.taxes));
+        setVatTaxId(nextVatTaxId);
+        setZeroRatedTaxId(nextZeroRatedTaxId);
         setIncomeAccountId((current) => chooseExistingOrFirst(current, options.incomeAccounts));
         setProductCategoryId((current) => chooseExistingOrFirst(current, options.productCategories));
+        applyTaxRateFromSelection(nextVatTaxId, nextZeroRatedTaxId, options.taxes);
         setStartDateField((current) => options.dateFields.some((field) => field.name === current) ? current : options.dateFields[0]?.name ?? current);
         setEndDateField((current) => options.dateFields.some((field) => field.name === current) ? current : options.dateFields[0]?.name ?? current);
         toast.success(t('odooOptionsLoaded', {
@@ -407,11 +456,13 @@ export function SettingsForm({
         companyId: numberOrNull(companyId),
         journalId: numberOrNull(journalId),
         vatTaxId: numberOrNull(vatTaxId),
+        zeroRatedTaxId: numberOrNull(zeroRatedTaxId),
         incomeAccountId: numberOrNull(incomeAccountId),
         productCategoryId: numberOrNull(productCategoryId),
         additionalProductCategoryIds: positiveNumberList(additionalProductCategoryIds),
         serviceCategoryId: numberOrNull(serviceCategoryId),
         vatRate: Number(vatRate),
+        zeroRatedTaxRate: Number(zeroRatedTaxRate),
         defaultTaxMode,
         startDateField,
         endDateField,
@@ -434,11 +485,13 @@ export function SettingsForm({
         companyId: numberOrNull(companyId),
         journalId: numberOrNull(journalId),
         vatTaxId: numberOrNull(vatTaxId),
+        zeroRatedTaxId: numberOrNull(zeroRatedTaxId),
         incomeAccountId: numberOrNull(incomeAccountId),
         productCategoryId: numberOrNull(productCategoryId),
         additionalProductCategoryIds: positiveNumberList(additionalProductCategoryIds),
         serviceCategoryId: numberOrNull(serviceCategoryId),
         vatRate: Number(vatRate),
+        zeroRatedTaxRate: Number(zeroRatedTaxRate),
         testProductId: numberOrNull(testProductId),
         defaultTaxMode,
         startDateField,
@@ -471,6 +524,17 @@ export function SettingsForm({
           <Input name="payment_terms" label={t('defaultPaymentTerms')} type="number" defaultValue={String(termsSetting?.value ?? 30)} disabled={!canEdit || isSubmitting} />
           <Input name="grace_days" label={t('overdueGraceDays')} type="number" defaultValue={String(graceSetting?.value ?? 7)} disabled={!canEdit || isSubmitting} />
           <Input name="reminder_days" label={t('dueReminderDays')} type="number" min="0" max="90" defaultValue={String(reminderSetting?.value ?? 7)} disabled={!canEdit || isSubmitting} />
+        </div>
+        <div className="space-y-3 rounded-xl border border-border bg-muted/20 p-4">
+          <div>
+            <h3 className="text-sm font-semibold">{t('dashboardDueHorizonsTitle')}</h3>
+            <p className="mt-1 text-xs text-muted-foreground">{t('dashboardDueHorizonsHint')}</p>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Input name="dashboard_due_first" label={t('dashboardDueFirst')} type="number" min="1" max="90" defaultValue={String(dashboardDueHorizons[0])} disabled={!canEdit || isSubmitting} />
+            <Input name="dashboard_due_second" label={t('dashboardDueSecond')} type="number" min="1" max="90" defaultValue={String(dashboardDueHorizons[1])} disabled={!canEdit || isSubmitting} />
+            <Input name="dashboard_due_third" label={t('dashboardDueThird')} type="number" min="1" max="90" defaultValue={String(dashboardDueHorizons[2])} disabled={!canEdit || isSubmitting} />
+          </div>
         </div>
         {canEdit && (
           <div className="flex justify-end border-t border-border pt-4">
@@ -508,6 +572,22 @@ export function SettingsForm({
           />
           {t('odooEnabled')}
         </label>
+        <div>
+          <label className="text-sm font-medium">{t('odooInvoiceSendVisibleStatus')}</label>
+          <select
+            value={invoiceSendVisibleStatus}
+            onChange={(event) => setInvoiceSendVisibleStatus(event.target.value as OdooInvoiceSendVisibleStatus)}
+            className="field-control mt-1.5"
+            disabled={!allowOdooEdit || isSubmitting}
+          >
+            <option value="due">{t('odooInvoiceSendStatusDue')}</option>
+            <option value="invoice_issued">{t('odooInvoiceSendStatusIssued')}</option>
+            <option value="partially_paid">{t('odooInvoiceSendStatusPartial')}</option>
+            <option value="fully_paid">{t('odooInvoiceSendStatusFullyPaid')}</option>
+            <option value="overdue">{t('odooInvoiceSendStatusOverdue')}</option>
+          </select>
+          <p className="mt-1.5 text-xs text-muted-foreground">{t('odooInvoiceSendVisibleStatusHint')}</p>
+        </div>
         <div className="grid gap-4 md:grid-cols-2">
           <Input name="url" label={t('odooUrl')} value={odooUrl} onChange={(event) => setOdooUrl(event.target.value)} disabled={!allowOdooEdit || isSubmitting} />
           <Input name="database" label={t('odooDatabase')} value={odooDatabase} onChange={(event) => setOdooDatabase(event.target.value)} disabled={!allowOdooEdit || isSubmitting} />
@@ -626,7 +706,10 @@ export function SettingsForm({
                   searchable
                   label={t('odooVatTaxId')}
                   value={vatTaxId}
-                  onChange={setVatTaxId}
+                  onChange={(value) => {
+                    setVatTaxId(value);
+                    applyTaxRateFromSelection(value, zeroRatedTaxId, setupOptions.taxes);
+                  }}
                   disabled={!allowOdooEdit || isSubmitting}
                   placeholder={t('odooSelectOptional')}
                   options={[
@@ -634,8 +717,32 @@ export function SettingsForm({
                     ...setupOptions.taxes.map((option) => ({
                       value: String(option.id),
                       label: option.label,
-                      keywords: [option.id],
+                      keywords: [option.id, option.amount ?? ''],
                     })),
+                  ]}
+                />
+              )}
+              {setupOptions.taxes.length > 0 && (
+                <SearchableSelect
+                  searchable
+                  label={t('odooZeroRatedTaxId')}
+                  value={zeroRatedTaxId}
+                  onChange={(value) => {
+                    setZeroRatedTaxId(value);
+                    applyTaxRateFromSelection(vatTaxId, value, setupOptions.taxes);
+                  }}
+                  disabled={!allowOdooEdit || isSubmitting}
+                  placeholder={t('odooSelectOptional')}
+                  options={[
+                    { value: '', label: t('odooSelectOptional') },
+                    ...setupOptions.taxes
+                      .filter((option) => Number(option.amount) === 0)
+                      .concat(setupOptions.taxes.filter((option) => Number(option.amount) !== 0))
+                      .map((option) => ({
+                        value: String(option.id),
+                        label: option.label,
+                        keywords: [option.id, option.amount ?? ''],
+                      })),
                   ]}
                 />
               )}
@@ -699,6 +806,7 @@ export function SettingsForm({
               <Input name="companyId" label={t('odooCompanyId')} type="number" value={companyId} onChange={(event) => setCompanyId(event.target.value)} disabled={!allowOdooEdit || isSubmitting} />
               <Input name="journalId" label={t('odooJournalId')} type="number" value={journalId} onChange={(event) => setJournalId(event.target.value)} disabled={!allowOdooEdit || isSubmitting} />
               <Input name="vatTaxId" label={t('odooVatTaxId')} type="number" value={vatTaxId} onChange={(event) => setVatTaxId(event.target.value)} disabled={!allowOdooEdit || isSubmitting} />
+              <Input name="zeroRatedTaxId" label={t('odooZeroRatedTaxId')} type="number" value={zeroRatedTaxId} onChange={(event) => setZeroRatedTaxId(event.target.value)} disabled={!allowOdooEdit || isSubmitting} />
               <Input name="incomeAccountId" label={t('odooIncomeAccountId')} type="number" value={incomeAccountId} onChange={(event) => setIncomeAccountId(event.target.value)} disabled={!allowOdooEdit || isSubmitting} />
               <Input name="productCategoryId" label={t('odooProductCategoryId')} type="number" value={productCategoryId} onChange={(event) => setProductCategoryId(event.target.value)} disabled={!allowOdooEdit || isSubmitting} />
               <Input name="serviceCategoryId" label={t('odooServiceCategoryId')} type="number" value={serviceCategoryId} onChange={(event) => setServiceCategoryId(event.target.value)} disabled={!allowOdooEdit || isSubmitting} />
@@ -727,7 +835,32 @@ export function SettingsForm({
               <option value="non_taxable">{t('nonTaxable')}</option>
             </select>
           </div>
-          <Input name="vatRate" label={t('odooVatRate')} type="number" min="0" max="100" step="0.01" value={vatRate} onChange={(event) => setVatRate(event.target.value)} disabled={!allowOdooEdit || isSubmitting} />
+          <Input
+            name="vatRate"
+            label={t('odooVatRate')}
+            type="number"
+            min="0"
+            max="100"
+            step="0.01"
+            value={vatRate}
+            readOnly
+            disabled
+            aria-describedby="odooVatRateHint"
+          />
+          <p id="odooVatRateHint" className="text-xs text-muted-foreground">{t('odooTaxRateFromOdooHint')}</p>
+          <Input
+            name="zeroRatedTaxRate"
+            label={t('odooZeroRatedTaxRate')}
+            type="number"
+            min="0"
+            max="100"
+            step="0.01"
+            value={zeroRatedTaxRate}
+            readOnly
+            disabled
+            aria-describedby="odooZeroRatedTaxRateHint"
+          />
+          <p id="odooZeroRatedTaxRateHint" className="text-xs text-muted-foreground">{t('odooTaxRateFromOdooHint')}</p>
         </div>
         )}
 
@@ -848,15 +981,20 @@ export function SettingsForm({
                       </td>
                       <td className="max-w-md px-3 py-2.5 text-muted-foreground">{getOdooLogMessage(log)}</td>
                       <td className="px-3 py-2.5">
-                        <button
+                        <Button
                           type="button"
+                          variant="ghost"
+                          size="icon-sm"
                           aria-expanded={isExpanded}
+                          aria-label={isExpanded ? t('odooLogHideDetails') : t('odooLogViewDetails')}
+                          title={isExpanded ? t('odooLogHideDetails') : t('odooLogViewDetails')}
                           onClick={() => setExpandedLogId(isExpanded ? null : log.id)}
-                          className="inline-flex items-center gap-1 font-medium text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         >
-                          {isExpanded ? t('odooLogHideDetails') : t('odooLogViewDetails')}
-                          <ChevronDown className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
-                        </button>
+                          <ChevronDown
+                            aria-hidden="true"
+                            className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                          />
+                        </Button>
                       </td>
                     </tr>
                     {isExpanded && (

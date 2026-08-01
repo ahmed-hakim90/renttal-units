@@ -39,6 +39,8 @@ export default async function NewContractPage({
         locale={locale}
         openingBalanceEnabled={featureFlags.contracts_opening_balance}
         multiLineEnabled={featureFlags.contracts_multi_line}
+        odooVatRate={odooSettings.vatRate}
+        odooZeroRatedTaxRate={odooSettings.zeroRatedTaxRate}
         initialServiceProducts={serviceProducts
           .filter((product) => product.category_id === odooSettings.serviceCategoryId)
           .map((product) => ({

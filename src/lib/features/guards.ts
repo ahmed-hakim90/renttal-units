@@ -3,6 +3,9 @@
  * Flags never replace auth — callers must still enforce permissions.
  */
 
+import type { InvoiceStatus, OdooSyncStatus } from '@/types/database';
+import type { OdooInvoiceSendVisibleStatus } from '@/lib/odoo/invoice-send-settings';
+
 export function hasOpeningBalanceInput(data: {
   paid_through_date?: string | null;
   opening_paid_amount?: number | null;
@@ -64,9 +67,72 @@ export function shouldBlockOpeningBalanceInput(
 }
 
 /**
- * Disabling Odoo invoice documents stops Odoo sync/UI only.
- * Local issue and payment recording remain available.
+ * When issuing a local invoice, Odoo draft sync / prechecks run only if the
+ * invoices-documents feature flag is on. Local issue still works when it is off.
  */
 export function shouldSyncIssuedInvoiceToOdoo(odooInvoicesDocumentsEnabled: boolean) {
-  return odooInvoicesDocumentsEnabled;
+  return Boolean(odooInvoicesDocumentsEnabled);
+}
+
+/**
+ * Manual Send to Odoo is available only when both the documents feature and the
+ * dedicated manual-send flag are on. Local issue/payment stay available either way.
+ */
+export function shouldAllowManualOdooInvoiceSend(
+  odooInvoicesDocumentsEnabled: boolean,
+  odooInvoiceManualSendEnabled: boolean,
+) {
+  return odooInvoicesDocumentsEnabled && odooInvoiceManualSendEnabled;
+}
+
+/**
+ * UI + server gate for the Send to Odoo button.
+ * Auth (`odoo.manage`) must still be enforced separately by the caller.
+ */
+export function shouldShowOdooInvoiceSendButton(input: {
+  odooDocumentsEnabled: boolean;
+  manualSendEnabled: boolean;
+  canManageOdoo: boolean;
+  odooIntegrationEnabled: boolean;
+  visibleStatus: OdooInvoiceSendVisibleStatus;
+  invoice: {
+    status: InvoiceStatus;
+    odoo_invoice_id: number | null;
+    odoo_sync_status: OdooSyncStatus | null;
+    odoo_sync_error: string | null;
+  };
+}) {
+  if (
+    !shouldAllowManualOdooInvoiceSend(input.odooDocumentsEnabled, input.manualSendEnabled)
+    || !input.canManageOdoo
+    || !input.odooIntegrationEnabled
+  ) {
+    return false;
+  }
+  if (input.invoice.status !== input.visibleStatus) return false;
+  // Already linked successfully — operators use status check instead.
+  if (input.invoice.odoo_sync_status === 'synced' && input.invoice.odoo_invoice_id) {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Status check is independent of the manual-send flag so operators can still
+ * refresh Odoo state for invoices that were already linked.
+ */
+export function shouldShowOdooInvoiceStatusCheckButton(input: {
+  odooDocumentsEnabled: boolean;
+  canManageOdoo: boolean;
+  invoice: {
+    odoo_invoice_id: number | null;
+    odoo_sync_error: string | null;
+  };
+}) {
+  return Boolean(
+    input.odooDocumentsEnabled
+    && input.canManageOdoo
+    && input.invoice.odoo_invoice_id
+    && input.invoice.odoo_sync_error !== 'odooInvoiceNotFound',
+  );
 }

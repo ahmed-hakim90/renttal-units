@@ -3,6 +3,7 @@ import { PageHeader } from '@/components/layout/page-header';
 import { getInvoices } from '@/lib/actions/invoices';
 import { InvoicesTable } from '@/components/invoices/invoices-table';
 import { requirePermission } from '@/lib/auth/session';
+import { hasPermission } from '@/lib/auth/permissions';
 import { getCorrelationId } from '@/lib/observability/correlation-id';
 import { redirect } from '@/lib/i18n/navigation';
 import { getPublicOdooSettings } from '@/lib/odoo/settings';
@@ -31,8 +32,12 @@ export default async function FullyPaidPage({ params }: { params: Promise<{ loca
         invoices={invoices}
         locale={locale}
         canEdit={false}
+        canManageOdoo={hasPermission(auth, 'odoo.manage')}
         odooBaseUrl={odooSettings.url}
         showOdooActions={featureFlags.odoo_invoices_documents}
+        showOdooManualSend={featureFlags.odoo_invoice_manual_send}
+        odooIntegrationEnabled={odooSettings.enabled}
+        invoiceSendVisibleStatus={odooSettings.invoiceSendVisibleStatus}
       />
     </div>
   );

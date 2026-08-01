@@ -7,7 +7,15 @@ const service = readFileSync(
   'utf8',
 );
 
-test('recreates or relinks an Odoo draft when its stored record was deleted', () => {
+test('recreates or relinks an Odoo draft when the user sends a deleted invoice again', () => {
+  assert.match(
+    service,
+    /async function getInvoiceState[\s\S]*?client\.searchRead\(\s*'account\.move',\s*\[\['id', '=', id\]\][\s\S]*?return rows\[0\] \?\? null;/,
+  );
+  assert.doesNotMatch(
+    service,
+    /async function getInvoiceState[\s\S]*?client\.read\('account\.move', \[id\]/,
+  );
   assert.match(service, /async function findOrCreateDraft\(\)/);
   assert.match(
     service,
@@ -16,5 +24,12 @@ test('recreates or relinks an Odoo draft when its stored record was deleted', ()
   assert.match(
     service,
     /findOrCreateDraft[\s\S]*?searchRead\('account\.move',[\s\S]*?\['ref', '=', getInvoiceRef\(invoice\)\][\s\S]*?client\.create\('account\.move', values\)/,
+  );
+});
+
+test('records deletion during linked invoice status synchronization', () => {
+  assert.match(
+    service,
+    /syncLinkedInvoices[\s\S]*?if \(!record\)[\s\S]*?odoo_sync_error: 'odooInvoiceNotFound'/,
   );
 });

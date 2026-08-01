@@ -96,6 +96,7 @@ export type OdooProductCatalogRow = {
 export type OdooSetupOption = {
   id: number;
   label: string;
+  amount?: number | null;
 };
 
 export type OdooSetupOptions = {
@@ -286,6 +287,17 @@ function optionFromRecord(record: OdooRecord, fallbackPrefix: string): OdooSetup
   return { id: record.id, label };
 }
 
+function taxOptionFromRecord(record: OdooRecord): OdooSetupOption {
+  const amount = Number(record.amount);
+  const hasAmount = Number.isFinite(amount);
+  const base = optionFromRecord(record, 'Tax');
+  return {
+    ...base,
+    amount: hasAmount ? amount : null,
+    label: hasAmount ? `${base.label} (${amount}%)` : base.label,
+  };
+}
+
 function asOdooRecords(value: unknown): OdooRecord[] {
   return Array.isArray(value)
     ? value.filter((record): record is OdooRecord => Boolean(record) && typeof record === 'object' && typeof (record as OdooRecord).id === 'number')
@@ -450,7 +462,15 @@ async function findOrCreatePartnerFromInput(client: OdooClient, input: {
 }
 
 async function getInvoiceState(client: OdooClient, id: number) {
-  const rows = await client.read('account.move', [id], ['id', 'name', 'state', 'payment_state']);
+  // Odoo's `read` raises a missing-record fault for IDs deleted after they
+  // were linked locally. `search_read` safely returns an empty list, allowing
+  // the caller to recover by the invoice's stable reference.
+  const rows = await client.searchRead(
+    'account.move',
+    [['id', '=', id]],
+    ['id', 'name', 'state', 'payment_state'],
+    1,
+  );
   return rows[0] ?? null;
 }
 
@@ -468,7 +488,7 @@ async function getProductVariantId(client: OdooClient, templateId: number) {
 function buildLineValues(settings: OdooSettings, contract: Contract, invoice: Invoice, unit: Unit) {
   const snapshots: Array<Pick<
     InvoiceLine,
-    'description' | 'odoo_product_id' | 'amount_untaxed' | 'tax_rate' | 'line_type' | 'sort_order'
+    'description' | 'odoo_product_id' | 'amount_untaxed' | 'tax_rate' | 'tax_treatment' | 'line_type' | 'sort_order'
   >> = invoice.lines?.length
     ? [...invoice.lines].sort((a, b) => a.sort_order - b.sort_order)
     : [{
@@ -476,6 +496,7 @@ function buildLineValues(settings: OdooSettings, contract: Contract, invoice: In
         odoo_product_id: unit.odoo_product_id,
         amount_untaxed: Number(invoice.amount_untaxed ?? invoice.amount),
         tax_rate: contract.tax_mode === 'taxable' ? settings.vatRate : 0,
+        tax_treatment: 'standard',
         line_type: 'rental',
         sort_order: 0,
       }];
@@ -484,8 +505,19 @@ function buildLineValues(settings: OdooSettings, contract: Contract, invoice: In
     const productId = snapshot.odoo_product_id
       ?? (snapshot.line_type === 'rental' ? unit.odoo_product_id : null);
     if (!productId) throw new Error('Invoice line is not linked to an Odoo product');
-    if (Number(snapshot.tax_rate) > 0 && !settings.vatTaxId) {
-      throw new Error('Taxable invoice line requires an Odoo VAT tax setting');
+
+    const taxTreatment = snapshot.tax_treatment === 'zero_rated' ? 'zero_rated' : 'standard';
+    let taxIds: number[] = [];
+    if (taxTreatment === 'zero_rated') {
+      if (!settings.zeroRatedTaxId) {
+        throw new Error('Zero-rated invoice line requires an Odoo zero-rated tax setting');
+      }
+      taxIds = [settings.zeroRatedTaxId];
+    } else if (Number(snapshot.tax_rate) > 0) {
+      if (!settings.vatTaxId) {
+        throw new Error('Taxable invoice line requires an Odoo VAT tax setting');
+      }
+      taxIds = [settings.vatTaxId];
     }
 
     const line: Record<string, XmlRpcValue> = {
@@ -493,7 +525,7 @@ function buildLineValues(settings: OdooSettings, contract: Contract, invoice: In
       name: snapshot.description || `${unit.unit_number} - ${contract.contract_number}`,
       quantity: 1,
       price_unit: Number(snapshot.amount_untaxed),
-      tax_ids: [[6, 0, Number(snapshot.tax_rate) > 0 && settings.vatTaxId ? [settings.vatTaxId] : []]],
+      tax_ids: [[6, 0, taxIds]],
     };
     if (settings.incomeAccountId) line.account_id = settings.incomeAccountId;
     if (settings.startDateField) line[settings.startDateField] = invoice.period_start;
@@ -548,8 +580,6 @@ async function upsertOdooInvoice(input: {
   }
 
   const current = await getInvoiceState(client, invoice.odoo_invoice_id);
-  // A draft may be deleted directly in Odoo while the local invoice still holds
-  // its old ID. Re-link by the stable reference or recreate it as a new draft.
   if (!current) {
     return findOrCreateDraft();
   }
@@ -697,12 +727,51 @@ export const odooService = {
     return {
       companies: companies.map((record) => optionFromRecord(record, 'Company')),
       journals: journals.map((record) => optionFromRecord(record, 'Journal')),
-      taxes: saleTaxes.map((record) => optionFromRecord(record, 'Tax')),
+      taxes: saleTaxes.map((record) => taxOptionFromRecord(record)),
       incomeAccounts: (income.length > 0 ? income : incomeAccounts).map((record) => optionFromRecord(record, 'Account')),
       productCategories: productCategories.map((record) => optionFromRecord(record, 'Category')),
       dateFields,
       diagnostics,
     };
+  },
+
+  async resolveConfiguredTaxRates(
+    auth: AuthContext,
+    ctx: LogContext,
+    input: {
+      vatTaxId?: number | null;
+      zeroRatedTaxId?: number | null;
+    } & Partial<OdooSettings>,
+  ): Promise<{ vatRate: number | null; zeroRatedTaxRate: number | null }> {
+    const current = await getOdooSettings(ctx);
+    const settings = createRuntimeSettings(current, input);
+    if (!settings.url || !settings.database || !settings.username || !settings.apiKey) {
+      return { vatRate: null, zeroRatedTaxRate: null };
+    }
+
+    const client = new OdooClient(settings);
+    await client.authenticate();
+
+    async function readTaxAmount(taxId: number | null | undefined) {
+      if (!taxId) return null;
+      const rows = await client.read('account.tax', [taxId], ['id', 'amount']);
+      const amount = Number(rows[0]?.amount);
+      return Number.isFinite(amount) ? Math.min(100, Math.max(0, amount)) : null;
+    }
+
+    const [vatRate, zeroRatedTaxRate] = await Promise.all([
+      readTaxAmount(input.vatTaxId ?? settings.vatTaxId),
+      readTaxAmount(input.zeroRatedTaxId ?? settings.zeroRatedTaxId),
+    ]);
+
+    await logOdoo(auth, 'resolve_tax_rates', 'setting', null, 'synced', null, {
+      vatTaxId: input.vatTaxId ?? settings.vatTaxId,
+      zeroRatedTaxId: input.zeroRatedTaxId ?? settings.zeroRatedTaxId,
+      vatRate,
+      zeroRatedTaxRate,
+    }, ctx);
+
+    return { vatRate, zeroRatedTaxRate };
   },
 
   async testConnection(auth: AuthContext, ctx: LogContext, overrides?: Partial<OdooSettings>): Promise<TestResult> {
@@ -723,6 +792,7 @@ export const odooService = {
         { key: 'company', model: 'res.company', id: settings.companyId, fields: ['id', 'name'] },
         { key: 'journal', model: 'account.journal', id: settings.journalId, fields: ['id', 'name', 'type'] },
         { key: 'vatTax', model: 'account.tax', id: settings.vatTaxId, fields: ['id', 'name', 'amount'] },
+        { key: 'zeroRatedTax', model: 'account.tax', id: settings.zeroRatedTaxId, fields: ['id', 'name', 'amount'] },
         { key: 'incomeAccount', model: 'account.account', id: settings.incomeAccountId, fields: ['id', 'name'] },
         { key: 'productCategory', model: 'product.category', id: settings.productCategoryId, fields: ['id', 'name'] },
         { key: 'serviceCategory', model: 'product.category', id: settings.serviceCategoryId, fields: ['id', 'name'] },
@@ -1617,9 +1687,12 @@ export const odooService = {
 
     if (!unit.odoo_product_id) {
       const message = 'Unit is not linked to an Odoo product';
-      await invoicesRepository.update(invoice.id, { odoo_sync_status: 'failed', odoo_sync_error: message }, ctx);
+      await invoicesRepository.update(invoice.id, {
+        odoo_sync_status: 'failed',
+        odoo_sync_error: 'unitNotLinkedToOdoo',
+      }, ctx);
       await logOdoo(auth, 'sync_invoice', 'invoice', invoice.id, 'failed', message, {}, ctx);
-      return { success: false, error: message };
+      return { success: false, error: 'unitNotLinkedToOdoo' };
     }
 
     const client = new OdooClient(settings);
@@ -1635,7 +1708,7 @@ export const odooService = {
         odoo_invoice_name: result.name ?? null,
         odoo_invoice_state: result.state ?? null,
         odoo_sync_status: status,
-        odoo_sync_error: result.needsReview ? 'Odoo invoice is no longer draft' : null,
+        odoo_sync_error: result.needsReview ? 'odooInvoiceNeedsReview' : null,
       }, ctx);
       await logOdoo(auth, invoice.odoo_invoice_id ? 'update_invoice' : 'create_invoice', 'invoice', invoice.id, status, null, {
         odoo_invoice_id: result.id,
@@ -1644,9 +1717,12 @@ export const odooService = {
       return { success: !result.needsReview, needsReview: Boolean(result.needsReview) };
     } catch (error) {
       const message = messageFromError(error);
-      await invoicesRepository.update(invoice.id, { odoo_sync_status: 'failed', odoo_sync_error: message }, ctx);
+      await invoicesRepository.update(invoice.id, {
+        odoo_sync_status: 'failed',
+        odoo_sync_error: 'odooSyncFailed',
+      }, ctx);
       await logOdoo(auth, 'sync_invoice', 'invoice', invoice.id, 'failed', message, {}, ctx);
-      return { success: false, error: message };
+      return { success: false, error: 'odooSyncFailed' };
     }
   },
 
@@ -1676,7 +1752,25 @@ export const odooService = {
       if (!invoice.odoo_invoice_id) continue;
       const record = recordById.get(invoice.odoo_invoice_id);
       if (!record) {
-        errors.push(`Odoo invoice ${invoice.odoo_invoice_id} was not found`);
+        try {
+          await invoicesRepository.update(invoice.id, {
+            odoo_sync_status: 'needs_review',
+            odoo_sync_error: 'odooInvoiceNotFound',
+          }, ctx);
+          await logOdoo(
+            auth,
+            'check_invoice_status',
+            'invoice',
+            invoice.id,
+            'needs_review',
+            'Linked Odoo invoice was not found',
+            { odoo_invoice_id: invoice.odoo_invoice_id },
+            ctx,
+          );
+          updated++;
+        } catch (error) {
+          errors.push(messageFromError(error));
+        }
         continue;
       }
       try {
@@ -1695,6 +1789,93 @@ export const odooService = {
     }
 
     return { checked: localInvoices.length, updated, errors };
+  },
+
+  async checkInvoiceStatus(auth: AuthContext, invoiceId: string, ctx: LogContext) {
+    const settings = await getOdooSettings(ctx);
+    if (!settings.enabled) {
+      return { success: false as const, error: 'odooDisabled' };
+    }
+
+    const invoice = await invoicesRepository.findById(invoiceId, ctx);
+    if (!invoice) {
+      return { success: false as const, error: 'NOT_FOUND' };
+    }
+    if (!invoice.odoo_invoice_id) {
+      return { success: false as const, error: 'invoiceNotReadyForOdoo' };
+    }
+
+    const client = new OdooClient(settings);
+    try {
+      const rows = await client.searchRead(
+        'account.move',
+        [['id', '=', invoice.odoo_invoice_id]],
+        ['id', 'name', 'state', 'payment_state', 'amount_total', 'amount_residual'],
+        1,
+      );
+      const record = rows[0];
+      if (!record) {
+        await invoicesRepository.update(invoice.id, {
+          odoo_sync_status: 'needs_review',
+          odoo_sync_error: 'odooInvoiceNotFound',
+        }, ctx);
+        await logOdoo(
+          auth,
+          'check_invoice_status',
+          'invoice',
+          invoice.id,
+          'needs_review',
+          'Linked Odoo invoice was not found',
+          { odoo_invoice_id: invoice.odoo_invoice_id },
+          ctx,
+        );
+        return { success: false as const, error: 'odooInvoiceNotFound' };
+      }
+
+      const moveState = typeof record.state === 'string' ? record.state : 'draft';
+      const paymentState = typeof record.payment_state === 'string' ? record.payment_state : null;
+      const invoiceName = typeof record.name === 'string' ? record.name : null;
+      const updated = await invoicesRepository.syncFromOdoo({
+        odooInvoiceId: invoice.odoo_invoice_id,
+        invoiceName,
+        moveState,
+        paymentState,
+        amountTotal: Number(record.amount_total ?? 0),
+        amountResidual: Number(record.amount_residual ?? 0),
+      }, ctx);
+
+      await logOdoo(
+        auth,
+        'check_invoice_status',
+        'invoice',
+        invoice.id,
+        'synced',
+        null,
+        {
+          odoo_invoice_id: invoice.odoo_invoice_id,
+          odoo_invoice_state: moveState,
+          payment_state: paymentState,
+          local_status: updated.status,
+          url: getOdooUrl(settings, 'account.move', invoice.odoo_invoice_id),
+        },
+        ctx,
+      );
+
+      return {
+        success: true as const,
+        odooInvoiceState: moveState,
+        paymentState,
+        localStatus: updated.status,
+      };
+    } catch (error) {
+      const message = messageFromError(error);
+      await invoicesRepository.update(invoice.id, {
+        odoo_sync_status: 'failed',
+        odoo_sync_error: 'odooSyncFailed',
+      }, ctx);
+      await logOdoo(auth, 'check_invoice_status', 'invoice', invoice.id, 'failed', message, {}, ctx);
+      return { success: false as const, error: 'odooSyncFailed' };
+    }
   },
 
   async retryInvoice(auth: AuthContext, invoiceId: string, ctx: LogContext) {

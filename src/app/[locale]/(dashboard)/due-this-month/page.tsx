@@ -35,8 +35,12 @@ export default async function DueThisMonthPage({ params }: { params: Promise<{ l
         invoices={invoices}
         locale={locale}
         canEdit={Boolean(auth && (hasPermission(auth, 'invoices.update') || hasPermission(auth, 'payments.record')))}
+        canManageOdoo={Boolean(auth && hasPermission(auth, 'odoo.manage'))}
         odooBaseUrl={odooSettings.url}
         showOdooActions={featureFlags.odoo_invoices_documents}
+        showOdooManualSend={featureFlags.odoo_invoice_manual_send}
+        odooIntegrationEnabled={odooSettings.enabled}
+        invoiceSendVisibleStatus={odooSettings.invoiceSendVisibleStatus}
       />
     </div>
   );

@@ -30,6 +30,7 @@
   "remainingBalance": "Remaining Balance",
   "cannotPayFullyPaid": "This invoice is fully paid and cannot accept more payments",
   "exceedsBalance": "Payment amount exceeds remaining balance",
+  "paymentManagedByOdoo": "Payments for this invoice are managed in Odoo and synchronize automatically",
   "empty": "No payments recorded yet",
   "recordedBy": "Recorded By",
   "paymentRecorded": "Payment recorded successfully"

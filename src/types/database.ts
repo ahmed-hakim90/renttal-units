@@ -7,6 +7,7 @@ export type ContractStatus = 'draft' | 'active' | 'cancelled' | 'completed';
 export type ContractCancellationHandling = 'keep_current_full' | 'prorate_current';
 export type OdooSyncStatus = 'not_synced' | 'local_only' | 'synced' | 'failed' | 'needs_review';
 export type ContractTaxMode = 'taxable' | 'non_taxable';
+export type ContractTaxTreatment = 'standard' | 'zero_rated';
 export type ContractLineType = 'rental' | 'service';
 export type OdooImportRunStatus = 'previewing' | 'ready' | 'committing' | 'completed' | 'failed';
 export type OdooImportItemStatus = 'ready' | 'needs_review' | 'duplicate' | 'imported' | 'failed' | 'ignored';
@@ -130,6 +131,10 @@ export interface Invoice {
   odoo_invoice_id: number | null;
   odoo_invoice_name: string | null;
   odoo_invoice_state: string | null;
+  odoo_payment_state: string | null;
+  odoo_amount_total: number | null;
+  odoo_amount_paid: number | null;
+  odoo_amount_residual: number | null;
   odoo_sync_status: OdooSyncStatus;
   odoo_sync_error: string | null;
   created_at: string;
@@ -154,6 +159,7 @@ export interface ContractLine {
   odoo_product_id: number | null;
   odoo_product_name: string | null;
   tax_rate: number;
+  tax_treatment: ContractTaxTreatment;
   sort_order: number;
   created_at: string;
   updated_at: string;
@@ -203,6 +209,7 @@ export type ContractLineInput = {
   odoo_product_id?: number | null;
   odoo_product_name?: string | null;
   tax_rate?: number;
+  tax_treatment?: ContractTaxTreatment;
   sort_order?: number;
 };
 
@@ -218,6 +225,7 @@ export interface InvoiceLine {
   quantity: number;
   amount_untaxed: number;
   tax_rate: number;
+  tax_treatment: ContractTaxTreatment;
   amount_tax: number;
   amount_total: number;
   period_start: string;
@@ -447,6 +455,12 @@ export interface DashboardStats {
   upcomingPaymentsAmount: number;
   overdueCount: number;
   overdueAmount: number;
+  dueBuckets: Array<{
+    fromDay: number;
+    toDay: number;
+    count: number;
+    amount: number;
+  }>;
 }
 
 export interface DashboardPortfolioSummary {

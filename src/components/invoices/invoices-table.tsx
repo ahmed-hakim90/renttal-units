@@ -8,7 +8,11 @@ import { Modal } from '@/components/ui/modal';
 import { Badge } from '@/components/ui/badge';
 import { useListSearchValue } from '@/components/ui/list-search';
 import { issueDueInvoice, recordPayment } from '@/lib/actions/invoices';
-import { retryOdooInvoiceSync } from '@/lib/actions/odoo';
+import { checkOdooInvoiceStatus, sendInvoiceToOdoo } from '@/lib/actions/odoo';
+import {
+  shouldShowOdooInvoiceSendButton,
+  shouldShowOdooInvoiceStatusCheckButton,
+} from '@/lib/features/guards';
 import { useSingleSubmit } from '@/lib/hooks/use-single-submit';
 import { formatCurrency, formatDate, formatNumber } from '@/lib/i18n/format';
 import {
@@ -19,9 +23,12 @@ import {
   isOldOutstandingDue,
 } from '@/lib/rental/invoice-display';
 import { buildOdooInvoiceUrl } from '@/lib/odoo/links';
+import type { OdooInvoiceSendVisibleStatus } from '@/lib/odoo/invoice-send-settings';
+import { isOdooInvoiceDeleted } from '@/lib/odoo/invoice-state';
+import { isFeatureDisabledResult } from '@/lib/features';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { CreditCard, ExternalLink, FileText, RefreshCw } from 'lucide-react';
+import { CreditCard, ExternalLink, FileText, RefreshCw, Send } from 'lucide-react';
 import type { Invoice, PaymentMethod } from '@/types/database';
 import type { Locale } from '@/lib/i18n/routing';
 
@@ -43,6 +50,8 @@ function OdooInvoiceReference({
   baseUrl: string;
   openLabel: string;
 }) {
+  if (isOdooInvoiceDeleted(invoice)) return null;
+
   const label = invoice.odoo_invoice_name ?? invoice.odoo_invoice_id?.toString() ?? '—';
   const url = buildOdooInvoiceUrl(baseUrl, invoice.odoo_invoice_id);
   if (!url) return <span>{label}</span>;
@@ -69,25 +78,72 @@ function getDaysUntilDue(dueDate: string) {
   return Math.ceil((due.getTime() - today.getTime()) / (24 * 60 * 60 * 1000));
 }
 
+function getOdooStateLabel(
+  invoice: Invoice,
+  t: ReturnType<typeof useTranslations<'invoices'>>,
+) {
+  if (isOdooInvoiceDeleted(invoice)) return t('odooStatus.deleted');
+
+  const state = invoice.odoo_invoice_state;
+  if (state === 'draft') return t('odooStatus.draft');
+  if (state === 'posted') return t('odooStatus.posted');
+  if (state === 'cancel') return t('odooStatus.cancelled');
+  if (state) return state;
+  if (invoice.odoo_sync_status === 'failed') return t('odooRetryFailed');
+  if (invoice.odoo_sync_status === 'needs_review') return t('odooInvoiceNeedsReview');
+  if (invoice.odoo_sync_status === 'synced') return t('odooStatus.posted');
+  return '—';
+}
+
+function getOdooPaymentStateLabel(
+  state: string | null,
+  t: ReturnType<typeof useTranslations<'invoices'>>,
+) {
+  if (state === 'not_paid') return t('odooStatus.notPaid');
+  if (state === 'in_payment') return t('odooStatus.inPayment');
+  if (state === 'paid') return t('odooStatus.paid');
+  if (state === 'partial') return t('odooStatus.partial');
+  if (state === 'reversed') return t('odooStatus.reversed');
+  return state;
+}
+
+function isOdooManagedInvoice(invoice: Invoice) {
+  return invoice.odoo_invoice_id != null;
+}
+
 export function InvoicesTable({
-  invoices, locale, canEdit, odooBaseUrl, showOdooActions = true,
+  invoices,
+  locale,
+  canEdit,
+  canManageOdoo = false,
+  odooBaseUrl,
+  showOdooActions = true,
+  showOdooManualSend = false,
+  odooIntegrationEnabled = false,
+  invoiceSendVisibleStatus = 'invoice_issued',
 }: {
   invoices: Invoice[];
   locale: string;
   canEdit: boolean;
+  canManageOdoo?: boolean;
   odooBaseUrl: string;
   showOdooActions?: boolean;
+  showOdooManualSend?: boolean;
+  odooIntegrationEnabled?: boolean;
+  invoiceSendVisibleStatus?: OdooInvoiceSendVisibleStatus;
 }) {
   const t = useTranslations('invoices');
   const tp = useTranslations('payments');
   const tc = useTranslations('common.status');
   const tCommon = useTranslations('common');
+  const tFeature = useTranslations('featureFlags');
   const loc = locale as Locale;
   const search = useListSearchValue().trim().toLowerCase();
   const [issueInvoiceOpen, setIssueInvoiceOpen] = useState(false);
   const [payOpen, setPayOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [paymentMode, setPaymentMode] = useState<'full' | 'partial'>('full');
+  const [odooBusyId, setOdooBusyId] = useState<string | null>(null);
   const { isSubmitting: isSaving, runOnce } = useSingleSubmit();
 
   const visibleInvoices = useMemo(() => {
@@ -98,22 +154,55 @@ export function InvoicesTable({
       inv.unit?.location?.name_en,
       inv.unit?.location?.name_ar,
       inv.tenant?.full_name,
-    ].join(' ').toLowerCase().includes(search));
+    ].some((value) => value?.toLowerCase().includes(search)));
   }, [invoices, search]);
 
+  const showActionsColumn = canEdit || (showOdooActions && canManageOdoo);
+
+  function canSendToOdoo(invoice: Invoice) {
+    return shouldShowOdooInvoiceSendButton({
+      odooDocumentsEnabled: showOdooActions,
+      manualSendEnabled: showOdooManualSend,
+      canManageOdoo,
+      odooIntegrationEnabled,
+      visibleStatus: invoiceSendVisibleStatus,
+      invoice,
+    });
+  }
+
+  function canCheckOdooStatus(invoice: Invoice) {
+    return shouldShowOdooInvoiceStatusCheckButton({
+      odooDocumentsEnabled: showOdooActions,
+      canManageOdoo,
+      invoice,
+    });
+  }
+
   function getIssueErrorMessage(error: string) {
-    if (error === 'unitNotLinkedToOdoo') return t('unitNotLinkedToOdoo');
-    if (error === 'odooSyncFailed') return t('odooSyncFailed');
-    if (error === 'odooInvoiceNeedsReview') return t('odooInvoiceNeedsReview');
     if (error === 'invoiceNumberRequired') return t('invoiceNumberRequired');
     if (error === 'duplicateNumber') return t('duplicateNumber');
     if (error === 'invalidInvoiceStatus') return t('invalidInvoiceStatus');
     return tCommon('error');
   }
 
+  function getOdooActionErrorMessage(error: string) {
+    if (error === 'unitNotLinkedToOdoo') return t('unitNotLinkedToOdoo');
+    if (error === 'odooVatTaxMissing') return t('odooVatTaxMissing');
+    if (error === 'odooZeroRatedTaxMissing') return t('odooZeroRatedTaxMissing');
+    if (error === 'serviceProductInvalid') return t('serviceProductInvalid');
+    if (error === 'odooSyncFailed') return t('odooSyncFailed');
+    if (error === 'odooInvoiceNeedsReview') return t('odooInvoiceNeedsReview');
+    if (error === 'invoiceNotReadyForOdoo') return t('invoiceNotReadyForOdoo');
+    if (error === 'odooSendStageMismatch') return t('odooSendStageMismatch');
+    if (error === 'odooDisabled') return t('odooDisabled');
+    if (error === 'odooInvoiceNotFound') return t('odooInvoiceNotFound');
+    return t('odooSendFailed');
+  }
+
   function getPaymentErrorMessage(error: string) {
     if (error === 'exceedsBalance') return tp('exceedsBalance');
     if (error === 'cannotPayFullyPaid') return tp('cannotPayFullyPaid');
+    if (error === 'paymentManagedByOdoo') return tp('paymentManagedByOdoo');
     return tCommon('error');
   }
 
@@ -121,8 +210,7 @@ export function InvoicesTable({
     e.preventDefault();
     if (!selectedInvoice || isSaving) return;
     await runOnce(async () => {
-    const fd = new FormData(e.currentTarget);
-      const result = await issueDueInvoice(locale, selectedInvoice.id, fd.get('invoice_number') as string);
+      const result = await issueDueInvoice(locale, selectedInvoice.id);
       if (result.success) {
         toast.success(t('invoiceIssued'));
         setIssueInvoiceOpen(false);
@@ -138,9 +226,9 @@ export function InvoicesTable({
     e.preventDefault();
     if (!selectedInvoice || isSaving) return;
     await runOnce(async () => {
-    const fd = new FormData(e.currentTarget);
-    const remainingAmount = Number(selectedInvoice.amount) - Number(selectedInvoice.paid_amount);
-    const amount = paymentMode === 'full' ? remainingAmount : Number(fd.get('amount'));
+      const fd = new FormData(e.currentTarget);
+      const remainingAmount = Number(selectedInvoice.amount) - Number(selectedInvoice.paid_amount);
+      const amount = paymentMode === 'full' ? remainingAmount : Number(fd.get('amount'));
       const result = await recordPayment(locale, {
         invoice_id: selectedInvoice.id,
         amount,
@@ -155,6 +243,42 @@ export function InvoicesTable({
         toast.error(getPaymentErrorMessage('error' in result ? String(result.error) : ''));
       }
     });
+  }
+
+  async function handleSendToOdoo(invoice: Invoice) {
+    if (odooBusyId) return;
+    setOdooBusyId(invoice.id);
+    try {
+      const result = await sendInvoiceToOdoo(locale, invoice.id);
+      if (isFeatureDisabledResult(result)) {
+        toast.error(tFeature('featureDisabled'));
+        return;
+      }
+      if (result.success) toast.success(t('odooSendQueued'));
+      else toast.error(getOdooActionErrorMessage('error' in result ? String(result.error) : ''));
+    } finally {
+      setOdooBusyId(null);
+    }
+  }
+
+  async function handleCheckOdooStatus(invoice: Invoice) {
+    if (odooBusyId) return;
+    setOdooBusyId(invoice.id);
+    try {
+      const result = await checkOdooInvoiceStatus(locale, invoice.id);
+      if (isFeatureDisabledResult(result)) {
+        toast.error(tFeature('featureDisabled'));
+        return;
+      }
+      if (result.success) toast.success(t('odooStatusChecked'));
+      else toast.error(
+        'error' in result && result.error === 'odooInvoiceNotFound'
+          ? t('odooInvoiceNotFound')
+          : t('odooStatusCheckFailed'),
+      );
+    } finally {
+      setOdooBusyId(null);
+    }
   }
 
   function renderStatus(inv: Invoice) {
@@ -180,10 +304,45 @@ export function InvoicesTable({
     );
   }
 
-  async function handleRetryOdoo(invoice: Invoice) {
-    const result = await retryOdooInvoiceSync(locale, invoice.id);
-    if (result.success) toast.success(t('odooRetryQueued'));
-    else toast.error(t('odooRetryFailed'));
+  function renderOdooButtons(inv: Invoice, fullWidth: boolean) {
+    if (isOdooManagedInvoice(inv)) return null;
+    const busy = odooBusyId === inv.id;
+    const showSend = canSendToOdoo(inv);
+    const showCheck = canCheckOdooStatus(inv);
+    if (!showSend && !showCheck) return null;
+
+    return (
+      <>
+        {showSend && (
+          <Button
+            className={fullWidth ? 'w-full' : undefined}
+            variant="outline"
+            size={fullWidth ? 'sm' : 'icon-sm'}
+            disabled={Boolean(odooBusyId)}
+            onClick={() => handleSendToOdoo(inv)}
+            title={t('sendToOdoo')}
+            aria-label={t('sendToOdoo')}
+          >
+            <Send aria-hidden="true" />
+            {fullWidth ? (busy ? tCommon('loading') : t('sendToOdoo')) : null}
+          </Button>
+        )}
+        {showCheck && (
+          <Button
+            className={fullWidth ? 'w-full' : undefined}
+            variant="outline"
+            size={fullWidth ? 'sm' : 'icon-sm'}
+            disabled={Boolean(odooBusyId)}
+            onClick={() => handleCheckOdooStatus(inv)}
+            title={t('syncOdoo')}
+            aria-label={t('syncOdoo')}
+          >
+            <RefreshCw aria-hidden="true" className={busy ? 'animate-spin' : undefined} />
+            {fullWidth ? (busy ? tCommon('loading') : t('syncOdoo')) : null}
+          </Button>
+        )}
+      </>
+    );
   }
 
   return (
@@ -232,29 +391,47 @@ export function InvoicesTable({
                     <p>
                       <OdooInvoiceReference invoice={inv} baseUrl={odooBaseUrl} openLabel={t('openInOdoo')} />
                     </p>
+                    <div className="mt-1">
+                      <div className="flex flex-wrap gap-1">
+                        <Badge
+                          status={inv.odoo_sync_status === 'failed' ? 'failed' : inv.odoo_sync_status === 'synced' ? 'synced' : 'pending'}
+                          label={getOdooStateLabel(inv, t)}
+                        />
+                        {inv.odoo_payment_state && (
+                          <Badge
+                            status={inv.odoo_payment_state === 'paid' ? 'success' : 'pending'}
+                            label={getOdooPaymentStateLabel(inv.odoo_payment_state, t) ?? '—'}
+                          />
+                        )}
+                      </div>
+                      {inv.odoo_amount_total != null && (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {t('odooAmounts', {
+                            total: formatCurrency(Number(inv.odoo_amount_total), loc),
+                            paid: formatCurrency(Number(inv.odoo_amount_paid ?? 0), loc),
+                            residual: formatCurrency(Number(inv.odoo_amount_residual ?? 0), loc),
+                          })}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
-              {canEdit && (
+              {showActionsColumn && (
                 <div className="mt-4 flex flex-col gap-2">
-                  {inv.status === 'due' && (
+                  {canEdit && !isOdooManagedInvoice(inv) && inv.status === 'due' && (
                     <Button className="w-full" variant="issue" size="sm" onClick={() => { setSelectedInvoice(inv); setIssueInvoiceOpen(true); }}>
                       <FileText />
                       {t('issueInvoice')}
                     </Button>
                   )}
-                  {(inv.status === 'invoice_issued' || inv.status === 'partially_paid' || inv.status === 'overdue') && (
+                  {canEdit && !isOdooManagedInvoice(inv) && (inv.status === 'invoice_issued' || inv.status === 'partially_paid' || inv.status === 'overdue') && (
                     <Button className="w-full" variant="payment" size="sm" onClick={() => { setSelectedInvoice(inv); setPaymentMode('full'); setPayOpen(true); }}>
                       <CreditCard />
                       {t('recordPayment')}
                     </Button>
                   )}
-                  {showOdooActions && (inv.odoo_sync_status === 'failed' || (inv.odoo_invoice_id && inv.odoo_invoice_state === 'draft')) && (
-                    <Button className="w-full" variant="outline" size="sm" onClick={() => handleRetryOdoo(inv)}>
-                      <RefreshCw />
-                      {t('syncOdoo')}
-                    </Button>
-                  )}
+                  {renderOdooButtons(inv, true)}
                 </div>
               )}
             </div>
@@ -274,7 +451,7 @@ export function InvoicesTable({
                 <th>{t('dueDate')}</th>
                 {showOdooActions && <th>{t('odooInvoice')}</th>}
                 <th>{t('statusTransition')}</th>
-                {canEdit && (
+                {showActionsColumn && (
                   <th className="sticky end-0 z-10 w-px border-s border-border bg-muted !text-end">
                     {t('action')}
                   </th>
@@ -301,35 +478,60 @@ export function InvoicesTable({
                         <div>
                           <OdooInvoiceReference invoice={inv} baseUrl={odooBaseUrl} openLabel={t('openInOdoo')} />
                         </div>
-                        <Badge
-                          status={inv.odoo_sync_status === 'failed' ? 'failed' : inv.odoo_sync_status === 'synced' ? 'synced' : 'pending'}
-                          label={inv.odoo_invoice_state ?? inv.odoo_sync_status ?? '—'}
-                        />
-                        {inv.odoo_sync_error && <p className="max-w-56 text-xs text-destructive">{inv.odoo_sync_error}</p>}
+                        <div className="flex flex-wrap gap-1">
+                          <Badge
+                            status={inv.odoo_sync_status === 'failed' ? 'failed' : inv.odoo_sync_status === 'synced' ? 'synced' : 'pending'}
+                            label={getOdooStateLabel(inv, t)}
+                          />
+                          {inv.odoo_payment_state && (
+                            <Badge
+                              status={inv.odoo_payment_state === 'paid' ? 'success' : 'pending'}
+                              label={getOdooPaymentStateLabel(inv.odoo_payment_state, t) ?? '—'}
+                            />
+                          )}
+                        </div>
+                        {inv.odoo_amount_total != null && (
+                          <p className="max-w-72 text-xs text-muted-foreground">
+                            {t('odooAmounts', {
+                              total: formatCurrency(Number(inv.odoo_amount_total), loc),
+                              paid: formatCurrency(Number(inv.odoo_amount_paid ?? 0), loc),
+                              residual: formatCurrency(Number(inv.odoo_amount_residual ?? 0), loc),
+                            })}
+                          </p>
+                        )}
+                        {inv.odoo_sync_error && !isOdooInvoiceDeleted(inv) && (
+                          <p className="max-w-56 text-xs text-destructive">{t('odooRetryFailed')}</p>
+                        )}
                       </div>
                     </td>
                   )}
                   <td>{renderStatus(inv)}</td>
-                  {canEdit && (
+                  {showActionsColumn && (
                     <td className="sticky end-0 z-10 w-px whitespace-nowrap border-s border-border bg-card text-end">
                       <div className="row-actions">
-                        {inv.status === 'due' && (
-                          <Button variant="issue" size="sm" onClick={() => { setSelectedInvoice(inv); setIssueInvoiceOpen(true); }}>
-                            <FileText />
-                            {t('issueInvoice')}
+                        {canEdit && !isOdooManagedInvoice(inv) && inv.status === 'due' && (
+                          <Button
+                            variant="issue"
+                            size="icon-sm"
+                            title={t('issueInvoice')}
+                            aria-label={t('issueInvoice')}
+                            onClick={() => { setSelectedInvoice(inv); setIssueInvoiceOpen(true); }}
+                          >
+                            <FileText aria-hidden="true" />
                           </Button>
                         )}
-                        {(inv.status === 'invoice_issued' || inv.status === 'partially_paid' || inv.status === 'overdue') && (
-                          <Button variant="payment" size="sm" onClick={() => { setSelectedInvoice(inv); setPaymentMode('full'); setPayOpen(true); }}>
-                            <CreditCard />
-                            {t('recordPayment')}
+                        {canEdit && !isOdooManagedInvoice(inv) && (inv.status === 'invoice_issued' || inv.status === 'partially_paid' || inv.status === 'overdue') && (
+                          <Button
+                            variant="payment"
+                            size="icon-sm"
+                            title={t('recordPayment')}
+                            aria-label={t('recordPayment')}
+                            onClick={() => { setSelectedInvoice(inv); setPaymentMode('full'); setPayOpen(true); }}
+                          >
+                            <CreditCard aria-hidden="true" />
                           </Button>
                         )}
-                        {showOdooActions && (inv.odoo_sync_status === 'failed' || (inv.odoo_invoice_id && inv.odoo_invoice_state === 'draft')) && (
-                          <Button variant="outline" size="sm" onClick={() => handleRetryOdoo(inv)} title={t('syncOdoo')} aria-label={t('syncOdoo')}>
-                            <RefreshCw />
-                          </Button>
-                        )}
+                        {renderOdooButtons(inv, false)}
                       </div>
                     </td>
                   )}
@@ -343,7 +545,11 @@ export function InvoicesTable({
 
       <Modal open={issueInvoiceOpen} onClose={() => setIssueInvoiceOpen(false)} title={t('issueInvoice')}>
         <form onSubmit={handleIssueDueInvoice} className="space-y-4">
-          <Input name="invoice_number" label={t('invoiceNumber')} required />
+          {selectedInvoice && (
+            <p className="text-sm text-muted-foreground">
+              {t('issueGeneratedInvoiceNumber', { number: selectedInvoice.invoice_number })}
+            </p>
+          )}
           <div className="form-actions">
             <Button variant="outline" type="button" disabled={isSaving} onClick={() => setIssueInvoiceOpen(false)}>{tCommon('cancel')}</Button>
             <Button variant="issue" type="submit" disabled={isSaving}>{isSaving ? tCommon('loading') : t('issueInvoice')}</Button>

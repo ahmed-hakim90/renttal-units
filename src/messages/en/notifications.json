@@ -1,0 +1,22 @@
+{
+  "view": "View",
+  "close": "Dismiss",
+  "bellLabel": "Notifications",
+  "badgeLabel": "{count} notifications",
+  "panelTitle": "Notifications",
+  "empty": "No alerts right now",
+  "overdueInvoicesTitle": "Overdue invoices",
+  "overdueInvoicesDescription": "{count} overdue invoices need attention",
+  "dueInvoicesTitle": "Due now",
+  "dueInvoicesDescription": "{count} invoices are due now",
+  "awaitingPaymentTitle": "Awaiting payment",
+  "awaitingPaymentDescription": "{count} issued invoices are awaiting payment",
+  "partialPaymentsTitle": "Partial payments",
+  "partialPaymentsDescription": "{count} invoices have partial payments",
+  "draftContractsTitle": "Draft contracts",
+  "draftContractsDescription": "{count} draft contracts waiting for activation",
+  "expiringContractsTitle": "Contracts expiring soon",
+  "expiringContractsDescription": "{count} contracts expire within 30 days",
+  "odooSyncIssuesTitle": "Odoo sync issues",
+  "odooSyncIssuesDescription": "{failed} failed · {needsReview} need review"
+}

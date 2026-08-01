@@ -61,6 +61,18 @@ export const FEATURE_FLAG_REGISTRY = {
     i18nKey: 'odooInvoicesDocuments',
     revalidatePaths: (locale: string) => [`/${locale}/invoices`, `/${locale}/settings`],
   },
+  odoo_invoice_manual_send: {
+    default: true,
+    category: 'odoo',
+    i18nKey: 'odooInvoiceManualSend',
+    revalidatePaths: (locale: string) => [
+      `/${locale}/invoices`,
+      `/${locale}/due-this-month`,
+      `/${locale}/partial-payments`,
+      `/${locale}/fully-paid`,
+      `/${locale}/settings`,
+    ],
+  },
   import_excel_contracts: {
     default: true,
     category: 'imports',

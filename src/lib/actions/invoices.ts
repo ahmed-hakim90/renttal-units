@@ -12,19 +12,44 @@ async function getCtx() {
   return { correlation_id: await getCorrelationId() };
 }
 
+function sanitizeOdooInvoiceErrors<T extends { odoo_sync_error: string | null }>(invoices: T[]): T[] {
+  return invoices.map((invoice) => ({
+    ...invoice,
+    odoo_sync_error: invoice.odoo_sync_error === 'odooInvoiceNotFound'
+      ? 'odooInvoiceNotFound'
+      : invoice.odoo_sync_error
+        ? 'odooSyncFailed'
+        : null,
+  }));
+}
+
 export async function getInvoices(locale: string, filters?: { status?: InvoiceStatus | InvoiceStatus[]; locationId?: string }) {
   const auth = await requirePermission(locale, 'invoices.view', await getCtx());
-  return invoiceService.list(auth, { ...await getCtx(), user_id: auth.userId, role: auth.role }, filters);
+  const invoices = await invoiceService.list(
+    auth,
+    { ...await getCtx(), user_id: auth.userId, role: auth.role },
+    filters,
+  );
+  return sanitizeOdooInvoiceErrors(invoices);
 }
 
-export async function getDashboardStats(locale: string) {
+export async function getDashboardStats(locale: string, filters?: { locationId?: string }) {
   const auth = await requireAuth(locale, await getCtx());
-  return invoiceService.getDashboardCounts(auth, { ...await getCtx(), user_id: auth.userId, role: auth.role });
+  return invoiceService.getDashboardCounts(
+    auth,
+    { ...await getCtx(), user_id: auth.userId, role: auth.role },
+    filters,
+  );
 }
 
-export async function getOverdueInvoices(locale: string) {
+export async function getOverdueInvoices(locale: string, filters?: { locationId?: string }) {
   const auth = await requirePermission(locale, 'invoices.view', await getCtx());
-  return invoiceService.listOverdue(auth, { ...await getCtx(), user_id: auth.userId, role: auth.role });
+  const invoices = await invoiceService.listOverdue(
+    auth,
+    { ...await getCtx(), user_id: auth.userId, role: auth.role },
+    filters,
+  );
+  return sanitizeOdooInvoiceErrors(invoices);
 }
 
 export async function issueInvoice(locale: string, data: {
@@ -44,9 +69,14 @@ export async function issueInvoice(locale: string, data: {
   return result;
 }
 
-export async function getDueThisMonth(locale: string) {
+export async function getDueThisMonth(locale: string, filters?: { locationId?: string }) {
   const auth = await requirePermission(locale, 'invoices.view', await getCtx());
-  return rentalService.getDueThisMonth(auth, { ...await getCtx(), user_id: auth.userId, role: auth.role });
+  const invoices = await rentalService.getDueThisMonth(
+    auth,
+    { ...await getCtx(), user_id: auth.userId, role: auth.role },
+    filters,
+  );
+  return sanitizeOdooInvoiceErrors(invoices);
 }
 
 export async function syncDueInvoices(locale: string) {
@@ -61,9 +91,13 @@ export async function syncDueInvoices(locale: string) {
   return result;
 }
 
-export async function issueDueInvoice(locale: string, invoiceId: string, invoiceNumber: string) {
+export async function issueDueInvoice(locale: string, invoiceId: string) {
   const auth = await requirePermission(locale, 'invoices.update', await getCtx());
-  const result = await invoiceService.issueDueInvoice(auth, invoiceId, invoiceNumber, { ...await getCtx(), user_id: auth.userId, role: auth.role });
+  const result = await invoiceService.issueDueInvoice(
+    auth,
+    invoiceId,
+    { ...await getCtx(), user_id: auth.userId, role: auth.role },
+  );
   if (result.success) {
     revalidatePath(`/${locale}/due-this-month`);
     revalidatePath(`/${locale}/invoices`);

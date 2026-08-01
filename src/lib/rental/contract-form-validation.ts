@@ -67,6 +67,7 @@ export interface ContractFormLineValues {
   odoo_product_id: string;
   odoo_product_name: string;
   tax_rate: string;
+  tax_treatment: 'standard' | 'zero_rated';
 }
 
 export interface ContractFormValues {
@@ -353,6 +354,7 @@ function buildInvoicePreview(
         odooProductName: line.odoo_product_name || null,
         amount: Number(line.amount),
         taxRate: line.tax_rate == null ? 15 : Number(line.tax_rate),
+        taxTreatment: line.tax_treatment === 'zero_rated' ? 'zero_rated' : 'standard',
         sortOrder: index,
       })),
     });

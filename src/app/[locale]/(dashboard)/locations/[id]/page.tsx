@@ -27,7 +27,7 @@ export default async function LocationDetailPage({
     getAuthContext(ctx),
     getLocationDetail(locale, id),
     featureFlags.odoo_invoices_documents
-      ? getOdooInvoiceDocuments(locale, { locationId: id })
+      ? getOdooInvoiceDocuments(locale, { locationId: id, unmatchedOnly: true })
       : Promise.resolve([]),
   ]);
 
@@ -40,7 +40,7 @@ export default async function LocationDetailPage({
       locale={locale}
       canEdit={Boolean(auth && canMutateModule(auth, 'locations') && featureFlags.master_data_mutations)}
       showLocationStatement={featureFlags.reports_operational}
-      showOdooDocuments={featureFlags.odoo_invoices_documents}
+      showOdooDocuments={featureFlags.odoo_invoices_documents && odooDocuments.length > 0}
       odooDocuments={featureFlags.odoo_invoices_documents ? odooDocuments : []}
     />
   );

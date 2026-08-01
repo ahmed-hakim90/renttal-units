@@ -170,6 +170,24 @@ export const odooImportRepository = {
     return data as OdooInvoiceDocument;
   },
 
+  async linkImportedInvoiceAtomic(input: {
+    odooInvoiceId: number;
+    odooLineId: number;
+    contractId: string;
+    localInvoiceId: string;
+  }, ctx: LogContext) {
+    const supabase = await createClient();
+    const { data, error } = await supabase.rpc('link_odoo_import_invoice_atomic', {
+      p_odoo_invoice_id: input.odooInvoiceId,
+      p_odoo_line_id: input.odooLineId,
+      p_contract_id: input.contractId,
+      p_local_invoice_id: input.localInvoiceId,
+    });
+    if (error) throw error;
+    if (!data) throw new Error('Odoo invoice link was not saved');
+    return data;
+  },
+
   async mapContractGroupAtomic(
     contract: Record<string, unknown>,
     odooLineIds: number[],
@@ -191,6 +209,7 @@ export const odooImportRepository = {
     unitId?: string;
     contractId?: string;
     locationId?: string;
+    unmatchedOnly?: boolean;
   }, ctx: LogContext): Promise<OdooInvoiceDocument[]> {
     const supabase = await createClient();
     let query = supabase
@@ -211,6 +230,11 @@ export const odooImportRepository = {
     if (filters.locationId) {
       documents = documents.filter((document) => document.lines?.some((line) => (
         line.unit?.location_id === filters.locationId
+      )));
+    }
+    if (filters.unmatchedOnly) {
+      documents = documents.filter((document) => (document.lines ?? []).some((line) => (
+        line.is_rental ? !line.local_invoice_id : !line.contract_id
       )));
     }
     return documents;

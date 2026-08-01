@@ -30,6 +30,7 @@
   "remainingBalance": "الرصيد المتبقي",
   "cannotPayFullyPaid": "هذه الفاتورة مدفوعة بالكامل ولا يمكن قبول المزيد من المدفوعات",
   "exceedsBalance": "مبلغ الدفع يتجاوز الرصيد المتبقي",
+  "paymentManagedByOdoo": "مدفوعات هذه الفاتورة تُدار في Odoo وتتزامن تلقائيًا",
   "empty": "لا توجد مدفوعات مسجلة",
   "recordedBy": "سجل بواسطة",
   "paymentRecorded": "تم تسجيل الدفعة بنجاح"

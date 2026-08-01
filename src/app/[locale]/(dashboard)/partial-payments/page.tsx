@@ -32,8 +32,12 @@ export default async function PartialPaymentsPage({ params }: { params: Promise<
         invoices={invoices}
         locale={locale}
         canEdit={canMutateModule(auth, 'invoices') || hasPermission(auth, 'payments.record')}
+        canManageOdoo={hasPermission(auth, 'odoo.manage')}
         odooBaseUrl={odooSettings.url}
         showOdooActions={featureFlags.odoo_invoices_documents}
+        showOdooManualSend={featureFlags.odoo_invoice_manual_send}
+        odooIntegrationEnabled={odooSettings.enabled}
+        invoiceSendVisibleStatus={odooSettings.invoiceSendVisibleStatus}
       />
     </div>
   );

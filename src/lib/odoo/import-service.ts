@@ -3,6 +3,11 @@ import 'server-only';
 import { addMonths, differenceInCalendarDays, format, subDays } from 'date-fns';
 import { OdooClient, type OdooRecord } from '@/lib/odoo/client';
 import { buildOdooCategoryDomain } from '@/lib/odoo/category-domain';
+import {
+  localContractOptionsForLine,
+  matchOdooLineToLocalInvoice,
+  type LocalInvoiceMatchCandidate,
+} from '@/lib/odoo/import-matching';
 import { getOdooSettings, getRentalProductCategoryIds } from '@/lib/odoo/settings';
 import { odooImportRepository } from '@/lib/repositories/odoo-import';
 import { invoicesRepository } from '@/lib/repositories/invoices';
@@ -10,6 +15,7 @@ import { unitsRepository } from '@/lib/repositories/units';
 import type { LogContext } from '@/lib/observability';
 import type {
   AuthContext,
+  Invoice,
   OdooImportItem,
   OdooImportItemStatus,
   PaymentCycle,
@@ -18,13 +24,55 @@ import type {
 
 type AnalyticDistribution = Record<string, number>;
 
+const SAFE_IMPORT_COMMIT_ERRORS = new Set([
+  'localInvoiceRequired',
+  'localInvoiceMismatch',
+  'contractNotActive',
+  'contractTenantMismatch',
+  'invoiceAmountMismatch',
+  'multipleLocalInvoices',
+  'LOCAL_INVOICE_CONTRACT_MISMATCH',
+  'LOCAL_INVOICE_UNIT_MISMATCH',
+  'LOCAL_INVOICE_PERIOD_MISMATCH',
+  'LOCAL_INVOICE_OUTSIDE_CONTRACT',
+  'LOCAL_INVOICE_AMOUNT_MISMATCH',
+  'CONTRACT_NOT_ACTIVE',
+  'CONTRACT_TENANT_MISMATCH',
+  'ODOO_INVOICE_ALREADY_LINKED',
+]);
+const IMPORT_DATABASE_ERROR_CODES: Record<string, string> = {
+  LOCAL_INVOICE_CONTRACT_MISMATCH: 'localInvoiceMismatch',
+  LOCAL_INVOICE_UNIT_MISMATCH: 'localInvoiceMismatch',
+  LOCAL_INVOICE_PERIOD_MISMATCH: 'localInvoiceMismatch',
+  LOCAL_INVOICE_OUTSIDE_CONTRACT: 'localInvoiceMismatch',
+  LOCAL_INVOICE_AMOUNT_MISMATCH: 'invoiceAmountMismatch',
+  CONTRACT_NOT_ACTIVE: 'contractNotActive',
+  CONTRACT_TENANT_MISMATCH: 'contractTenantMismatch',
+  ODOO_INVOICE_ALREADY_LINKED: 'odooInvoiceAlreadyLinked',
+};
+
+function safeImportCommitError(error: unknown) {
+  const candidate = error && typeof error === 'object'
+    ? error as { code?: unknown; message?: unknown }
+    : null;
+  if (candidate?.code === 'PGRST202') return 'odooImportDatabaseUpgradeRequired';
+  const message = error instanceof Error
+    ? error.message
+    : typeof candidate?.message === 'string' ? candidate.message : null;
+  if (message && IMPORT_DATABASE_ERROR_CODES[message]) return IMPORT_DATABASE_ERROR_CODES[message];
+  return message && SAFE_IMPORT_COMMIT_ERRORS.has(message) ? message : 'odooImportFailed';
+}
+
 export type OdooImportLinePayload = {
   odooLineId: number;
   productOdooId: number | null;
   productName: string | null;
   unitId: string | null;
   unitNumber: string | null;
+  contractId: string | null;
+  contractNumber: string | null;
   localInvoiceId: string | null;
+  localInvoiceNumber: string | null;
   description: string | null;
   periodStart: string | null;
   periodEnd: string | null;
@@ -36,7 +84,25 @@ export type OdooImportLinePayload = {
   isRental: boolean;
   mappingStatus: 'matched' | 'unmatched' | 'needs_review' | 'service';
   reviewReason: string | null;
+  matchReason: string | null;
   suggestedContractNumber: string | null;
+  contractOptions: Array<{
+    id: string;
+    contractNumber: string;
+    tenantName: string | null;
+    unitId: string;
+    unitNumber: string;
+    startDate: string | null;
+    endDate: string | null;
+    invoices: Array<{
+      id: string;
+      invoiceNumber: string;
+      periodStart: string;
+      periodEnd: string;
+      amountTotal: number;
+      status: string;
+    }>;
+  }>;
 };
 
 export type OdooImportPaymentPayload = {
@@ -102,7 +168,79 @@ export type OdooInvoiceImportPreview = {
     mapping: Record<string, unknown>;
     document: OdooImportDocumentPayload;
   }>;
+  localInvoices: OdooReconciliationLocalInvoice[];
 };
+
+export type OdooReconciliationLocalInvoice = {
+  id: string;
+  invoiceNumber: string;
+  contractId: string;
+  contractNumber: string;
+  unitId: string;
+  unitNumber: string;
+  tenantName: string | null;
+  periodStart: string;
+  periodEnd: string;
+  amountTotal: number;
+  status: string;
+  odooInvoiceId: number | null;
+  odooInvoiceName: string | null;
+  odooInvoiceState: string | null;
+  odooPaymentState: string | null;
+};
+
+function localInvoiceCandidatesFromInvoices(invoices: Invoice[]) {
+  return invoices.flatMap((invoice): LocalInvoiceMatchCandidate[] => {
+    if (!invoice.contract_id || !invoice.contract || !invoice.unit) return [];
+    return [{
+      invoiceId: invoice.id,
+      invoiceNumber: invoice.invoice_number,
+      odooInvoiceId: invoice.odoo_invoice_id,
+      contractId: invoice.contract_id,
+      contractNumber: invoice.contract.contract_number,
+      contractStatus: invoice.contract.status,
+      contractStart: invoice.contract.start_date,
+      contractEnd: invoice.contract.end_date,
+      tenantOdooPartnerId: invoice.tenant?.odoo_partner_id ?? null,
+      tenantName: invoice.tenant?.full_name ?? null,
+      unitId: invoice.unit_id,
+      unitNumber: invoice.unit.unit_number,
+      periodStart: invoice.period_start,
+      periodEnd: invoice.period_end,
+      amountTotal: Number(invoice.amount_total),
+      status: invoice.status,
+    }];
+  });
+}
+
+async function loadReconciliationLocalInvoices(ctx: LogContext): Promise<OdooReconciliationLocalInvoice[]> {
+  const invoices = await invoicesRepository.findAll(ctx);
+  return invoices
+    .filter((invoice) => (
+      invoice.contract?.status === 'active'
+      && ['due', 'invoice_issued', 'partially_paid', 'overdue'].includes(invoice.status)
+      && invoice.contract_id
+      && invoice.contract
+      && invoice.unit
+    ))
+    .map((invoice) => ({
+      id: invoice.id,
+      invoiceNumber: invoice.invoice_number,
+      contractId: invoice.contract_id as string,
+      contractNumber: invoice.contract!.contract_number,
+      unitId: invoice.unit_id,
+      unitNumber: invoice.unit!.unit_number,
+      tenantName: invoice.tenant?.full_name ?? null,
+      periodStart: invoice.period_start,
+      periodEnd: invoice.period_end,
+      amountTotal: Number(invoice.amount_total),
+      status: invoice.status,
+      odooInvoiceId: invoice.odoo_invoice_id,
+      odooInvoiceName: invoice.odoo_invoice_name,
+      odooInvoiceState: invoice.odoo_invoice_state,
+      odooPaymentState: invoice.odoo_payment_state,
+    }));
+}
 
 function many2OneId(value: unknown) {
   if (Array.isArray(value) && typeof value[0] === 'number') return value[0];
@@ -390,9 +528,7 @@ async function buildImportPayloads(ctx: LogContext, since?: string | null) {
   const unitsByProduct = new Map(units
     .filter((unit) => unit.odoo_product_id != null)
     .map((unit) => [unit.odoo_product_id as number, unit]));
-  const localInvoicesByOdooId = new Map(localInvoices
-    .filter((invoice) => invoice.odoo_invoice_id != null)
-    .map((invoice) => [invoice.odoo_invoice_id as number, invoice]));
+  const localInvoiceCandidates = localInvoiceCandidatesFromInvoices(localInvoices);
   const existingIds = new Set(existingDocuments.map((document) => document.odoo_invoice_id));
   const moves = await loadMoves(client, productIds, since);
   const lineIds = Array.from(new Set(moves.flatMap((move) => idArray(move.invoice_line_ids))));
@@ -429,8 +565,20 @@ async function buildImportPayloads(ctx: LogContext, since?: string | null) {
       const reference = stringValue(move.ref);
       const trustedReference = trustedContractReference(reference);
       const moveLines = linesByMove.get(move.id) ?? [];
-      const localInvoice = localInvoicesByOdooId.get(move.id) ?? null;
-      const payloadLines: OdooImportLinePayload[] = moveLines.map((line) => {
+      const documentAmountTotal = numberValue(move.amount_total);
+      const isServiceLine = (line: OdooRecord) => {
+        const productId = many2OneId(line.product_id);
+        const product = productId ? productsById.get(productId) : null;
+        const unit = productId ? unitsByProduct.get(productId) ?? null : null;
+        const description = stringValue(line.name) ?? '';
+        const productName = product
+          ? stringValue(product.display_name) ?? stringValue(product.name)
+          : many2OneName(line.product_id);
+        return !Boolean(productId && productsById.has(productId))
+          || (!unit && looksLikeService(description, productName));
+      };
+      const rentalLineCount = moveLines.filter((line) => !isServiceLine(line)).length;
+      let payloadLines: OdooImportLinePayload[] = moveLines.map((line) => {
         const productId = many2OneId(line.product_id);
         const product = productId ? productsById.get(productId) : null;
         const unit = productId ? unitsByProduct.get(productId) ?? null : null;
@@ -440,41 +588,49 @@ async function buildImportPayloads(ctx: LogContext, since?: string | null) {
         const periodEnd = dateValue(line[settings.endDateField]);
         const inRentalCategory = Boolean(productId && productsById.has(productId));
         const isService = !inRentalCategory || (!unit && looksLikeService(description, productName));
+        const amountUntaxed = numberValue(line.price_subtotal);
+        const amountTotal = numberValue(line.price_total);
+        const match = isService
+          ? null
+          : matchOdooLineToLocalInvoice({
+              odooInvoiceId: move.id,
+              partnerOdooId: partnerId,
+              reference,
+              unitId: unit?.id ?? null,
+              periodStart,
+              periodEnd,
+              amountTotal: rentalLineCount === 1 ? documentAmountTotal : amountTotal,
+            }, localInvoiceCandidates);
+        const contractOptions = isService
+          ? []
+          : localContractOptionsForLine({
+              partnerOdooId: partnerId,
+              unitId: unit?.id ?? null,
+              periodStart,
+              periodEnd,
+            }, localInvoiceCandidates);
         const mappingStatus = isService
           ? 'service'
-          : unit
-            ? periodStart && periodEnd ? 'matched' : 'needs_review'
-            : 'needs_review';
+          : match?.candidate ? 'matched' : 'needs_review';
         const reviewReason = isService
           ? null
           : !unit
             ? 'unitProductNotLinked'
             : !periodStart || !periodEnd
               ? 'periodMissing'
-              : trustedReference
+              : match?.candidate
                 ? null
-                : 'contractNumberSuggested';
-        const amountUntaxed = numberValue(line.price_subtotal);
-        const amountTotal = numberValue(line.price_total);
-        const matchesLocalInvoice = Boolean(
-          localInvoice
-          && unit?.id === localInvoice.unit_id
-          && (
-            !periodStart
-            || !periodEnd
-            || (
-              periodStart === localInvoice.period_start
-              && periodEnd === localInvoice.period_end
-            )
-          )
-        );
+                : match?.reason ?? 'contractNotMatched';
         return {
           odooLineId: line.id,
           productOdooId: productId,
           productName,
           unitId: unit?.id ?? null,
           unitNumber: unit?.unit_number ?? null,
-          localInvoiceId: matchesLocalInvoice ? localInvoice?.id ?? null : null,
+          contractId: match?.candidate?.contractId ?? null,
+          contractNumber: match?.candidate?.contractNumber ?? null,
+          localInvoiceId: match?.candidate?.invoiceId ?? null,
+          localInvoiceNumber: match?.candidate?.invoiceNumber ?? null,
           description: description || null,
           periodStart,
           periodEnd,
@@ -486,15 +642,29 @@ async function buildImportPayloads(ctx: LogContext, since?: string | null) {
           isRental: !isService,
           mappingStatus,
           reviewReason,
+          matchReason: match?.candidate ? match.reason : null,
           suggestedContractNumber: suggestedContractNumber({
-            trustedReference,
+            trustedReference: match?.candidate?.contractNumber ?? trustedReference,
             partnerId,
             unit: isService ? null : unit,
             periodStart: isService ? null : periodStart,
           }) ?? (isService && trustedReference ? trustedReference : null),
+          contractOptions,
         };
       });
-      const amountTotal = numberValue(move.amount_total);
+      const matchedRentalContracts = new Map(payloadLines
+        .filter((line) => line.isRental && line.contractId && line.contractNumber)
+        .map((line) => [line.contractId as string, line.contractNumber as string]));
+      if (matchedRentalContracts.size === 1) {
+        const [contractId, contractNumber] = [...matchedRentalContracts.entries()][0];
+        payloadLines = payloadLines.map((line) => line.isRental ? line : {
+          ...line,
+          contractId,
+          contractNumber,
+          suggestedContractNumber: contractNumber,
+        });
+      }
+      const amountTotal = documentAmountTotal;
       const amountResidual = numberValue(move.amount_residual);
       const partnerRecord = partner?.record;
       const payload: OdooImportDocumentPayload = {
@@ -556,7 +726,12 @@ async function buildImportPayloads(ctx: LogContext, since?: string | null) {
     });
 }
 
-function previewFromItems(runId: string, runStatus: string, items: OdooImportItem[]): OdooInvoiceImportPreview {
+function previewFromItems(
+  runId: string,
+  runStatus: string,
+  items: OdooImportItem[],
+  localInvoices: OdooReconciliationLocalInvoice[],
+): OdooInvoiceImportPreview {
   const documents = items
     .filter((item) => item.item_type === 'invoice_document')
     .map((item) => ({
@@ -581,6 +756,7 @@ function previewFromItems(runId: string, runStatus: string, items: OdooImportIte
       amountTotal: documents.reduce((sum, item) => sum + item.document.amountTotal, 0),
     },
     documents,
+    localInvoices,
   };
 }
 
@@ -615,7 +791,8 @@ export const odooImportService = {
         mapping: {},
         errors,
       })), ctx);
-      const preview = previewFromItems(run.id, 'ready', items);
+      const localInvoices = await loadReconciliationLocalInvoices(ctx);
+      const preview = previewFromItems(run.id, 'ready', items, localInvoices);
       await odooImportRepository.updateRun(run.id, {
         status: 'ready',
         summary: preview.summary,
@@ -639,7 +816,8 @@ export const odooImportService = {
     if (!run || (ctx.system !== true && run.requested_by !== auth.userId)) {
       throw new Error('Odoo import run was not found');
     }
-    return previewFromItems(run.id, run.status, items);
+    const localInvoices = await loadReconciliationLocalInvoices(ctx);
+    return previewFromItems(run.id, run.status, items, localInvoices);
   },
 
   async updateInvoiceMapping(
@@ -698,10 +876,14 @@ export const odooImportService = {
     const items = await odooImportRepository.findItemsByIds(runId, Array.from(new Set(itemIds)), ctx);
     await odooImportRepository.updateRun(runId, { status: 'committing', error: null }, ctx);
 
-    const units = await unitsRepository.findAll(ctx);
+    const [units, localInvoices] = await Promise.all([
+      unitsRepository.findAll(ctx),
+      invoicesRepository.findAll(ctx),
+    ]);
     const unitsByProduct = new Map(units
       .filter((unit) => unit.odoo_product_id != null)
       .map((unit) => [unit.odoo_product_id as number, unit]));
+    const localInvoicesById = new Map(localInvoices.map((invoice) => [invoice.id, invoice]));
     const imported: Array<{
       item: OdooImportItem;
       payload: OdooImportDocumentPayload;
@@ -715,7 +897,8 @@ export const odooImportService = {
         const lineMappings = item.mapping.lineMappings && typeof item.mapping.lineMappings === 'object'
           ? item.mapping.lineMappings as Record<string, Record<string, unknown>>
           : {};
-        const lines = payload.lines.map((line) => {
+        const rentalLineCount = payload.lines.filter((line) => line.isRental).length;
+        let lines = payload.lines.map((line) => {
           const override = lineMappings[String(line.odooLineId)] ?? {};
           const currentUnit = line.productOdooId ? unitsByProduct.get(line.productOdooId) ?? null : null;
           const unitId = typeof override.unitId === 'string' ? override.unitId : currentUnit?.id ?? line.unitId;
@@ -723,23 +906,86 @@ export const odooImportService = {
           if (targetUnit && line.productOdooId && targetUnit.odoo_product_id !== line.productOdooId) {
             throw new Error(`Unit ${targetUnit.unit_number} is not linked to Odoo product ${line.productOdooId}`);
           }
+          const periodStart = typeof override.periodStart === 'string' ? override.periodStart : line.periodStart;
+          const periodEnd = typeof override.periodEnd === 'string' ? override.periodEnd : line.periodEnd;
+          const contractId = typeof override.contractId === 'string' ? override.contractId : line.contractId;
+          const localInvoiceId = typeof override.localInvoiceId === 'string'
+            ? override.localInvoiceId
+            : line.localInvoiceId;
+          const localInvoice = localInvoiceId ? localInvoicesById.get(localInvoiceId) ?? null : null;
+
+          if (line.isRental) {
+            if (!targetUnit || !contractId || !localInvoice || !periodStart || !periodEnd) {
+              throw new Error('localInvoiceRequired');
+            }
+            if (
+              localInvoice.contract_id !== contractId
+              || localInvoice.unit_id !== targetUnit.id
+              || localInvoice.period_start !== periodStart
+              || localInvoice.period_end !== periodEnd
+            ) {
+              throw new Error('localInvoiceMismatch');
+            }
+            if (
+              localInvoice.contract?.status !== 'active'
+              && localInvoice.odoo_invoice_id !== payload.odooInvoiceId
+            ) {
+              throw new Error('contractNotActive');
+            }
+            if (
+              payload.partnerOdooId != null
+              && localInvoice.tenant?.odoo_partner_id !== payload.partnerOdooId
+            ) {
+              throw new Error('contractTenantMismatch');
+            }
+            const expectedInvoiceAmount = rentalLineCount === 1
+              ? payload.amountTotal
+              : line.amountTotal;
+            if (Math.abs(Number(localInvoice.amount_total) - expectedInvoiceAmount) > 0.02) {
+              throw new Error('invoiceAmountMismatch');
+            }
+          }
           return {
             ...line,
             unitId: targetUnit?.id ?? null,
             unitNumber: targetUnit?.unit_number ?? null,
-            periodStart: typeof override.periodStart === 'string' ? override.periodStart : line.periodStart,
-            periodEnd: typeof override.periodEnd === 'string' ? override.periodEnd : line.periodEnd,
+            contractId: line.isRental ? contractId : null,
+            contractNumber: line.isRental ? localInvoice?.contract?.contract_number ?? null : null,
+            localInvoiceId: line.isRental ? localInvoiceId : null,
+            localInvoiceNumber: line.isRental ? localInvoice?.invoice_number ?? null : null,
+            periodStart,
+            periodEnd,
             suggestedContractNumber: typeof override.contractNumber === 'string'
               ? override.contractNumber.trim()
-              : line.suggestedContractNumber,
+              : localInvoice?.contract?.contract_number ?? line.suggestedContractNumber,
             mappingStatus: line.mappingStatus === 'service'
               ? 'service'
-              : targetUnit ? 'matched' : 'needs_review',
+              : targetUnit && localInvoice ? 'matched' : 'needs_review',
             reviewReason: line.mappingStatus === 'service'
               ? null
-              : targetUnit ? null : 'unitProductNotLinked',
+              : targetUnit && localInvoice ? null : 'localInvoiceRequired',
+            matchReason: typeof override.contractId === 'string' ? 'manualContract' : line.matchReason,
           } satisfies OdooImportLinePayload;
         });
+        const sharedRentalContracts = new Map(lines
+          .filter((line) => line.isRental && line.contractId && line.contractNumber)
+          .map((line) => [line.contractId as string, line.contractNumber as string]));
+        if (sharedRentalContracts.size === 1) {
+          const [contractId, contractNumber] = [...sharedRentalContracts.entries()][0];
+          lines = lines.map((line) => line.isRental ? line : {
+            ...line,
+            contractId,
+            contractNumber,
+            suggestedContractNumber: contractNumber,
+          });
+        }
+        const linkedLocalInvoiceIds = new Set(lines
+          .filter((line) => line.isRental)
+          .map((line) => line.localInvoiceId)
+          .filter((id): id is string => Boolean(id)));
+        if (linkedLocalInvoiceIds.size > 1) {
+          throw new Error('multipleLocalInvoices');
+        }
         payload.lines = lines;
         const savedDocument = await odooImportRepository.upsertDocumentAtomic({
           document: {
@@ -751,10 +997,19 @@ export const odooImportService = {
           payments: payload.payments,
           importItemId: item.id,
         }, ctx);
+        for (const line of lines.filter((candidate) => candidate.isRental)) {
+          if (!line.contractId || !line.localInvoiceId) throw new Error('localInvoiceRequired');
+          await odooImportRepository.linkImportedInvoiceAtomic({
+            odooInvoiceId: payload.odooInvoiceId,
+            odooLineId: line.odooLineId,
+            contractId: line.contractId,
+            localInvoiceId: line.localInvoiceId,
+          }, ctx);
+        }
         payload.tenantId = savedDocument.tenant_id;
         imported.push({ item, payload, tenantId: savedDocument.tenant_id });
       } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
+        const message = safeImportCommitError(error);
         errors.push({ itemId: item.id, invoiceName: payload.invoiceName, message });
         await odooImportRepository.updateItem(item.id, {
           status: 'failed',

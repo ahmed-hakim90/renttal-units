@@ -30,6 +30,8 @@
   "vacantUnits": "Vacant",
   "occupiedUnits": "Occupied",
   "maintenanceUnits": "Maintenance",
+  "dueWithinDays": "Due within {days} days",
+  "dueBetweenDays": "Due in {from}–{to} days",
   "upcomingPayments": "Due in 30 Days",
   "upcomingPaymentsDesc": "Issued invoices due within the next 30 days",
   "locationOccupancyTitle": "Location Occupancy",

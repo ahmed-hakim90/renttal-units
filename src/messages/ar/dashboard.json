@@ -30,6 +30,8 @@
   "vacantUnits": "فاضية",
   "occupiedUnits": "عليها عقد",
   "maintenanceUnits": "صيانة",
+  "dueWithinDays": "مستحق خلال {days} أيام",
+  "dueBetweenDays": "مستحق من {from} إلى {to} أيام",
   "upcomingPayments": "مستحق خلال 30 يوم",
   "upcomingPaymentsDesc": "فواتير صادرة تستحق خلال الـ 30 يوم القادمة",
   "locationOccupancyTitle": "إشغال المواقع",

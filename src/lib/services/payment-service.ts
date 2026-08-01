@@ -51,6 +51,9 @@ export const paymentService = {
 
       const oldInvoice = await invoicesRepository.findById(input.invoice_id, ctx);
       if (!oldInvoice) return { success: false, error: 'Invoice not found', errorCode: 'NOT_FOUND' };
+      if (oldInvoice.odoo_invoice_id != null) {
+        return { success: false, error: 'paymentManagedByOdoo', errorCode: 'ODOO_MANAGED' };
+      }
 
       if (oldInvoice.status === 'fully_paid') {
         return { success: false, error: 'cannotPayFullyPaid', errorCode: 'FULLY_PAID' };

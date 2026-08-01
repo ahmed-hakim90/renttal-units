@@ -108,6 +108,7 @@
     "contracts": "Contracts",
     "dueThisMonth": "Due Now",
     "dueInvoiceCount": "{count} invoices due now",
+    "invoiceCount": "{page}: {count} invoices",
     "invoices": "Awaiting Payment",
     "partialPayments": "Partial Payments",
     "fullyPaid": "Fully Paid",

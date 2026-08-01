@@ -53,6 +53,7 @@ function newLine(lineType: ContractLineType = 'rental'): ContractFormLineValues 
     odoo_product_id: '',
     odoo_product_name: '',
     tax_rate: '15',
+    tax_treatment: 'standard',
   };
 }
 
@@ -135,7 +136,7 @@ export function ContractCreateForm({
   const loc = locale as Locale;
 
   const [values, setValues] = useState<ContractFormValues>(EMPTY_FORM);
-  const [applyVat, setApplyVat] = useState(true);
+  const [taxSelection, setTaxSelection] = useState<'taxable' | 'zero_rated'>('taxable');
   const [tenantPhone, setTenantPhone] = useState('');
   const [tenantOdooPartnerId, setTenantOdooPartnerId] = useState<number | null>(null);
   const [tenantVat, setTenantVat] = useState('');
@@ -194,7 +195,14 @@ export function ContractCreateForm({
   }
 
   function addLine(lineType: ContractLineType) {
-    setValues((prev) => ({ ...prev, lines: [...prev.lines, newLine(lineType)] }));
+    setValues((prev) => ({
+      ...prev,
+      lines: [...prev.lines, {
+        ...newLine(lineType),
+        tax_rate: taxSelection === 'taxable' ? '15' : '0',
+        tax_treatment: taxSelection === 'zero_rated' ? 'zero_rated' : 'standard',
+      }],
+    }));
     touch('lines');
     if (lineType === 'service' && !serviceProductsLoaded) {
       setServiceProductsLoaded(true);
@@ -307,7 +315,7 @@ export function ContractCreateForm({
         start_date: values.start_date,
         end_date: values.end_date,
         payment_cycle: values.payment_cycle,
-        tax_mode: applyVat ? 'taxable' : 'non_taxable',
+        tax_mode: taxSelection === 'taxable' ? 'taxable' : 'non_taxable',
         notes: notes.trim() || null,
         paid_through_date: openingBalanceEnabled ? values.paid_through_date.trim() || null : null,
         opening_paid_amount: openingBalanceEnabled && values.opening_paid_amount.trim()
@@ -337,6 +345,7 @@ export function ContractCreateForm({
             ? units.find((unit) => unit.id === line.unit_id)?.odoo_product_reference ?? null
             : line.odoo_product_name || null,
           tax_rate: Number(line.tax_rate),
+          tax_treatment: line.tax_treatment === 'zero_rated' ? 'zero_rated' : 'standard',
           period_start: values.start_date,
           period_end: values.end_date,
           sort_order: index,
@@ -459,7 +468,9 @@ export function ContractCreateForm({
                   )}
                   <Input
                     name={`amount-${line.key}`}
-                    label={t('lineAmount')}
+                    label={t('lineAmountWithTax', {
+                      tax: taxSelection === 'taxable' ? `${t('taxable')} (15%)` : t('zeroRated'),
+                    })}
                     type="number"
                     step="0.01"
                     min="0.01"
@@ -490,7 +501,11 @@ export function ContractCreateForm({
         </div>
 
         <div className="flex items-center justify-between rounded-lg border border-border bg-card px-3 py-2 text-sm">
-          <span className="text-muted-foreground">{t('totalAmount')}</span>
+          <span className="text-muted-foreground">
+            {t('totalAmountWithTax', {
+              tax: taxSelection === 'taxable' ? `${t('taxable')} (15%)` : t('zeroRated'),
+            })}
+          </span>
           <span className="font-semibold tabular-nums">{formatCurrency(lineTotal, loc)}</span>
         </div>
         {fieldError('total_amount') && <p className="text-xs text-destructive">{fieldError('total_amount')}</p>}
@@ -527,27 +542,31 @@ export function ContractCreateForm({
         onBlur={() => touch('payment_cycle')}
         error={fieldError('payment_cycle')}
       >
-        {(['quarterly', 'semi_annual', 'yearly'] as const).map((cycle) => (
+        {(['monthly', 'quarterly', 'semi_annual', 'yearly'] as const).map((cycle) => (
           <option key={cycle} value={cycle}>{tc(`paymentCycle.${cycle}`)}</option>
         ))}
       </SelectField>
 
-      <label className="flex items-center gap-2 rounded-xl border border-border p-3 text-sm">
-        <input
-          type="checkbox"
-          checked={applyVat}
-          onChange={(event) => {
-            const checked = event.target.checked;
-            setApplyVat(checked);
-            setValues((previous) => ({
-              ...previous,
-              lines: previous.lines.map((line) => ({ ...line, tax_rate: checked ? '15' : '0' })),
-            }));
-          }}
-          className="h-4 w-4"
-        />
-        {t('applyVat')}
-      </label>
+      <SelectField
+        label={t('taxMode')}
+        name="tax_selection"
+        value={taxSelection}
+        onChange={(value) => {
+          const next = value as 'taxable' | 'zero_rated';
+          setTaxSelection(next);
+          setValues((previous) => ({
+            ...previous,
+            lines: previous.lines.map((line) => ({
+              ...line,
+              tax_rate: next === 'taxable' ? '15' : '0',
+              tax_treatment: next === 'zero_rated' ? 'zero_rated' : 'standard',
+            })),
+          }));
+        }}
+      >
+        <option value="taxable">{t('taxable')}</option>
+        <option value="zero_rated">{t('zeroRated')}</option>
+      </SelectField>
 
       {(preview.ready || errors.schedule) && (
         <div

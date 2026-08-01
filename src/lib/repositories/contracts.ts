@@ -23,6 +23,7 @@ function toRpcLines(lines: ContractLineInput[]) {
     odooProductId: line.odoo_product_id ?? null,
     odooProductName: line.odoo_product_name ?? null,
     taxRate: line.tax_rate ?? 0,
+    taxTreatment: line.tax_treatment ?? 'standard',
     sortOrder: line.sort_order ?? index,
   }));
 }
@@ -81,6 +82,7 @@ export const contractsRepository = {
         odooProductName: string | null;
         amountUntaxed: number;
         taxRate: number;
+        taxTreatment?: 'standard' | 'zero_rated';
         amountTax: number;
         amountTotal: number;
         sortOrder: number;
@@ -418,6 +420,7 @@ export const contractsRepository = {
         odooProductName: string | null;
         amountUntaxed: number;
         taxRate: number;
+        taxTreatment?: 'standard' | 'zero_rated';
         amountTax: number;
         amountTotal: number;
         sortOrder: number;

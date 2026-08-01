@@ -108,6 +108,7 @@
     "contracts": "العقود",
     "dueThisMonth": "مستحق الآن",
     "dueInvoiceCount": "عدد الفواتير المستحقة الآن: {count}",
+    "invoiceCount": "{page}: {count} فاتورة",
     "invoices": "في انتظار الدفع",
     "partialPayments": "مدفوعات جزئية",
     "fullyPaid": "مدفوع بالكامل",

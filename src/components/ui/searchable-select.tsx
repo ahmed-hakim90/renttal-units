@@ -37,6 +37,7 @@ type SearchableSelectProps = {
   compact?: boolean;
   disabled?: boolean;
   className?: string;
+  dropdownClassName?: string;
   /** Force search UI even for short lists. Default: auto when options > 6. */
   searchable?: boolean;
   emptyMessage?: string;
@@ -56,6 +57,7 @@ export function SearchableSelect({
   compact = false,
   disabled = false,
   className,
+  dropdownClassName,
   searchable,
   emptyMessage,
 }: SearchableSelectProps) {
@@ -82,6 +84,8 @@ export function SearchableSelect({
     function onPointerDown(event: PointerEvent) {
       if (!rootRef.current?.contains(event.target as Node)) {
         setOpen(false);
+        setQuery('');
+        setActiveIndex(0);
         onBlur?.();
       }
     }
@@ -90,16 +94,11 @@ export function SearchableSelect({
     return () => document.removeEventListener('pointerdown', onPointerDown);
   }, [onBlur, open]);
 
-  useEffect(() => {
-    if (!open) {
-      setQuery('');
-      setActiveIndex(0);
-    }
-  }, [open]);
-
   function selectValue(nextValue: string) {
     onChange(nextValue);
     setOpen(false);
+    setQuery('');
+    setActiveIndex(0);
     onBlur?.();
   }
 
@@ -115,6 +114,8 @@ export function SearchableSelect({
     if (event.key === 'Escape') {
       event.preventDefault();
       setOpen(false);
+      setQuery('');
+      setActiveIndex(0);
       onBlur?.();
       return;
     }
@@ -198,6 +199,7 @@ export function SearchableSelect({
           className={cn(
             'absolute start-0 z-50 mt-1 w-full min-w-[14rem] max-w-[min(28rem,90vw)] overflow-hidden rounded-lg border border-border bg-card shadow-lg',
             compact && 'min-w-[16rem]',
+            dropdownClassName,
           )}
           onKeyDown={onListKeyDown}
         >

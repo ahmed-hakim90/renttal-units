@@ -117,6 +117,7 @@ const contractLineSchema = z.object({
   odoo_product_id: z.number().int().positive().nullable().optional(),
   odoo_product_name: z.string().trim().max(255).nullable().optional(),
   tax_rate: z.number().min(0).max(100).optional(),
+  tax_treatment: z.enum(['standard', 'zero_rated']).optional(),
   sort_order: z.number().int().nonnegative().optional(),
 }).superRefine((line, ctx) => {
   if (line.line_type === 'rental' && !line.unit_id) {
@@ -191,6 +192,7 @@ const draftContractLineSchema = z.object({
   odoo_product_id: z.number().int().positive().nullable().optional(),
   odoo_product_name: z.string().trim().max(255).nullable().optional(),
   tax_rate: z.number().min(0).max(100).optional(),
+  tax_treatment: z.enum(['standard', 'zero_rated']).optional(),
   sort_order: z.number().int().nonnegative().optional(),
 });
 
@@ -301,6 +303,9 @@ export const validationService = {
       return { valid: false as const, errors: formatErrors(result.error) };
     }
     const defaultTaxRate = result.data.tax_mode === 'non_taxable' ? 0 : 15;
+    const defaultTaxTreatment = result.data.lines?.some((line) => line.tax_treatment === 'zero_rated')
+      ? 'zero_rated' as const
+      : 'standard' as const;
     const lines = (result.data.lines ?? (
       result.data.unit_id
         ? [{
@@ -311,13 +316,19 @@ export const validationService = {
             period_start: result.data.start_date,
             period_end: result.data.end_date,
             tax_rate: defaultTaxRate,
+            tax_treatment: defaultTaxTreatment,
             sort_order: 0,
           }]
         : []
-    )).map((line) => ({
-      ...line,
-      tax_rate: line.tax_rate ?? defaultTaxRate,
-    }));
+    )).map((line) => {
+      const taxTreatment = line.tax_treatment ?? defaultTaxTreatment;
+      const taxRate = taxTreatment === 'zero_rated' ? 0 : (line.tax_rate ?? defaultTaxRate);
+      return {
+        ...line,
+        tax_treatment: taxTreatment,
+        tax_rate: taxRate,
+      };
+    });
     const totalAmount = lines.reduce((sum, line) => sum + line.amount, 0);
     const primaryUnitId = lines.find((line) => line.line_type === 'rental' && line.unit_id)?.unit_id
       ?? result.data.unit_id;
@@ -339,12 +350,19 @@ export const validationService = {
       return { valid: false as const, errors: formatErrors(result.error) };
     }
     const defaultTaxRate = result.data.tax_mode === 'non_taxable' ? 0 : 15;
-    const lines = (result.data.lines ?? []).map((line, index) => ({
-      ...line,
-      amount: line.amount ?? 0,
-      tax_rate: line.tax_rate ?? defaultTaxRate,
-      sort_order: line.sort_order ?? index,
-    }));
+    const defaultTaxTreatment = result.data.lines?.some((line) => line.tax_treatment === 'zero_rated')
+      ? 'zero_rated' as const
+      : 'standard' as const;
+    const lines = (result.data.lines ?? []).map((line, index) => {
+      const taxTreatment = line.tax_treatment ?? defaultTaxTreatment;
+      return {
+        ...line,
+        amount: line.amount ?? 0,
+        tax_treatment: taxTreatment,
+        tax_rate: taxTreatment === 'zero_rated' ? 0 : (line.tax_rate ?? defaultTaxRate),
+        sort_order: line.sort_order ?? index,
+      };
+    });
     const totalAmount = lines.reduce((sum, line) => sum + line.amount, 0);
     const primaryUnitId = lines.find((line) => line.line_type === 'rental' && line.unit_id)?.unit_id
       ?? result.data.unit_id

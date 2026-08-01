@@ -19,7 +19,9 @@ export default async function InvoicesPage({ params }: { params: Promise<{ local
   const featureFlags = await loadFeatureFlags({ ...ctx, user_id: auth.userId, role: auth.role });
   const [invoices, odooDocuments, odooSettings] = await Promise.all([
     getInvoices(locale, { status: 'invoice_issued' }),
-    featureFlags.odoo_invoices_documents ? getOdooInvoiceDocuments(locale) : Promise.resolve([]),
+    featureFlags.odoo_invoices_documents
+      ? getOdooInvoiceDocuments(locale, { unmatchedOnly: true })
+      : Promise.resolve([]),
     getPublicOdooSettings(ctx),
   ]);
 
@@ -30,14 +32,18 @@ export default async function InvoicesPage({ params }: { params: Promise<{ local
         invoices={invoices}
         locale={locale}
         canEdit={canMutateModule(auth, 'invoices') || hasPermission(auth, 'payments.record')}
+        canManageOdoo={hasPermission(auth, 'odoo.manage')}
         odooBaseUrl={odooSettings.url}
         showOdooActions={featureFlags.odoo_invoices_documents}
+        showOdooManualSend={featureFlags.odoo_invoice_manual_send}
+        odooIntegrationEnabled={odooSettings.enabled}
+        invoiceSendVisibleStatus={odooSettings.invoiceSendVisibleStatus}
       />
-      {featureFlags.odoo_invoices_documents && (
+      {featureFlags.odoo_invoices_documents && odooDocuments.length > 0 && (
         <section className="surface-panel overflow-hidden">
           <div className="border-b border-border px-5 py-4">
-            <h2 className="font-semibold">{t('odooDocuments')}</h2>
-            <p className="mt-1 text-sm text-muted-foreground">{t('odooDocumentsDesc')}</p>
+            <h2 className="font-semibold">{t('unmatchedOdooDocuments')}</h2>
+            <p className="mt-1 text-sm text-muted-foreground">{t('unmatchedOdooDocumentsDesc')}</p>
           </div>
           <OdooDocumentsTable documents={odooDocuments} locale={locale} />
         </section>

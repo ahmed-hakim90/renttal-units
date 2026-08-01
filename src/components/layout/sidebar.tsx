@@ -41,6 +41,28 @@ const navItems: Array<{
   { href: '/settings', icon: Settings, labelKey: 'settings' },
 ];
 
+export type InvoiceNavigationCounts = {
+  dueNow: number;
+  awaitingPayment: number;
+  partialPayments: number;
+  fullyPaid: number;
+};
+
+function getInvoiceNavigationCount(href: string, counts: InvoiceNavigationCounts): number | null {
+  switch (href) {
+    case '/due-this-month':
+      return counts.dueNow;
+    case '/invoices':
+      return counts.awaitingPayment;
+    case '/partial-payments':
+      return counts.partialPayments;
+    case '/fully-paid':
+      return counts.fullyPaid;
+    default:
+      return null;
+  }
+}
+
 function canSeeNavItem(auth: AuthContext, href: string, featureFlags: FeatureFlags) {
   const required = NAV_PERMISSIONS[href];
   if (required && !hasPermission(auth, required as PermissionKey)) return false;
@@ -58,7 +80,7 @@ function canSeeNavItem(auth: AuthContext, href: string, featureFlags: FeatureFla
 
 export function Sidebar({
   auth,
-  dueInvoiceCount,
+  invoiceNavigationCounts,
   featureFlags,
   collapsed,
   mobileOpen,
@@ -66,7 +88,7 @@ export function Sidebar({
   onToggleCollapsed,
 }: {
   auth: AuthContext;
-  dueInvoiceCount: number;
+  invoiceNavigationCounts: InvoiceNavigationCounts;
   featureFlags: FeatureFlags;
   collapsed: boolean;
   mobileOpen: boolean;
@@ -115,6 +137,7 @@ export function Sidebar({
       <nav className="flex-1 space-y-1 overflow-y-auto p-3">
         {visibleNavItems.map(({ href, icon: Icon, labelKey }) => {
           const isActive = pathname === href || pathname.startsWith(href + '/');
+          const invoiceCount = getInvoiceNavigationCount(href, invoiceNavigationCounts);
           return (
             <Link
               key={href}
@@ -134,15 +157,18 @@ export function Sidebar({
               )}
               <Icon className="h-[1.125rem] w-[1.125rem] shrink-0" />
               <span className={cn(collapsed && 'lg:hidden')}>{tNav(labelKey)}</span>
-              {href === '/due-this-month' && dueInvoiceCount > 0 ? (
+              {invoiceCount != null && invoiceCount > 0 ? (
                 <span
-                  aria-label={tNav('dueInvoiceCount', { count: format.number(dueInvoiceCount) })}
+                  aria-label={tNav('invoiceCount', {
+                    count: format.number(invoiceCount),
+                    page: tNav(labelKey),
+                  })}
                   className={cn(
                     'ms-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-xs font-semibold leading-none text-white',
                     collapsed && 'lg:absolute lg:end-1 lg:top-1 lg:ms-0 lg:h-4 lg:min-w-4 lg:px-1 lg:text-[10px]'
                   )}
                 >
-                  {format.number(dueInvoiceCount)}
+                  {format.number(invoiceCount)}
                 </span>
               ) : null}
             </Link>

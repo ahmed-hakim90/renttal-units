@@ -17,6 +17,13 @@ function sumInvoiceRemaining(invoice: Invoice) {
   return Math.max(0, Number(invoice.amount) - Number(invoice.paid_amount));
 }
 
+function contractTouchesUnitIds(contract: Contract, unitIds: Set<string>) {
+  if (contract.unit_id && unitIds.has(contract.unit_id)) return true;
+  return (contract.lines ?? []).some((line) => (
+    line.line_type === 'rental' && line.unit_id && unitIds.has(line.unit_id)
+  ));
+}
+
 export const reportingService = {
   async getDebtAgingInvoices(
     auth: AuthContext,
@@ -24,22 +31,17 @@ export const reportingService = {
     filters?: { locationId?: string }
   ): Promise<Invoice[]> {
     return withSpan('reportingService.getDebtAgingInvoices', { ...ctx, service: 'reporting', user_id: auth.userId }, async () => {
-      let invoices = await invoicesRepository.findOutstanding(ctx);
-
-      if (filters?.locationId) {
-        invoices = invoices.filter((inv) => inv.unit?.location_id === filters.locationId);
-      }
-
-      return invoices;
+      return invoicesRepository.findOutstanding(ctx, filters);
     });
   },
 
   async getDashboardDebtAgingSummary(
     auth: AuthContext,
     ctx: LogContext,
+    filters?: { locationId?: string },
   ): Promise<DashboardDebtAgingSummary> {
     return withSpan('reportingService.getDashboardDebtAgingSummary', { ...ctx, service: 'reporting', user_id: auth.userId }, async () => {
-      const invoices = await invoicesRepository.findOutstanding(ctx);
+      const invoices = await invoicesRepository.findOutstanding(ctx, filters);
       return buildDashboardDebtAgingSummary(invoices);
     });
   },
@@ -60,6 +62,7 @@ export const reportingService = {
   async getDashboardOverview(
     auth: AuthContext,
     ctx: LogContext,
+    filters?: { locationId?: string },
   ): Promise<{
     summary: DashboardPortfolioSummary;
     locationsOccupancy: LocationOccupancySummary[];
@@ -71,12 +74,21 @@ export const reportingService = {
     const { countContractsExpiringSoon } = await import('@/lib/rental/contract-expiry');
 
     return withSpan('reportingService.getDashboardOverview', { ...ctx, service: 'reporting', user_id: auth.userId }, async () => {
-      const [units, locations, activeContracts, contractStats] = await Promise.all([
-        unitsRepository.findAll(ctx),
+      const [allUnits, allLocations, allActiveContracts, contractStats] = await Promise.all([
+        unitsRepository.findAll(ctx, filters?.locationId ? { locationId: filters.locationId } : undefined),
         locationsRepository.findAll(ctx),
         contractsRepository.findActive(ctx),
         contractsRepository.getSummaryStats(ctx),
       ]);
+
+      const locations = filters?.locationId
+        ? allLocations.filter((location) => location.id === filters.locationId)
+        : allLocations;
+      const units = allUnits;
+      const unitIds = new Set(units.map((unit) => unit.id));
+      const activeContracts = filters?.locationId
+        ? allActiveContracts.filter((contract) => contractTouchesUnitIds(contract, unitIds))
+        : allActiveContracts;
 
       const occupied = units.filter((unit) => unit.status === 'occupied').length;
       const vacantUnits = units.filter((unit) => unit.status === 'vacant').length;
@@ -112,21 +124,33 @@ export const reportingService = {
         if (unit.active_contract) summary.activeContractCount += 1;
       }
 
+      let summaryStats = contractStats;
+      if (filters?.locationId) {
+        const allContracts = await contractsRepository.findAll(ctx);
+        const locationContracts = allContracts.filter((contract) => contractTouchesUnitIds(contract, unitIds));
+        summaryStats = {
+          totalCount: locationContracts.length,
+          totalValue: locationContracts.reduce((sum, contract) => sum + Number(contract.total_amount), 0),
+          activeCount: locationContracts.filter((contract) => contract.status === 'active').length,
+          draftCount: locationContracts.filter((contract) => contract.status === 'draft').length,
+        };
+      }
+
       return {
         summary: {
           totalUnits: units.length,
           totalLocations: locations.length,
           occupancyRate: units.length > 0 ? Math.round((occupied / units.length) * 100) : 0,
           monthlyRevenue: Math.round(monthlyRevenue),
-          totalContracts: contractStats.totalCount,
-          totalContractsValue: contractStats.totalValue,
-          activeContracts: contractStats.activeCount,
+          totalContracts: summaryStats.totalCount,
+          totalContractsValue: summaryStats.totalValue,
+          activeContracts: summaryStats.activeCount,
           expiringContracts: hasPermission(auth, 'contracts.view')
             ? countContractsExpiringSoon(activeContracts)
             : 0,
           vacantUnits,
           maintenanceUnits,
-          draftContracts: contractStats.draftCount,
+          draftContracts: summaryStats.draftCount,
         },
         locationsOccupancy: Array.from(occupancyByLocation.values()),
       };

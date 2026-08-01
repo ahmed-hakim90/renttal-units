@@ -264,9 +264,14 @@ export function UsersManager({
                     )}
                     {canEdit && (
                       <td className="text-end">
-                        <Button variant="ghost" size="sm" onClick={() => openUserDetails(user)}>
-                          <Eye />
-                          {t('view')}
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          title={t('view')}
+                          aria-label={t('view')}
+                          onClick={() => openUserDetails(user)}
+                        >
+                          <Eye aria-hidden="true" />
                         </Button>
                       </td>
                     )}

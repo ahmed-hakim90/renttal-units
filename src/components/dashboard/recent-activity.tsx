@@ -80,8 +80,7 @@ export function RecentActivity({
     e.preventDefault();
     if (!selectedInvoice) return;
     await runOnce(async () => {
-    const fd = new FormData(e.currentTarget);
-    const result = await issueDueInvoice(locale, selectedInvoice.id, fd.get('invoice_number') as string);
+    const result = await issueDueInvoice(locale, selectedInvoice.id);
 
     if (result.success) {
       toast.success(ti('invoiceIssued'));
@@ -222,7 +221,11 @@ export function RecentActivity({
 
       <Modal open={issueOpen} onClose={() => !isSubmitting && setIssueOpen(false)} title={ti('issueInvoice')}>
         <form onSubmit={handleIssue} className="space-y-4">
-          <Input name="invoice_number" label={ti('invoiceNumber')} required />
+          {selectedInvoice && (
+            <p className="text-sm text-muted-foreground">
+              {ti('issueGeneratedInvoiceNumber', { number: selectedInvoice.invoice_number })}
+            </p>
+          )}
           <div className="form-actions">
             <Button variant="outline" type="button" disabled={isSubmitting} onClick={() => setIssueOpen(false)}>{tCommon('cancel')}</Button>
             <Button variant="issue" type="submit" disabled={isSubmitting}>{isSubmitting ? tCommon('loading') : ti('issueInvoice')}</Button>

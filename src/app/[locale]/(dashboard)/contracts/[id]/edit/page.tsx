@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { PageHeader } from '@/components/layout/page-header';
-import { ContractEditor, contractToFormValues } from '@/components/contracts/contract-editor';
+import { ContractEditor } from '@/components/contracts/contract-editor';
 import { buttonStyles } from '@/components/ui/button';
 import { getContract } from '@/lib/actions/contracts';
 import { getUnits } from '@/lib/actions/units';
@@ -15,6 +15,7 @@ import {
   contractHasFinancialActivity,
   getContractEditAccess,
 } from '@/lib/rental/contract-edit-access';
+import { contractToFormValues } from '@/lib/rental/contract-form-values';
 import { Link } from '@/lib/i18n/navigation';
 
 export default async function EditContractPage({
@@ -102,6 +103,8 @@ export default async function EditContractPage({
         multiLineEnabled={featureFlags.contracts_multi_line}
         canDeleteDraft={access.mode === 'edit-draft' && hasPermission(auth, 'contracts.update')}
         scheduleLocked={scheduleLocked}
+        odooVatRate={odooSettings.vatRate}
+        odooZeroRatedTaxRate={odooSettings.zeroRatedTaxRate}
         initialServiceProducts={serviceProducts
           .filter((product) => product.category_id === odooSettings.serviceCategoryId)
           .map((product) => ({

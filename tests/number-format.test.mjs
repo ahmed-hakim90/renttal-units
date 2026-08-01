@@ -7,14 +7,18 @@ import {
   normalizeNumberInputValue,
 } from '../src/lib/i18n/numbers.ts';
 
-test('uses a dot as the thousands separator for English and Arabic digits', () => {
+test('uses commas for groups and a dot for decimals outside inputs', () => {
   assert.equal(
-    formatNumberParts(new Intl.NumberFormat('en-SA').formatToParts(100_000)),
-    '100.000',
+    formatNumberParts(new Intl.NumberFormat('en-SA', {
+      minimumFractionDigits: 2,
+    }).formatToParts(100_000.2)),
+    '100,000.20',
   );
   assert.equal(
-    formatNumberParts(new Intl.NumberFormat('ar-SA').formatToParts(100_000)),
-    '١٠٠.٠٠٠',
+    formatNumberParts(new Intl.NumberFormat('ar-SA', {
+      minimumFractionDigits: 2,
+    }).formatToParts(100_000.2)),
+    '١٠٠,٠٠٠.٢٠',
   );
 });
 
@@ -28,11 +32,15 @@ test('normalizes localized numeric input without changing its numeric value', ()
   assert.equal(normalizeNumberInputValue('۱۲۳.۴۵۶,۷۵'), '123456.75');
   assert.equal(normalizeNumberInputValue('28,500.00'), '28500.00');
   assert.equal(normalizeNumberInputValue('28,500'), '28500');
-  assert.equal(normalizeNumberInputValue('100.000'), '100000');
+  assert.equal(normalizeNumberInputValue('100.000'), '100.000');
 });
 
-test('groups canonical form values while keeping decimals editable', () => {
-  assert.equal(formatNumberInputValue('100000.25'), '100.000,25');
-  assert.equal(formatNumberInputValue('100.'), '100,');
+test('keeps input values ungrouped so a dot is always an editable decimal', () => {
+  assert.equal(formatNumberInputValue('100000.25'), '100000.25');
+  assert.equal(formatNumberInputValue('100.'), '100.');
+  assert.equal(
+    formatNumberInputValue(normalizeNumberInputValue('1000000000.٢٠')),
+    '1000000000.20',
+  );
   assert.equal(formatNumberInputValue(''), '');
 });
