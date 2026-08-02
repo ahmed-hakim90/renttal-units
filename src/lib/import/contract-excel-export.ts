@@ -44,7 +44,6 @@ export function contractToExcelRow(contract: Contract): ContractExcelExportRow {
     contract.contract_number ?? '',
     contract.tenant?.full_name ?? '',
     unitNumber,
-    '', // signed_date is import-only reference; not stored on contracts
     contract.start_date ?? '',
     contract.end_date ?? '',
     Number(contract.total_amount) || 0,

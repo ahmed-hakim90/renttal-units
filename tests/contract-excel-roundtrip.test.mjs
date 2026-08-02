@@ -30,16 +30,17 @@ const {
 } = await import('../src/lib/rental/contract-opening-balance.ts');
 
 test('template, export, and import share the same ordered Arabic headers', () => {
-  assert.equal(CONTRACT_EXCEL_HEADERS.length, 12);
+  assert.equal(CONTRACT_EXCEL_HEADERS.length, 11);
   assert.equal(CONTRACT_EXCEL_EXAMPLE_ROW.length, CONTRACT_EXCEL_HEADERS.length);
   assert.deepEqual(
     CONTRACT_EXCEL_COLUMNS.map((column) => column.header),
     CONTRACT_EXCEL_HEADERS,
   );
   assert.equal(CONTRACT_EXCEL_HEADERS[0], 'رقم العقد');
-  assert.equal(CONTRACT_EXCEL_HEADERS[9], 'آخر تاريخ مدفوع');
-  assert.equal(CONTRACT_EXCEL_HEADERS[11], 'تاريخ آخر دفعة فعلية');
+  assert.equal(CONTRACT_EXCEL_HEADERS[3], 'تاريخ بداية الإيجار');
+  assert.equal(CONTRACT_EXCEL_HEADERS[8], 'آخر تاريخ مدفوع');
   assert.equal(CONTRACT_EXCEL_HEADERS.at(-1), 'تاريخ آخر دفعة فعلية');
+  assert.ok(!CONTRACT_EXCEL_HEADERS.includes('تاريخ الإبرام'));
 });
 
 test('resolves Arabic aliases including ريال and opening-paid variants', () => {
@@ -80,10 +81,10 @@ test('export rows keep header order and opening-balance fields', () => {
   assert.equal(row.length, CONTRACT_EXCEL_HEADERS.length);
   assert.equal(row[0], 'C-1');
   assert.equal(row[2], '10');
-  assert.equal(row[8], 2);
-  assert.equal(row[9], '2025-06-30');
-  assert.equal(row[10], 100);
-  assert.equal(row[11], '2025-07-01');
+  assert.equal(row[7], 2);
+  assert.equal(row[8], '2025-06-30');
+  assert.equal(row[9], 100);
+  assert.equal(row[10], '2025-07-01');
 
   const built = buildContractsExcelRows([contract]);
   assert.deepEqual(built.headers, [...CONTRACT_EXCEL_HEADERS]);

@@ -7,7 +7,6 @@ export type ContractExcelField =
   | 'contract_number'
   | 'tenant_name'
   | 'unit_number'
-  | 'signed_date'
   | 'start_date'
   | 'end_date'
   | 'total_amount'
@@ -29,7 +28,6 @@ export const CONTRACT_EXCEL_COLUMNS: readonly ContractExcelColumn[] = [
   { field: 'contract_number', header: 'رقم العقد' },
   { field: 'tenant_name', header: 'اسم المستأجر' },
   { field: 'unit_number', header: 'رقم الوحدة' },
-  { field: 'signed_date', header: 'تاريخ الإبرام' },
   { field: 'start_date', header: 'تاريخ بداية الإيجار' },
   { field: 'end_date', header: 'تاريخ نهاية الإيجار' },
   { field: 'total_amount', header: 'إجمالي قيمة العقد' },
@@ -50,7 +48,6 @@ export const CONTRACT_EXCEL_EXAMPLE_ROW: readonly string[] = [
   'CTR-001',
   'اسم المستأجر',
   '1',
-  '2025-01-01',
   '2025-01-01',
   '2026-01-01',
   '24000',
@@ -97,7 +94,6 @@ export const CONTRACT_EXCEL_NUMERIC_FIELDS = new Set<ContractExcelField>([
 ]);
 
 export const CONTRACT_EXCEL_DATE_FIELDS = new Set<ContractExcelField>([
-  'signed_date',
   'start_date',
   'end_date',
   'paid_through_date',
