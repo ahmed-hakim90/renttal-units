@@ -32,6 +32,7 @@ export const rentalService = {
               start_date: contract.start_date,
               end_date: contract.end_date,
               payment_cycle: contract.payment_cycle,
+              payment_conditions: contract.payment_conditions,
               lines: lines.map((line) => ({
                 contractLineId: line.id,
                 lineType: line.line_type,

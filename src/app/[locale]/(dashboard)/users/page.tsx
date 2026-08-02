@@ -24,6 +24,7 @@ export default async function UsersPage({ params }: { params: Promise<{ locale: 
         users={users}
         roles={roles}
         locale={locale}
+        currentUserId={auth.userId}
         canEdit
         canViewAudit={hasPermission(auth, 'audit.view')}
       />

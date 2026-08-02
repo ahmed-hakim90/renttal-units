@@ -31,6 +31,14 @@ export const paymentService = {
     return paymentsRepository.findAll(ctx, filters);
   },
 
+  async listPage(
+    auth: AuthContext,
+    ctx: LogContext,
+    filters?: { invoiceId?: string; page?: number; pageSize?: number },
+  ) {
+    return paymentsRepository.findPage(ctx, filters);
+  },
+
   async recordPayment(
     auth: AuthContext,
     input: {

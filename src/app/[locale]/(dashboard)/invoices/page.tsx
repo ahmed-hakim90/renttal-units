@@ -1,24 +1,34 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { PageHeader } from '@/components/layout/page-header';
-import { getInvoices } from '@/lib/actions/invoices';
+import { getInvoicesPage } from '@/lib/actions/invoices';
+import { getOdooInvoiceDocuments } from '@/lib/actions/odoo';
 import { requirePermission } from '@/lib/auth/session';
 import { canMutateModule, hasPermission } from '@/lib/auth/permissions';
 import { getCorrelationId } from '@/lib/observability/correlation-id';
 import { InvoicesTable } from '@/components/invoices/invoices-table';
 import { OdooDocumentsTable } from '@/components/invoices/odoo-documents-table';
-import { getOdooInvoiceDocuments } from '@/lib/actions/odoo';
+import { ListPagination } from '@/components/ui/list-pagination';
 import { getPublicOdooSettings } from '@/lib/odoo/settings';
 import { loadFeatureFlags } from '@/lib/features/load-feature-flags';
+import { parseListPage } from '@/lib/pagination/list-page';
 
-export default async function InvoicesPage({ params }: { params: Promise<{ locale: string }> }) {
+export default async function InvoicesPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ locale: string }>;
+  searchParams: Promise<{ page?: string }>;
+}) {
   const { locale } = await params;
+  const { page: rawPage } = await searchParams;
   setRequestLocale(locale);
   const ctx = { correlation_id: await getCorrelationId() };
   const auth = await requirePermission(locale, 'invoices.view', ctx);
   const t = await getTranslations('invoices');
   const featureFlags = await loadFeatureFlags({ ...ctx, user_id: auth.userId, role: auth.role });
-  const [invoices, odooDocuments, odooSettings] = await Promise.all([
-    getInvoices(locale, { status: 'invoice_issued' }),
+  const page = parseListPage(rawPage);
+  const [invoicesPage, odooDocuments, odooSettings] = await Promise.all([
+    getInvoicesPage(locale, { status: 'invoice_issued', page }),
     featureFlags.odoo_invoices_documents
       ? getOdooInvoiceDocuments(locale, { unmatchedOnly: true })
       : Promise.resolve([]),
@@ -29,7 +39,7 @@ export default async function InvoicesPage({ params }: { params: Promise<{ local
     <div className="space-y-8">
       <PageHeader title={t('awaitingPayment')} />
       <InvoicesTable
-        invoices={invoices}
+        invoices={invoicesPage.items}
         locale={locale}
         canEdit={canMutateModule(auth, 'invoices') || hasPermission(auth, 'payments.record')}
         canManageOdoo={hasPermission(auth, 'odoo.manage')}
@@ -38,6 +48,11 @@ export default async function InvoicesPage({ params }: { params: Promise<{ local
         showOdooManualSend={featureFlags.odoo_invoice_manual_send}
         odooIntegrationEnabled={odooSettings.enabled}
         invoiceSendVisibleStatus={odooSettings.invoiceSendVisibleStatus}
+      />
+      <ListPagination
+        page={invoicesPage.page}
+        totalPages={invoicesPage.totalPages}
+        total={invoicesPage.total}
       />
       {featureFlags.odoo_invoices_documents && odooDocuments.length > 0 && (
         <section className="surface-panel overflow-hidden">

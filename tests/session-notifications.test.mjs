@@ -56,7 +56,8 @@ test('builds prioritized actionable notifications from counts', () => {
   assert.equal(notifications.find((item) => item.kind === 'due_invoices')?.href, '/due-this-month');
   assert.equal(notifications.find((item) => item.kind === 'awaiting_payment')?.href, '/invoices');
   assert.equal(notifications.find((item) => item.kind === 'partial_payments')?.href, '/partial-payments');
-  assert.equal(notifications.find((item) => item.kind === 'draft_contracts')?.href, '/contracts');
+  assert.equal(notifications.find((item) => item.kind === 'draft_contracts')?.href, '/contracts?status=draft');
+  assert.equal(notifications.find((item) => item.kind === 'expiring_contracts')?.href, '/contracts?expiring=30');
 });
 
 test('skips zero counts', () => {

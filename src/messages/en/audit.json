@@ -40,11 +40,16 @@
     "update_user_email": "Changed user email",
     "update_user_email_partial_failure": "User email requires reconciliation",
     "reset_user_password": "Changed user password",
+    "deactivate_user": "Deactivated user",
+    "reactivate_user": "Reactivated user",
     "update_role": "Changed user role",
     "create_role": "Created role",
     "update_role_permissions": "Updated role permissions",
     "delete_role": "Deleted role",
-    "update_feature_flag": "Updated feature flag"
+    "update_feature_flag": "Updated feature flag",
+    "draft_saved": "Saved contract draft",
+    "activated": "Activated contract",
+    "draft_deleted": "Deleted contract draft"
   },
   "entities": {
     "profile": "User",
@@ -55,6 +60,7 @@
     "payment": "Payment",
     "location": "Location",
     "unit": "Unit",
+    "tenant": "Tenant",
     "setting": "Setting"
   },
   "fields": {

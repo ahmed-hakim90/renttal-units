@@ -8,6 +8,8 @@ import { usersRepository } from '@/lib/repositories/users';
 import { settingsRepository } from '@/lib/repositories/settings';
 import { auditService } from '@/lib/services/audit-service';
 import { unitsRepository } from '@/lib/repositories/units';
+import { contractsRepository } from '@/lib/repositories/contracts';
+import { paymentsRepository } from '@/lib/repositories/payments';
 import { locationsRepository } from '@/lib/repositories/locations';
 import { importLogsRepository } from '@/lib/repositories/settings';
 import { validationService } from '@/lib/services/validation-service';
@@ -19,6 +21,18 @@ import ExcelJS from 'exceljs';
 import { Readable } from 'node:stream';
 import { isReasonableContractDate } from '@/lib/dates/contract-dates';
 import { validateContractOpeningBalance } from '@/lib/rental/validate-opening-balance';
+import { openingBalanceImportBlockedReason } from '@/lib/rental/contract-opening-balance';
+import { hasOpeningBalanceInput } from '@/lib/features/guards';
+import {
+  CONTRACT_EXCEL_DATE_FIELDS,
+  CONTRACT_EXCEL_NUMERIC_FIELDS,
+  resolveContractExcelHeader,
+  type ContractExcelField,
+} from '@/lib/import/contract-excel-columns';
+import {
+  buildContractsExcelRows,
+  inferPaymentCycleFromAmounts,
+} from '@/lib/import/contract-excel-export';
 import { normalizeNumberInputValue } from '@/lib/i18n/numbers';
 import { validateStaffPassword } from '@/lib/validation/password-policy';
 import { z } from 'zod';
@@ -217,9 +231,106 @@ export async function getLocationStatement(locale: string, locationId: string) {
   return reportingService.getLocationStatement(auth, ctx, locationId);
 }
 
+function profileBanState(bannedUntil: string | null | undefined) {
+  const banned_until = bannedUntil ?? null;
+  if (!banned_until) {
+    return { banned_until: null, is_active: true };
+  }
+  const untilMs = Date.parse(banned_until);
+  const is_active = !Number.isFinite(untilMs) || untilMs <= Date.now();
+  return { banned_until, is_active };
+}
+
 export async function getUsers(locale: string) {
   const auth = await requirePermission(locale, 'users.manage', await getCtx());
-  return usersRepository.findAll({ ...await getCtx(), user_id: auth.userId, role: auth.role });
+  const ctx = { ...await getCtx(), user_id: auth.userId, role: auth.role };
+  const profiles = await usersRepository.findAll(ctx);
+
+  const banById = new Map<string, string | null>();
+  try {
+    const supabaseAdmin = createAdminClient();
+    const { data, error } = await supabaseAdmin.auth.admin.listUsers({
+      page: 1,
+      perPage: 1000,
+    });
+    if (!error && data?.users) {
+      for (const user of data.users) {
+        banById.set(user.id, user.banned_until ?? null);
+      }
+    }
+  } catch {
+    // Ban state is display-only; profiles still load if auth admin list fails.
+  }
+
+  return profiles.map((profile) => ({
+    ...profile,
+    ...profileBanState(banById.get(profile.id)),
+  }));
+}
+
+export async function setUserActive(locale: string, userId: string, active: boolean) {
+  const auth = await requirePermission(locale, 'users.manage', await getCtx());
+  const ctx = { ...(await getCtx()), user_id: auth.userId, role: auth.role };
+  const parsedUserId = userIdSchema.safeParse(userId);
+  if (!parsedUserId.success) return { success: false, error: 'userNotFound' };
+
+  if (!active && parsedUserId.data === auth.userId) {
+    return { success: false, error: 'cannotDeactivateSelf' };
+  }
+
+  const target = await usersRepository.findById(parsedUserId.data, ctx);
+  if (!target) return { success: false, error: 'userNotFound' };
+  if (target.assigned_role?.is_system_owner && !auth.isAdminEditor) {
+    return { success: false, error: 'systemOwnerProtected' };
+  }
+
+  if (!active && target.assigned_role?.is_system_owner) {
+    const owners = (await rolesRepository.findAll(ctx))
+      .filter((item) => item.is_system_owner);
+    const ownerRoleId = owners[0]?.id;
+    if (ownerRoleId) {
+      const ownerCount = await usersRepository.countByRoleId(ownerRoleId, ctx);
+      if (ownerCount <= 1) {
+        return { success: false, error: 'cannotDeactivateLastOwner' };
+      }
+    }
+  }
+
+  const supabaseAdmin = createAdminClient();
+  const { data, error } = await supabaseAdmin.auth.admin.updateUserById(target.id, {
+    ban_duration: active ? 'none' : '876000h',
+  });
+  if (error) {
+    return { success: false, error: active ? 'reactivateFailed' : 'deactivateFailed' };
+  }
+
+  const banState = profileBanState(data.user?.banned_until ?? (active ? null : new Date().toISOString()));
+  await auditService.log(
+    auth,
+    active ? 'reactivate_user' : 'deactivate_user',
+    'profile',
+    target.id,
+    { is_active: !active },
+    { is_active: banState.is_active },
+    ctx,
+  );
+
+  revalidatePath(`/${locale}/users`);
+  return {
+    success: true,
+    data: {
+      ...target,
+      ...banState,
+    },
+  };
+}
+
+export async function getImportLogs(locale: string) {
+  const auth = await requirePermission(locale, 'imports.manage', await getCtx());
+  return importLogsRepository.findAll(
+    { ...await getCtx(), user_id: auth.userId, role: auth.role },
+    100,
+  );
 }
 
 export async function getAssignableRoles(locale: string) {
@@ -809,43 +920,7 @@ export async function executeImport(locale: string, rows: Array<{
   return { success: true, successCount, errorCount: errors.length, errors };
 }
 
-// ─── Arabic header aliases ───────────────────────────────────────────────────
-
-/** Strip all whitespace, parentheses, dashes, and ريال suffix for fuzzy matching */
-function normalizeHeaderKey(raw: string): string {
-  return raw
-    .trim()
-    .replace(/\s+/g, ' ')            // collapse multiple spaces
-    .replace(/[()（）\-–—]/g, '')    // remove parens and dashes
-    .replace(/ريال/g, '')            // remove ريال
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-// Keys are already normalized via normalizeHeaderKey
-const CONTRACT_HEADER_MAP: Array<[string, string]> = [
-  ['رقم العقد', 'contract_number'],
-  ['اسم المستأجر', 'tenant_name'],
-  ['رقم الوحدة', 'unit_number'],
-  ['تاريخ الإبرام', 'signed_date'],
-  ['تاريخ بداية الإيجار', 'start_date'],
-  ['تاريخ نهاية الإيجار', 'end_date'],
-  ['إجمالي قيمة العقد', 'total_amount'],
-  ['قيمة الدفعة الدورية', 'periodic_amount'],
-  ['عدد الدفعات', 'payment_count'],
-  ['آخر تاريخ مدفوع', 'paid_through_date'],
-  ['مبلغ مدفوع مسبقاً', 'opening_paid_amount'],
-  ['مبلغ مدفوع مسبقا', 'opening_paid_amount'],
-];
-
-const CONTRACT_NORMALIZED_MAP = new Map(
-  CONTRACT_HEADER_MAP.map(([ar, field]) => [normalizeHeaderKey(ar), field])
-);
-
-function resolveContractHeader(raw: string): string {
-  const normalized = normalizeHeaderKey(raw);
-  return CONTRACT_NORMALIZED_MAP.get(normalized) ?? normalized;
-}
+// ─── Contract Excel import / export ──────────────────────────────────────────
 
 /** Parse a number that may come as string "28,500.00" or number 28500 */
 function parseNumber(value: unknown): number | null {
@@ -864,14 +939,11 @@ function normalizeDateInput(value: unknown): string {
 function normalizeContractRow(raw: Record<string, unknown>): Record<string, unknown> {
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(raw)) {
-    const field = resolveContractHeader(key);
-    // Parse numeric fields immediately
-    if (field === 'total_amount' || field === 'periodic_amount' || field === 'payment_count') {
+    const field = resolveContractExcelHeader(key) as ContractExcelField | string;
+    if (CONTRACT_EXCEL_NUMERIC_FIELDS.has(field as ContractExcelField)) {
       result[field] = parseNumber(value);
-    } else if (field === 'start_date' || field === 'end_date' || field === 'signed_date' || field === 'paid_through_date') {
+    } else if (CONTRACT_EXCEL_DATE_FIELDS.has(field as ContractExcelField)) {
       result[field] = normalizeDateInput(value);
-    } else if (field === 'opening_paid_amount') {
-      result[field] = parseNumber(value);
     } else {
       result[field] = value;
     }
@@ -879,62 +951,59 @@ function normalizeContractRow(raw: Record<string, unknown>): Record<string, unkn
   return result;
 }
 
-function inferPaymentCycle(total: number, periodic: number): PaymentCycle {
-  if (!periodic || periodic <= 0) return 'yearly';
-  const ratio = Math.round(total / periodic);
-  if (ratio <= 1) return 'yearly';
-  if (ratio <= 2) return 'semi_annual';
-  if (ratio <= 4) return 'quarterly';
-  return 'monthly';
-}
-
-function validateContractImportRow(row: Record<string, unknown>, rowIndex: number): string[] {
+function validateContractImportRow(
+  row: Record<string, unknown>,
+  rowIndex: number,
+  mode: 'create' | 'update',
+): string[] {
   const errors: string[] = [];
   if (!row.contract_number || !String(row.contract_number).trim()) {
     errors.push(`Row ${rowIndex}: رقم العقد مطلوب`);
   }
-  if (!row.tenant_name || !String(row.tenant_name).trim()) {
-    errors.push(`Row ${rowIndex}: اسم المستأجر مطلوب`);
+
+  if (mode === 'create') {
+    if (!row.tenant_name || !String(row.tenant_name).trim()) {
+      errors.push(`Row ${rowIndex}: اسم المستأجر مطلوب`);
+    }
+    if (!row.unit_number && row.unit_number !== 0) {
+      errors.push(`Row ${rowIndex}: رقم الوحدة مطلوب`);
+    }
+    if (!row.start_date) errors.push(`Row ${rowIndex}: تاريخ بداية الإيجار مطلوب`);
+    if (!row.end_date) errors.push(`Row ${rowIndex}: تاريخ نهاية الإيجار مطلوب`);
+    if (row.start_date && !isReasonableContractDate(String(row.start_date))) {
+      errors.push(`Row ${rowIndex}: تاريخ بداية الإيجار يجب أن يكون بصيغة YYYY-MM-DD بين 1990 و 2100`);
+    }
+    if (row.end_date && !isReasonableContractDate(String(row.end_date))) {
+      errors.push(`Row ${rowIndex}: تاريخ نهاية الإيجار يجب أن يكون بصيغة YYYY-MM-DD بين 1990 و 2100`);
+    }
+    const total = row.total_amount as number | null;
+    if (total === null || total === undefined || total <= 0) {
+      errors.push(`Row ${rowIndex}: إجمالي قيمة العقد يجب أن يكون رقمًا موجبًا`);
+    }
+    const periodic = row.periodic_amount as number | null;
+    if (periodic === null || periodic === undefined || periodic <= 0) {
+      errors.push(`Row ${rowIndex}: قيمة الدفعة الدورية يجب أن تكون رقمًا موجبًا`);
+    }
+    if (
+      isReasonableContractDate(String(row.start_date))
+      && isReasonableContractDate(String(row.end_date))
+      && String(row.end_date) < String(row.start_date)
+    ) {
+      errors.push(`Row ${rowIndex}: تاريخ النهاية يجب أن يكون بعد تاريخ البداية`);
+    }
   }
-  if (!row.unit_number && row.unit_number !== 0) errors.push(`Row ${rowIndex}: رقم الوحدة مطلوب`);
-  if (!row.contract_number || !String(row.contract_number).trim()) {
-    errors.push(`Row ${rowIndex}: رقم العقد مطلوب`);
-  }
-  if (!row.tenant_name || !String(row.tenant_name).trim()) {
-    errors.push(`Row ${rowIndex}: اسم المستأجر مطلوب`);
-  }
-  if (!row.start_date) errors.push(`Row ${rowIndex}: تاريخ بداية الإيجار مطلوب`);
-  if (!row.end_date) errors.push(`Row ${rowIndex}: تاريخ نهاية الإيجار مطلوب`);
-  if (row.start_date && !isReasonableContractDate(String(row.start_date))) {
-    errors.push(`Row ${rowIndex}: تاريخ بداية الإيجار يجب أن يكون بصيغة YYYY-MM-DD بين 1990 و 2100`);
-  }
-  if (row.end_date && !isReasonableContractDate(String(row.end_date))) {
-    errors.push(`Row ${rowIndex}: تاريخ نهاية الإيجار يجب أن يكون بصيغة YYYY-MM-DD بين 1990 و 2100`);
-  }
-  const total = row.total_amount as number | null;
-  if (total === null || total === undefined || total <= 0) {
-    errors.push(`Row ${rowIndex}: إجمالي قيمة العقد يجب أن يكون رقمًا موجبًا`);
-  }
-  const periodic = row.periodic_amount as number | null;
-  if (periodic === null || periodic === undefined || periodic <= 0) {
-    errors.push(`Row ${rowIndex}: قيمة الدفعة الدورية يجب أن تكون رقمًا موجبًا`);
-  }
-  if (
-    isReasonableContractDate(String(row.start_date))
-    && isReasonableContractDate(String(row.end_date))
-    && String(row.end_date) < String(row.start_date)
-  ) {
-    errors.push(`Row ${rowIndex}: تاريخ النهاية يجب أن يكون بعد تاريخ البداية`);
-  }
+
+  const startForOpening = String(row.start_date ?? '');
+  const endForOpening = String(row.end_date ?? '');
   if (row.paid_through_date) {
     if (!isReasonableContractDate(String(row.paid_through_date))) {
       errors.push(`Row ${rowIndex}: آخر تاريخ مدفوع يجب أن يكون بصيغة YYYY-MM-DD بين 1990 و 2100`);
     } else if (
-      isReasonableContractDate(String(row.start_date))
-      && isReasonableContractDate(String(row.end_date))
+      isReasonableContractDate(startForOpening)
+      && isReasonableContractDate(endForOpening)
     ) {
       const openingErrors = validateContractOpeningBalance(
-        { start_date: String(row.start_date), end_date: String(row.end_date) },
+        { start_date: startForOpening, end_date: endForOpening },
         {
           paid_through_date: String(row.paid_through_date),
           opening_paid_amount: row.opening_paid_amount as number | null,
@@ -947,7 +1016,41 @@ function validateContractImportRow(row: Record<string, unknown>, rowIndex: numbe
   if (openingPaid != null && openingPaid < 0) {
     errors.push(`Row ${rowIndex}: مبلغ المدفوع مسبقاً يجب أن يكون صفراً أو أكثر`);
   }
+  if (row.opening_payment_date && !isReasonableContractDate(String(row.opening_payment_date))) {
+    errors.push(`Row ${rowIndex}: تاريخ آخر دفعة فعلية غير صالح`);
+  }
   return errors;
+}
+
+type ContractImportAction = 'create' | 'update';
+
+export async function exportContractsExcel(locale: string) {
+  const auth = await requirePermission(locale, 'contracts.view', await getCtx());
+  const ctx = { ...(await getCtx()), user_id: auth.userId, role: auth.role };
+  const flags = await loadFeatureFlags(ctx);
+  if (!flags.import_excel_contracts) {
+    return { success: false as const, error: 'featureDisabled' as const, errorCode: 'FEATURE_DISABLED' as const };
+  }
+
+  const contracts = await contractsRepository.findAll(ctx);
+  const { headers, rows } = buildContractsExcelRows(contracts);
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet('Contracts');
+  sheet.addRow(headers);
+  for (const row of rows) sheet.addRow(row);
+  headers.forEach((header, index) => {
+    sheet.getColumn(index + 1).width = Math.max(14, header.length + 2);
+  });
+
+  const buffer = Buffer.from(await workbook.xlsx.writeBuffer());
+  return {
+    success: true as const,
+    data: {
+      fileName: `contracts-export-${new Date().toISOString().slice(0, 10)}.xlsx`,
+      fileBase64: buffer.toString('base64'),
+      rowCount: rows.length,
+    },
+  };
 }
 
 export async function previewContractImport(locale: string, formData: FormData) {
@@ -974,50 +1077,99 @@ export async function previewContractImport(locale: string, formData: FormData) 
   }
 
   const ctx = { ...await getCtx(), user_id: auth.userId, role: auth.role };
-  const units = await unitsRepository.findAll(ctx);
+  const [units, contracts, payments] = await Promise.all([
+    unitsRepository.findAll(ctx),
+    contractsRepository.findAll(ctx),
+    paymentsRepository.findAll(ctx),
+  ]);
   const unitMap = new Map(units.map((u) => [String(u.unit_number).trim(), u]));
+  const contractByNumber = new Map(
+    contracts.map((contract) => [contract.contract_number.trim(), contract]),
+  );
+  const paymentCountsByInvoiceId = new Map<string, number>();
+  for (const payment of payments) {
+    paymentCountsByInvoiceId.set(
+      payment.invoice_id,
+      (paymentCountsByInvoiceId.get(payment.invoice_id) ?? 0) + 1,
+    );
+  }
 
-  const preview = await Promise.all(rawRows.map(async (raw, index) => {
+  const preview = rawRows.map((raw, index) => {
     const row = normalizeContractRow(raw);
     const rowIndex = index + 2;
-    const errors = validateContractImportRow(row, rowIndex);
+    const contractNumber = row.contract_number ? String(row.contract_number).trim() : '';
+    const existing = contractNumber ? contractByNumber.get(contractNumber) ?? null : null;
+    const action: ContractImportAction = existing ? 'update' : 'create';
+
+    if (existing) {
+      row.start_date = existing.start_date ?? row.start_date;
+      row.end_date = existing.end_date ?? row.end_date;
+    }
+
+    const errors = validateContractImportRow(row, rowIndex, action);
 
     if (
       !flags.contracts_opening_balance
-      && (
-        row.paid_through_date
-        || (row.opening_paid_amount != null && Number(row.opening_paid_amount) !== 0)
-      )
+      && hasOpeningBalanceInput({
+        paid_through_date: row.paid_through_date ? String(row.paid_through_date) : null,
+        opening_paid_amount: row.opening_paid_amount as number | null,
+        opening_payment_date: row.opening_payment_date ? String(row.opening_payment_date) : null,
+      })
     ) {
       errors.push(`Row ${rowIndex}: featureDisabled`);
     }
 
-    // unit_number may come as number (e.g. 1) or string ("1") from Excel
     const unitNumber = row.unit_number != null ? String(row.unit_number).trim() : '';
-    // Try exact match first, then integer match (e.g. "1.0" → "1")
     const unit = unitMap.get(unitNumber)
       ?? unitMap.get(String(parseInt(unitNumber, 10)));
 
-    if (unitNumber && !unit) {
-      errors.push(`Row ${rowIndex}: الوحدة رقم "${unitNumber}" غير موجودة`);
-    } else if (unit?.active_contract) {
-      errors.push(`Row ${rowIndex}: الوحدة "${unitNumber}" لديها عقد نشط بالفعل`);
+    if (action === 'create') {
+      if (unitNumber && !unit) {
+        errors.push(`Row ${rowIndex}: الوحدة رقم "${unitNumber}" غير موجودة`);
+      } else if (unit?.active_contract) {
+        errors.push(`Row ${rowIndex}: الوحدة "${unitNumber}" لديها عقد نشط بالفعل`);
+      }
+    } else if (existing) {
+      if (existing.status !== 'active' && existing.status !== 'draft') {
+        errors.push(`Row ${rowIndex}: لا يمكن تحديث عقد بحالة ${existing.status}`);
+      }
+      const blocked = openingBalanceImportBlockedReason(
+        existing.invoices ?? [],
+        paymentCountsByInvoiceId,
+      );
+      if (blocked === 'odooLinkedInvoices') {
+        errors.push(`Row ${rowIndex}: odooLinkedInvoices`);
+      } else if (blocked === 'localPaymentsExist') {
+        errors.push(`Row ${rowIndex}: localPaymentsExist`);
+      }
     }
 
     const total = Number(row.total_amount);
     const periodic = Number(row.periodic_amount);
-    const payment_cycle = errors.length === 0 ? inferPaymentCycle(total, periodic) : null;
+    const payment_cycle = action === 'update'
+      ? (existing?.payment_cycle ?? null)
+      : (errors.length === 0 ? inferPaymentCycleFromAmounts(total, periodic) : null);
 
     return {
       row: rowIndex,
+      action,
       data: {
-        contract_number: row.contract_number ? String(row.contract_number).trim() : null,
-        tenant_name: row.tenant_name ? String(row.tenant_name).trim() : null,
-        unit_id: unit?.id ?? null,
-        unit_number: unitNumber,
-        start_date: row.start_date ? String(row.start_date) : '',
-        end_date: row.end_date ? String(row.end_date) : '',
-        total_amount: total,
+        contract_id: existing?.id ?? null,
+        contract_number: contractNumber || null,
+        tenant_name: row.tenant_name
+          ? String(row.tenant_name).trim()
+          : (existing?.tenant?.full_name ?? null),
+        unit_id: action === 'update'
+          ? (existing?.unit_id ?? existing?.lines?.find((line) => line.unit_id)?.unit_id ?? null)
+          : (unit?.id ?? null),
+        unit_number: unitNumber || (existing?.unit?.unit_number ?? ''),
+        start_date: action === 'update'
+          ? (existing?.start_date ?? '')
+          : (row.start_date ? String(row.start_date) : ''),
+        end_date: action === 'update'
+          ? (existing?.end_date ?? '')
+          : (row.end_date ? String(row.end_date) : ''),
+        total_amount: action === 'update' ? Number(existing?.total_amount ?? 0) : total,
         payment_cycle,
         paid_through_date: flags.contracts_opening_balance && row.paid_through_date
           ? String(row.paid_through_date)
@@ -1025,25 +1177,31 @@ export async function previewContractImport(locale: string, formData: FormData) 
         opening_paid_amount: flags.contracts_opening_balance && row.opening_paid_amount != null
           ? Number(row.opening_paid_amount)
           : null,
+        opening_payment_date: flags.contracts_opening_balance && row.opening_payment_date
+          ? String(row.opening_payment_date)
+          : null,
       },
       errors,
       valid: errors.length === 0,
     };
-  }));
+  });
 
   return { success: true, data: preview, totalRows: rawRows.length };
 }
 
 export async function executeContractImport(locale: string, rows: Array<{
+  action: ContractImportAction;
+  contract_id?: string | null;
   contract_number: string;
   tenant_name: string;
-  unit_id: string;
+  unit_id?: string | null;
   start_date: string;
   end_date: string;
   total_amount: number;
   payment_cycle: PaymentCycle;
   paid_through_date?: string | null;
   opening_paid_amount?: number | null;
+  opening_payment_date?: string | null;
 }>) {
   const auth = await requirePermission(locale, 'imports.manage', await getCtx());
   const ctx = { ...await getCtx(), user_id: auth.userId, role: auth.role };
@@ -1053,10 +1211,7 @@ export async function executeContractImport(locale: string, rows: Array<{
   }
   if (
     !flags.contracts_opening_balance
-    && rows.some((row) => (
-      row.paid_through_date
-      || (row.opening_paid_amount != null && Number(row.opening_paid_amount) !== 0)
-    ))
+    && rows.some((row) => hasOpeningBalanceInput(row))
   ) {
     return { success: false as const, error: 'featureDisabled' as const, errorCode: 'FEATURE_DISABLED' as const };
   }
@@ -1067,10 +1222,35 @@ export async function executeContractImport(locale: string, rows: Array<{
 
   const errors: Array<{ row: number; message: string }> = [];
   let successCount = 0;
+  let createCount = 0;
+  let updateCount = 0;
 
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
     try {
+      if (row.action === 'update') {
+        if (!row.contract_id) {
+          errors.push({ row: i + 1, message: 'contractNotFound' });
+          continue;
+        }
+        const result = await contractService.applyOpeningBalanceFromImport(auth, row.contract_id, {
+          paid_through_date: flags.contracts_opening_balance ? row.paid_through_date ?? null : null,
+          opening_paid_amount: flags.contracts_opening_balance ? row.opening_paid_amount ?? null : null,
+          opening_payment_date: flags.contracts_opening_balance ? row.opening_payment_date ?? null : null,
+        }, ctx);
+        if (result.success) {
+          successCount++;
+          updateCount++;
+        } else {
+          errors.push({ row: i + 1, message: result.error ?? 'Unknown error' });
+        }
+        continue;
+      }
+
+      if (!row.unit_id) {
+        errors.push({ row: i + 1, message: 'unitRequired' });
+        continue;
+      }
       const result = await contractService.create(auth, {
         unit_id: row.unit_id,
         contract_number: row.contract_number.trim(),
@@ -1083,15 +1263,20 @@ export async function executeContractImport(locale: string, rows: Array<{
         tenant_email: null,
         paid_through_date: flags.contracts_opening_balance ? row.paid_through_date ?? null : null,
         opening_paid_amount: flags.contracts_opening_balance ? row.opening_paid_amount ?? null : null,
+        opening_payment_date: flags.contracts_opening_balance ? row.opening_payment_date ?? null : null,
       }, ctx);
 
       if (result.success) {
         successCount++;
+        createCount++;
       } else {
         errors.push({ row: i + 1, message: result.error ?? 'Unknown error' });
       }
     } catch {
-      errors.push({ row: i + 1, message: 'Failed to create contract' });
+      errors.push({
+        row: i + 1,
+        message: row.action === 'update' ? 'Failed to update contract' : 'Failed to create contract',
+      });
     }
   }
 
@@ -1112,5 +1297,12 @@ export async function executeContractImport(locale: string, rows: Array<{
   revalidatePath(`/${locale}/units`);
   revalidatePath(`/${locale}/dashboard`);
   revalidatePath(`/${locale}/import`);
-  return { success: true, successCount, errorCount: errors.length, errors };
+  return {
+    success: true,
+    successCount,
+    createCount,
+    updateCount,
+    errorCount: errors.length,
+    errors,
+  };
 }

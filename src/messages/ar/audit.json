@@ -40,11 +40,16 @@
     "update_user_email": "تغيير بريد المستخدم",
     "update_user_email_partial_failure": "بريد المستخدم يحتاج إلى تسوية",
     "reset_user_password": "تغيير كلمة مرور المستخدم",
+    "deactivate_user": "تعطيل مستخدم",
+    "reactivate_user": "إعادة تفعيل مستخدم",
     "update_role": "تغيير دور المستخدم",
     "create_role": "إنشاء دور",
     "update_role_permissions": "تعديل صلاحيات الدور",
     "delete_role": "حذف دور",
-    "update_feature_flag": "تعديل خاصية نظام"
+    "update_feature_flag": "تعديل خاصية نظام",
+    "draft_saved": "حفظ مسودة عقد",
+    "activated": "تفعيل عقد",
+    "draft_deleted": "حذف مسودة عقد"
   },
   "entities": {
     "profile": "مستخدم",
@@ -55,6 +60,7 @@
     "payment": "دفعة",
     "location": "موقع",
     "unit": "وحدة",
+    "tenant": "مستأجر",
     "setting": "إعداد"
   },
   "fields": {

@@ -69,6 +69,7 @@ function draftScheduleRows(contract: Contract): ContractScheduleRow[] {
         start_date: contract.start_date,
         end_date: contract.end_date,
         payment_cycle: contract.payment_cycle,
+        payment_conditions: contract.payment_conditions,
         lines: contract.lines.map((line) => ({
           contractLineId: line.id,
           lineType: line.line_type,
@@ -77,6 +78,10 @@ function draftScheduleRows(contract: Contract): ContractScheduleRow[] {
           odooProductId: line.odoo_product_id,
           odooProductName: line.odoo_product_name,
           amount: Number(line.amount),
+          amountBasis: line.amount_basis === 'annual_untaxed'
+            ? 'annual_untaxed' as const
+            : 'contract_total_inclusive' as const,
+          annualAmountUntaxed: line.annual_amount_untaxed,
           taxRate: Number(line.tax_rate),
           taxTreatment: line.tax_treatment,
           sortOrder: line.sort_order,
@@ -106,11 +111,13 @@ export async function ContractDetail({
   selectedAttachment,
   previewUrl,
   locale,
+  canEdit = false,
 }: {
   contract: Contract;
   selectedAttachment: ContractAttachment | null;
   previewUrl: string | null;
   locale: string;
+  canEdit?: boolean;
 }) {
   const [t, tc, ts] = await Promise.all([
     getTranslations('contracts'),
@@ -127,6 +134,10 @@ export async function ContractDetail({
   );
   const projectedSchedule = invoices.length === 0 ? draftScheduleRows(contract) : [];
   const isProjectedSchedule = projectedSchedule.length > 0;
+  const rentIncreaseCondition = (contract.payment_conditions ?? []).find(
+    (condition) => condition.condition_type === 'percentage_increase_after'
+      && condition.target === 'rental',
+  );
   const scheduleRows: ContractScheduleRow[] = invoices.length > 0
     ? invoices.map((invoice) => ({
         key: invoice.id,
@@ -151,7 +162,7 @@ export async function ContractDetail({
         ].filter(Boolean).join(' · ')}
         actions={(
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-            {contract.status === 'draft' && (
+            {canEdit && contract.status === 'draft' && (
               <Link
                 href={`/contracts/${contract.id}/edit`}
                 className={buttonStyles({ size: 'sm' })}
@@ -160,7 +171,7 @@ export async function ContractDetail({
                 {t('continueDraft')}
               </Link>
             )}
-            {contract.status === 'active' && (
+            {canEdit && contract.status === 'active' && (
               <Link
                 href={`/contracts/${contract.id}/edit`}
                 className={buttonStyles({ size: 'sm' })}
@@ -220,6 +231,27 @@ export async function ContractDetail({
                   {contract.end_date ? formatDate(contract.end_date, loc) : '—'}
                 </dd>
               </div>
+              {contract.odoo_tracking_start_date && (
+                <div>
+                  <dt className="text-xs text-muted-foreground">{t('odooTrackingStartDate')}</dt>
+                  <dd className="mt-0.5 font-medium">
+                    {formatDate(contract.odoo_tracking_start_date, loc)}
+                  </dd>
+                </div>
+              )}
+              {rentIncreaseCondition && (
+                <div>
+                  <dt className="text-xs text-muted-foreground">{t('paymentConditionsSection')}</dt>
+                  <dd className="mt-0.5 font-medium">
+                    {rentIncreaseCondition.enabled
+                      ? t('rentIncreaseSummary', {
+                          years: rentIncreaseCondition.applies_after_months / 12,
+                          percentage: rentIncreaseCondition.percentage,
+                        })
+                      : t('rentIncreaseDisabled')}
+                  </dd>
+                </div>
+              )}
               {contract.status === 'cancelled' && (
                 <>
                   <div>
@@ -288,9 +320,16 @@ export async function ContractDetail({
                         : line.odoo_product_name || t('serviceLine')}
                     </p>
                   </div>
-                  <span className="shrink-0 font-semibold tabular-nums">
-                    {formatCurrency(Number(line.amount), loc)}
-                  </span>
+                  <div className="shrink-0 text-end">
+                    <p className="font-semibold tabular-nums">
+                      {formatCurrency(Number(line.amount), loc)}
+                    </p>
+                    {line.amount_basis === 'annual_untaxed' && line.annual_amount_untaxed != null && (
+                      <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">
+                        {t('annualAmountUntaxed')}: {formatCurrency(Number(line.annual_amount_untaxed), loc)}
+                      </p>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>

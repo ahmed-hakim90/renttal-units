@@ -14,7 +14,31 @@ export type TenantInput = {
   country_code?: string | null;
 };
 
+const TENANTS_LIST_LIMIT = 500;
+
 export const tenantsRepository = {
+  async findAll(ctx: LogContext): Promise<Tenant[]> {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from('tenants')
+      .select('*')
+      .order('full_name')
+      .limit(TENANTS_LIST_LIMIT);
+    if (error) throw error;
+    return data ?? [];
+  },
+
+  async findById(id: string, ctx: LogContext): Promise<Tenant | null> {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from('tenants')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+    if (error) throw error;
+    return data;
+  },
+
   async findByOdooPartnerId(odooPartnerId: number, ctx: LogContext): Promise<Tenant | null> {
     const supabase = await createClient();
     const { data, error } = await supabase
@@ -24,6 +48,26 @@ export const tenantsRepository = {
       .maybeSingle();
     if (error) throw error;
     return data;
+  },
+
+  async countLinkedContracts(tenantId: string, ctx: LogContext): Promise<number> {
+    const supabase = await createClient();
+    const { count, error } = await supabase
+      .from('contracts')
+      .select('*', { count: 'exact', head: true })
+      .eq('tenant_id', tenantId);
+    if (error) throw error;
+    return count ?? 0;
+  },
+
+  async countLinkedInvoices(tenantId: string, ctx: LogContext): Promise<number> {
+    const supabase = await createClient();
+    const { count, error } = await supabase
+      .from('invoices')
+      .select('*', { count: 'exact', head: true })
+      .eq('tenant_id', tenantId);
+    if (error) throw error;
+    return count ?? 0;
   },
 
   async create(input: TenantInput, ctx: LogContext): Promise<Tenant> {
@@ -57,5 +101,11 @@ export const tenantsRepository = {
       .single();
     if (error) throw error;
     return data;
+  },
+
+  async delete(id: string, ctx: LogContext): Promise<void> {
+    const supabase = await createClient();
+    const { error } = await supabase.from('tenants').delete().eq('id', id);
+    if (error) throw error;
   },
 };

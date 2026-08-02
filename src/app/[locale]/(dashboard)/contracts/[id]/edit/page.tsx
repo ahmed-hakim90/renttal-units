@@ -3,6 +3,7 @@ import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { PageHeader } from '@/components/layout/page-header';
 import { ContractEditor } from '@/components/contracts/contract-editor';
 import { buttonStyles } from '@/components/ui/button';
+import { getContractPdfPreviewUrl } from '@/lib/actions/contract-attachments';
 import { getContract } from '@/lib/actions/contracts';
 import { getUnits } from '@/lib/actions/units';
 import { requirePermission } from '@/lib/auth/session';
@@ -83,6 +84,18 @@ export default async function EditContractPage({
 
   const scheduleLocked =
     access.mode === 'edit-active' && contractHasFinancialActivity(contract.invoices);
+  const initialPdfAttachment = [...(contract.attachments ?? [])].sort(
+    (a, b) => b.created_at.localeCompare(a.created_at),
+  )[0] ?? null;
+  const initialPdfResult = initialPdfAttachment
+    ? await getContractPdfPreviewUrl(locale, contract.id, initialPdfAttachment.id)
+    : null;
+  const initialPdf = initialPdfAttachment && initialPdfResult?.success && initialPdfResult.data?.url
+    ? {
+        filename: initialPdfAttachment.original_filename,
+        url: initialPdfResult.data.url,
+      }
+    : null;
 
   return (
     <div>
@@ -103,6 +116,7 @@ export default async function EditContractPage({
         multiLineEnabled={featureFlags.contracts_multi_line}
         canDeleteDraft={access.mode === 'edit-draft' && hasPermission(auth, 'contracts.update')}
         scheduleLocked={scheduleLocked}
+        initialPdf={initialPdf}
         odooVatRate={odooSettings.vatRate}
         odooZeroRatedTaxRate={odooSettings.zeroRatedTaxRate}
         initialServiceProducts={serviceProducts

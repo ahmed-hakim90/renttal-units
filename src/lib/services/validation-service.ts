@@ -111,6 +111,8 @@ const contractLineSchema = z.object({
   unit_id: z.string().uuid().nullable().optional(),
   description: z.string().trim().nullable().optional(),
   amount: z.number().nonnegative(),
+  amount_basis: z.enum(['annual_untaxed', 'contract_total_inclusive']).optional(),
+  annual_amount_untaxed: z.number().positive().nullable().optional(),
   period_start: z.string().nullable().optional(),
   period_end: z.string().nullable().optional(),
   odoo_line_id: z.number().int().positive().nullable().optional(),
@@ -123,7 +125,18 @@ const contractLineSchema = z.object({
   if (line.line_type === 'rental' && !line.unit_id) {
     ctx.addIssue({ code: 'custom', path: ['unit_id'], message: 'rental lines require a unit' });
   }
-  if (line.amount <= 0) {
+  const amountBasis = line.amount_basis === 'annual_untaxed'
+    ? 'annual_untaxed'
+    : 'contract_total_inclusive';
+  if (amountBasis === 'annual_untaxed') {
+    if (line.annual_amount_untaxed == null || line.annual_amount_untaxed <= 0) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['annual_amount_untaxed'],
+        message: 'annual untaxed amount must be greater than zero',
+      });
+    }
+  } else if (line.amount <= 0) {
     ctx.addIssue({ code: 'custom', path: ['amount'], message: 'line amount must be greater than zero' });
   }
   if (line.line_type === 'service' && !line.odoo_product_id) {
@@ -174,7 +187,12 @@ const contractSchema = z.object({
     if (new Set(unitIds).size !== unitIds.length) {
       ctx.addIssue({ code: 'custom', path: ['lines'], message: 'duplicate rental units are not allowed' });
     }
-    const lineTotal = lines.reduce((sum, line) => sum + line.amount, 0);
+    const lineTotal = lines.reduce((sum, line) => {
+      if (line.amount_basis === 'annual_untaxed') {
+        return sum + (line.annual_amount_untaxed ?? 0);
+      }
+      return sum + line.amount;
+    }, 0);
     if (lineTotal <= 0) {
       ctx.addIssue({ code: 'custom', path: ['lines'], message: 'line amounts must sum to more than zero' });
     }
@@ -186,6 +204,8 @@ const draftContractLineSchema = z.object({
   unit_id: z.string().uuid().nullable().optional(),
   description: z.string().trim().nullable().optional(),
   amount: z.number().nonnegative().optional().default(0),
+  amount_basis: z.enum(['annual_untaxed', 'contract_total_inclusive']).optional(),
+  annual_amount_untaxed: z.number().positive().nullable().optional(),
   period_start: z.string().nullable().optional(),
   period_end: z.string().nullable().optional(),
   odoo_line_id: z.number().int().positive().nullable().optional(),
@@ -194,6 +214,18 @@ const draftContractLineSchema = z.object({
   tax_rate: z.number().min(0).max(100).optional(),
   tax_treatment: z.enum(['standard', 'zero_rated']).optional(),
   sort_order: z.number().int().nonnegative().optional(),
+}).superRefine((line, ctx) => {
+  if (
+    line.amount_basis === 'annual_untaxed'
+    && line.annual_amount_untaxed != null
+    && line.annual_amount_untaxed <= 0
+  ) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['annual_amount_untaxed'],
+      message: 'annual untaxed amount must be greater than zero',
+    });
+  }
 });
 
 const draftContractSchema = z.object({
@@ -323,8 +355,15 @@ export const validationService = {
     )).map((line) => {
       const taxTreatment = line.tax_treatment ?? defaultTaxTreatment;
       const taxRate = taxTreatment === 'zero_rated' ? 0 : (line.tax_rate ?? defaultTaxRate);
+      const amountBasis = line.amount_basis === 'annual_untaxed'
+        ? 'annual_untaxed' as const
+        : 'contract_total_inclusive' as const;
       return {
         ...line,
+        amount_basis: amountBasis,
+        annual_amount_untaxed: amountBasis === 'annual_untaxed'
+          ? (line.annual_amount_untaxed ?? null)
+          : null,
         tax_treatment: taxTreatment,
         tax_rate: taxRate,
       };
@@ -355,9 +394,16 @@ export const validationService = {
       : 'standard' as const;
     const lines = (result.data.lines ?? []).map((line, index) => {
       const taxTreatment = line.tax_treatment ?? defaultTaxTreatment;
+      const amountBasis = line.amount_basis === 'annual_untaxed'
+        ? 'annual_untaxed' as const
+        : 'contract_total_inclusive' as const;
       return {
         ...line,
         amount: line.amount ?? 0,
+        amount_basis: amountBasis,
+        annual_amount_untaxed: amountBasis === 'annual_untaxed'
+          ? (line.annual_amount_untaxed ?? null)
+          : null,
         tax_treatment: taxTreatment,
         tax_rate: taxTreatment === 'zero_rated' ? 0 : (line.tax_rate ?? defaultTaxRate),
         sort_order: line.sort_order ?? index,

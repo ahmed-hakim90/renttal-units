@@ -7,6 +7,8 @@ export type LocalInvoiceMatchCandidate = {
   contractStatus: 'draft' | 'active' | 'cancelled' | 'completed';
   contractStart: string | null;
   contractEnd: string | null;
+  /** First period_start eligible for Odoo tracking; null keeps legacy behavior. */
+  odooTrackingStartDate: string | null;
   tenantOdooPartnerId: number | null;
   tenantName: string | null;
   unitId: string;
@@ -17,6 +19,42 @@ export type LocalInvoiceMatchCandidate = {
   status: string;
 };
 
+/** Historical periods before cutover are represented by opening balance, not Odoo links. */
+export function isCandidateBeforeOdooTracking(candidate: LocalInvoiceMatchCandidate) {
+  return Boolean(
+    candidate.odooTrackingStartDate
+    && candidate.periodStart < candidate.odooTrackingStartDate,
+  );
+}
+
+export function filterCandidatesForOdooTracking(candidates: LocalInvoiceMatchCandidate[]) {
+  return candidates.filter((candidate) => !isCandidateBeforeOdooTracking(candidate));
+}
+
+/**
+ * True when the Odoo line period falls before every active cutover for that unit+tenant.
+ * Used to exclude historical Odoo documents from operational import/save.
+ */
+export function isOdooInputBeforeContractTracking(
+  input: Pick<OdooLocalInvoiceMatchInput, 'partnerOdooId' | 'unitId' | 'periodStart' | 'invoiceDate'>,
+  candidates: LocalInvoiceMatchCandidate[],
+): boolean {
+  const periodStart = input.periodStart ?? input.invoiceDate ?? null;
+  if (!input.unitId || !periodStart) return false;
+
+  const cutovers = candidates
+    .filter((candidate) => (
+      candidate.contractStatus === 'active'
+      && candidate.unitId === input.unitId
+      && matchesTenant(candidate, input.partnerOdooId)
+      && candidate.odooTrackingStartDate
+    ))
+    .map((candidate) => candidate.odooTrackingStartDate as string);
+
+  if (cutovers.length === 0) return false;
+  return cutovers.every((cutover) => periodStart < cutover);
+}
+
 export type OdooLocalInvoiceMatchInput = {
   odooInvoiceId: number;
   partnerOdooId: number | null;
@@ -24,6 +62,7 @@ export type OdooLocalInvoiceMatchInput = {
   unitId: string | null;
   periodStart: string | null;
   periodEnd: string | null;
+  invoiceDate?: string | null;
   amountTotal: number;
 };
 
@@ -59,15 +98,16 @@ export function matchOdooLineToLocalInvoice(
   input: OdooLocalInvoiceMatchInput,
   candidates: LocalInvoiceMatchCandidate[],
 ): OdooLocalInvoiceMatch {
-  const linked = candidates.filter((candidate) => candidate.odooInvoiceId === input.odooInvoiceId);
+  const trackable = filterCandidatesForOdooTracking(candidates);
+  const linked = trackable.filter((candidate) => candidate.odooInvoiceId === input.odooInvoiceId);
   if (linked.length === 1) {
     return { candidate: linked[0], reason: 'odooInvoiceId' };
   }
-  if (!input.unitId || !input.periodStart || !input.periodEnd) {
+  if (!input.unitId || (!input.periodStart && !input.invoiceDate)) {
     return { candidate: null, reason: 'contractNotMatched' };
   }
 
-  const activeForUnitAndTenant = candidates.filter((candidate) => (
+  const activeForUnitAndTenant = trackable.filter((candidate) => (
     candidate.contractStatus === 'active'
     && candidate.unitId === input.unitId
     && matchesTenant(candidate, input.partnerOdooId)
@@ -76,10 +116,14 @@ export function matchOdooLineToLocalInvoice(
     return { candidate: null, reason: 'contractNotMatched' };
   }
 
-  const exactPeriod = activeForUnitAndTenant.filter((candidate) => (
-    candidate.periodStart === input.periodStart
-    && candidate.periodEnd === input.periodEnd
-  ));
+  const exactPeriod = input.periodStart && input.periodEnd
+    ? activeForUnitAndTenant.filter((candidate) => (
+        candidate.periodStart === input.periodStart
+        && candidate.periodEnd === input.periodEnd
+      ))
+    : activeForUnitAndTenant.filter((candidate) => (
+        candidate.periodStart === input.invoiceDate
+      ));
   if (exactPeriod.length === 0) {
     return { candidate: null, reason: 'localInvoiceMissing' };
   }
@@ -131,7 +175,7 @@ export function localContractOptionsForLine(
     }>;
   }>();
 
-  for (const candidate of candidates) {
+  for (const candidate of filterCandidatesForOdooTracking(candidates)) {
     if (
       candidate.contractStatus !== 'active'
       || candidate.unitId !== input.unitId

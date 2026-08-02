@@ -4,11 +4,13 @@ import type {
   Contract,
   ContractCancellationHandling,
   ContractLineInput,
+  ContractPaymentCondition,
   PaymentCycle,
   ServiceResult,
 } from '@/types/database';
 import { contractsRepository } from '@/lib/repositories/contracts';
 import { invoicesRepository } from '@/lib/repositories/invoices';
+import { paymentsRepository } from '@/lib/repositories/payments';
 import { unitsRepository } from '@/lib/repositories/units';
 import { tenantsRepository } from '@/lib/repositories/tenants';
 import { auditService } from '@/lib/services/audit-service';
@@ -17,16 +19,54 @@ import { isUniqueViolation, readErrorMessage } from '@/lib/db/postgres-errors';
 import { calculateContractBillingSchedule } from '@/lib/rental/calculations';
 import {
   applyOpeningBalanceToSchedule,
+  openingBalanceImportBlockedReason,
+  resolveOdooTrackingStartDate,
   type ContractOpeningBalanceInput,
 } from '@/lib/rental/contract-opening-balance';
 import { validateContractOpeningBalance } from '@/lib/rental/validate-opening-balance';
+import { computeInvoiceStatus } from '@/lib/rental/invoice-status';
+import {
+  contractPaymentConditionsEqual,
+  parseContractPaymentConditions,
+} from '@/lib/rental/contract-payment-conditions';
+import {
+  normalizeContractLineAmountBasis,
+  resolveContractLinesForPersistence,
+  toContractBillingLineInput,
+} from '@/lib/rental/contract-line-pricing';
 import { logger, withSpan, type LogContext } from '@/lib/observability';
 import { getOdooSettings } from '@/lib/odoo/settings';
 import {
-  applyContractWideOdooTaxRates,
-  contractTaxSelectionFromPayload,
-  resolveTaxRateForSelection,
+  applyOdooTaxRatesPerLine,
+  type ContractTaxSelection,
 } from '@/lib/rental/contract-tax-rates';
+
+function toPersistedContractLineInput(
+  line: ContractLineInput,
+  index: number,
+  fallbackStart?: string | null,
+  fallbackEnd?: string | null,
+): ContractLineInput {
+  const amountBasis = normalizeContractLineAmountBasis(line.amount_basis);
+  return {
+    line_type: line.line_type,
+    unit_id: line.unit_id ?? null,
+    description: line.description ?? null,
+    amount: Number(line.amount) || 0,
+    amount_basis: amountBasis,
+    annual_amount_untaxed: amountBasis === 'annual_untaxed'
+      ? (line.annual_amount_untaxed ?? null)
+      : null,
+    period_start: line.period_start ?? fallbackStart ?? null,
+    period_end: line.period_end ?? fallbackEnd ?? null,
+    odoo_line_id: line.odoo_line_id ?? null,
+    odoo_product_id: line.odoo_product_id ?? null,
+    odoo_product_name: line.odoo_product_name ?? null,
+    tax_rate: line.tax_rate ?? 0,
+    tax_treatment: line.tax_treatment === 'zero_rated' ? 'zero_rated' : 'standard',
+    sort_order: line.sort_order ?? index,
+  };
+}
 
 function rentalUnitIds(lines: ContractLineInput[] | undefined, fallbackUnitId?: string | null) {
   const fromLines = (lines ?? [])
@@ -42,11 +82,9 @@ async function applyOdooTaxRatesToContractLines(
   ctx: LogContext,
 ) {
   const settings = await getOdooSettings(ctx);
-  const selection = contractTaxSelectionFromPayload({ tax_mode: taxMode, lines });
+  const fallback: ContractTaxSelection = taxMode === 'taxable' ? 'taxable' : 'non_taxable';
   return {
-    lines: applyContractWideOdooTaxRates(lines, selection, settings),
-    selection,
-    taxRate: resolveTaxRateForSelection(selection, settings),
+    lines: applyOdooTaxRatesPerLine(lines, fallback, settings),
   };
 }
 
@@ -63,17 +101,22 @@ async function createContractInvoices(
       start_date: contract.start_date,
       end_date: contract.end_date,
       payment_cycle: contract.payment_cycle,
-      lines: (contract.lines ?? []).map((line) => ({
-        contractLineId: line.id,
-        lineType: line.line_type,
-        unitId: line.unit_id,
+      payment_conditions: contract.payment_conditions,
+      lines: (contract.lines ?? []).map((line, index) => toContractBillingLineInput({
+        line_type: line.line_type,
+        unit_id: line.unit_id,
         description: line.description,
-        odooProductId: line.odoo_product_id,
-        odooProductName: line.odoo_product_name,
         amount: Number(line.amount),
-        taxRate: Number(line.tax_rate),
-        taxTreatment: line.tax_treatment === 'zero_rated' ? 'zero_rated' : 'standard',
-        sortOrder: line.sort_order,
+        amount_basis: line.amount_basis,
+        annual_amount_untaxed: line.annual_amount_untaxed,
+        odoo_product_id: line.odoo_product_id,
+        odoo_product_name: line.odoo_product_name,
+        tax_rate: Number(line.tax_rate),
+        tax_treatment: line.tax_treatment === 'zero_rated' ? 'zero_rated' : 'standard',
+        sort_order: line.sort_order,
+      }, index)).map((billingLine, index) => ({
+        ...billingLine,
+        contractLineId: contract.lines?.[index]?.id ?? null,
       })),
     }),
     openingBalance,
@@ -151,14 +194,51 @@ function scheduleChanged(
     total_amount: number;
     payment_cycle: PaymentCycle;
     tax_mode?: Contract['tax_mode'];
+    payment_conditions: ContractPaymentCondition[];
+    lines: ContractLineInput[];
   }
 ) {
+  const existingLines = (contract.lines ?? []).map((line) => ({
+    line_type: line.line_type,
+    unit_id: line.unit_id,
+    description: line.description ?? null,
+    amount: Number(line.amount),
+    amount_basis: normalizeContractLineAmountBasis(line.amount_basis),
+    annual_amount_untaxed: line.amount_basis === 'annual_untaxed'
+      ? Number(line.annual_amount_untaxed)
+      : null,
+    odoo_product_id: line.odoo_product_id,
+    odoo_product_name: line.odoo_product_name ?? null,
+    tax_rate: Number(line.tax_rate),
+    tax_treatment: line.tax_treatment,
+    sort_order: line.sort_order,
+  }));
+  const nextLines = input.lines.map((line, index) => {
+    const amountBasis = normalizeContractLineAmountBasis(line.amount_basis);
+    return {
+      line_type: line.line_type,
+      unit_id: line.unit_id ?? null,
+      description: line.description ?? null,
+      amount: Number(line.amount),
+      amount_basis: amountBasis,
+      annual_amount_untaxed: amountBasis === 'annual_untaxed'
+        ? Number(line.annual_amount_untaxed)
+        : null,
+      odoo_product_id: line.odoo_product_id ?? null,
+      odoo_product_name: line.odoo_product_name ?? null,
+      tax_rate: Number(line.tax_rate ?? 0),
+      tax_treatment: line.tax_treatment ?? 'standard',
+      sort_order: line.sort_order ?? index,
+    };
+  });
   return (
     input.start_date !== contract.start_date
     || input.end_date !== contract.end_date
     || input.payment_cycle !== contract.payment_cycle
     || (input.tax_mode ?? contract.tax_mode) !== contract.tax_mode
     || input.total_amount !== Number(contract.total_amount)
+    || !contractPaymentConditionsEqual(input.payment_conditions, contract.payment_conditions)
+    || JSON.stringify(nextLines) !== JSON.stringify(existingLines)
   );
 }
 
@@ -218,6 +298,11 @@ export const contractService = {
     return contractsRepository.findAll(ctx);
   },
 
+  async listPage(auth: AuthContext, ctx: LogContext, filters?: { page?: number; pageSize?: number }) {
+    await this.completeExpired(auth, ctx);
+    return contractsRepository.findPage(ctx, filters);
+  },
+
   async completeExpired(auth: AuthContext, ctx: LogContext) {
     if (!hasPermission(auth, 'contracts.update')) return;
     const active = await contractsRepository.findActive(ctx);
@@ -254,6 +339,9 @@ export const contractService = {
       opening_paid_amount?: number | null;
       opening_payment_date?: string | null;
       opening_notes?: string | null;
+      historical_last_payment_amount?: number | null;
+      historical_last_payment_reference?: string | null;
+      payment_conditions?: ContractPaymentCondition[];
     },
     ctx: LogContext
   ): Promise<ServiceResult<Contract>> {
@@ -275,12 +363,19 @@ export const contractService = {
         opening_paid_amount,
         opening_payment_date,
         opening_notes,
+        historical_last_payment_amount,
+        historical_last_payment_reference,
+        payment_conditions,
         ...contractInput
       } = input;
       const openingBalance: ContractOpeningBalanceInput = {
         paid_through_date: paid_through_date ?? null,
         opening_paid_amount: opening_paid_amount ?? null,
       };
+      const parsedConditions = parseContractPaymentConditions(payment_conditions);
+      if (!parsedConditions.success) {
+        return { success: false, error: 'invalidPaymentConditions', errorCode: 'VALIDATION' };
+      }
 
       const validation = validationService.validateContract({
         ...contractInput,
@@ -301,7 +396,6 @@ export const contractService = {
       );
       let lines = taxed.lines;
       const primaryUnitId = validated.unit_id;
-      const totalAmount = validated.total_amount;
       const unitIds = rentalUnitIds(lines, primaryUnitId);
       const loadedUnits = new Map<string, Awaited<ReturnType<typeof unitsRepository.findById>>>();
       for (const unitId of unitIds) {
@@ -352,6 +446,25 @@ export const contractService = {
         return line;
       });
 
+      let totalAmountResolved = 0;
+      try {
+        const resolved = resolveContractLinesForPersistence({
+          start_date: validated.start_date,
+          end_date: validated.end_date,
+          payment_cycle: validated.payment_cycle,
+          payment_conditions: parsedConditions.data,
+          lines,
+        });
+        lines = resolved.lines;
+        totalAmountResolved = resolved.total_amount;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Invalid contract schedule';
+        return { success: false, error: message, errorCode: 'VALIDATION' };
+      }
+      if (totalAmountResolved <= 0) {
+        return { success: false, error: 'amountPositive', errorCode: 'VALIDATION' };
+      }
+
       const tenantValidation = validationService.validateTenant({
         full_name: tenant_name,
         phone: tenant_phone,
@@ -371,7 +484,7 @@ export const contractService = {
         unit_id: primaryUnitId,
         start_date: validated.start_date,
         end_date: validated.end_date,
-        total_amount: totalAmount,
+        total_amount: totalAmountResolved,
         payment_cycle: validated.payment_cycle,
         tax_mode: contractInput.tax_mode ?? 'taxable',
       };
@@ -388,17 +501,8 @@ export const contractService = {
             start_date: validated.start_date,
             end_date: validated.end_date,
             payment_cycle: validated.payment_cycle,
-            lines: lines.map((line, index) => ({
-              lineType: line.line_type,
-              unitId: line.unit_id ?? null,
-              description: line.description ?? null,
-              odooProductId: line.odoo_product_id ?? null,
-              odooProductName: line.odoo_product_name ?? null,
-              amount: line.amount,
-              taxRate: line.tax_rate ?? 0,
-              taxTreatment: line.tax_treatment === 'zero_rated' ? 'zero_rated' : 'standard',
-              sortOrder: line.sort_order ?? index,
-            })),
+            payment_conditions: parsedConditions.data,
+            lines: lines.map((line, index) => toContractBillingLineInput(line, index)),
           }),
           openingBalance,
         );
@@ -432,7 +536,7 @@ export const contractService = {
             contractNumber: String(validated.contract_number).trim(),
             startDate: validated.start_date,
             endDate: validated.end_date,
-            totalAmount,
+            totalAmount: totalAmountResolved,
             paymentCycle: validated.payment_cycle,
             taxMode: contractInput.tax_mode ?? 'taxable',
             paidThroughDate: paid_through_date ?? null,
@@ -440,6 +544,9 @@ export const contractService = {
             openingPaymentDate: opening_payment_date ?? null,
             openingNotes: opening_notes ?? null,
             openingBalanceTotal: schedule.reduce((sum, period) => sum + period.paid_amount, 0),
+            odooTrackingStartDate: resolveOdooTrackingStartDate(schedule, paid_through_date),
+            historicalLastPaymentAmount: historical_last_payment_amount ?? null,
+            historicalLastPaymentReference: historical_last_payment_reference?.trim() || null,
             notes: validated.notes ?? null,
           },
           tenant: {
@@ -465,20 +572,13 @@ export const contractService = {
             dueDate: period.periodStart,
             lineItems: period.lineItems,
           })),
-          lines: lines.map((line, index) => ({
-            line_type: line.line_type,
-            unit_id: line.unit_id ?? null,
-            description: line.description ?? null,
-            amount: line.amount,
-            period_start: line.period_start ?? validated.start_date,
-            period_end: line.period_end ?? validated.end_date,
-            odoo_line_id: line.odoo_line_id ?? null,
-            odoo_product_id: line.odoo_product_id ?? null,
-            odoo_product_name: line.odoo_product_name ?? null,
-            tax_rate: line.tax_rate ?? 0,
-            tax_treatment: line.tax_treatment === 'zero_rated' ? 'zero_rated' : 'standard',
-            sort_order: line.sort_order ?? index,
-          })),
+          paymentConditions: parsedConditions.data,
+          lines: lines.map((line, index) => toPersistedContractLineInput(
+            line,
+            index,
+            validated.start_date,
+            validated.end_date,
+          )),
         }, ctx);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
@@ -520,6 +620,7 @@ export const contractService = {
       tenant_phone?: string | null;
       tenant_email?: string | null;
       tenant_national_id?: string | null;
+      payment_conditions?: ContractPaymentCondition[];
     },
     ctx: LogContext
   ): Promise<ServiceResult<Contract>> {
@@ -531,12 +632,19 @@ export const contractService = {
         tenant_phone,
         tenant_email,
         tenant_national_id,
+        payment_conditions,
         ...contractInput
       } = input;
 
       const contract = await contractsRepository.findById(id, ctx);
       if (!contract) return { success: false, error: 'contractNotFound', errorCode: 'NOT_FOUND' };
       if (contract.status !== 'active') return { success: false, error: 'contractNotActive', errorCode: 'VALIDATION' };
+      const parsedConditions = parseContractPaymentConditions(
+        payment_conditions ?? contract.payment_conditions,
+      );
+      if (!parsedConditions.success) {
+        return { success: false, error: 'invalidPaymentConditions', errorCode: 'VALIDATION' };
+      }
 
       const validation = validationService.validateContract({
         ...contractInput,
@@ -547,13 +655,15 @@ export const contractService = {
           unit_id: line.unit_id,
           description: line.description,
           amount: Number(line.amount),
+          amount_basis: line.amount_basis,
+          annual_amount_untaxed: line.annual_amount_untaxed,
           period_start: line.period_start,
           period_end: line.period_end,
           odoo_line_id: line.odoo_line_id,
           odoo_product_id: line.odoo_product_id,
           odoo_product_name: line.odoo_product_name,
           tax_rate: Number(line.tax_rate),
-            tax_treatment: line.tax_treatment === 'zero_rated' ? 'zero_rated' : 'standard',
+          tax_treatment: line.tax_treatment === 'zero_rated' ? 'zero_rated' : 'standard',
           sort_order: line.sort_order,
         })),
         total_amount: contractInput.total_amount ?? Number(contract.total_amount),
@@ -568,14 +678,35 @@ export const contractService = {
         validated.tax_mode ?? contractInput.tax_mode,
         ctx,
       );
-      const lines = taxed.lines;
+      let lines = taxed.lines;
+      let totalAmountResolved = validated.total_amount;
+      try {
+        const resolved = resolveContractLinesForPersistence({
+          start_date: validated.start_date,
+          end_date: validated.end_date,
+          payment_cycle: validated.payment_cycle,
+          payment_conditions: parsedConditions.data,
+          lines,
+        });
+        lines = resolved.lines;
+        totalAmountResolved = resolved.total_amount;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Invalid contract schedule';
+        return { success: false, error: message, errorCode: 'VALIDATION' };
+      }
+      if (totalAmountResolved <= 0) {
+        return { success: false, error: 'amountPositive', errorCode: 'VALIDATION' };
+      }
+
       const invoices = await invoicesRepository.findByContractId(id, ctx);
       const scheduleFieldsChanged = scheduleChanged(contract, {
         start_date: validated.start_date,
         end_date: validated.end_date,
-        total_amount: validated.total_amount,
+        total_amount: totalAmountResolved,
         payment_cycle: validated.payment_cycle,
         tax_mode: contractInput.tax_mode,
+        payment_conditions: parsedConditions.data,
+        lines,
       });
 
       if (scheduleFieldsChanged && hasFinancialActivity(invoices)) {
@@ -599,6 +730,10 @@ export const contractService = {
             unit_id: line.unit_id ?? null,
             description: line.description ?? null,
             amount: line.amount,
+            amount_basis: normalizeContractLineAmountBasis(line.amount_basis),
+            annual_amount_untaxed: normalizeContractLineAmountBasis(line.amount_basis) === 'annual_untaxed'
+              ? (line.annual_amount_untaxed ?? null)
+              : null,
             period_start: line.period_start ?? null,
             period_end: line.period_end ?? null,
             odoo_line_id: line.odoo_line_id ?? null,
@@ -623,31 +758,28 @@ export const contractService = {
 
       let updated: Contract;
       try {
-        await contractsRepository.replaceLinesAtomic(id, lines.map((line, index) => ({
-          line_type: line.line_type,
-          unit_id: line.unit_id ?? null,
-          description: line.description ?? null,
-          amount: line.amount,
-          period_start: line.period_start ?? validated.start_date,
-          period_end: line.period_end ?? validated.end_date,
-          odoo_line_id: line.odoo_line_id ?? null,
-          odoo_product_id: line.odoo_product_id ?? null,
-          odoo_product_name: line.odoo_product_name ?? null,
-          tax_rate: line.tax_rate ?? 0,
-            tax_treatment: line.tax_treatment === 'zero_rated' ? 'zero_rated' : 'standard',
-          sort_order: line.sort_order ?? index,
-        })), ctx);
+        await contractsRepository.replaceLinesAtomic(
+          id,
+          lines.map((line, index) => toPersistedContractLineInput(
+            line,
+            index,
+            validated.start_date,
+            validated.end_date,
+          )),
+          ctx,
+        );
 
         updated = await contractsRepository.update(id, {
           contract_number: String(validated.contract_number).trim(),
           start_date: validated.start_date,
           end_date: validated.end_date,
-          total_amount: validated.total_amount,
+          total_amount: totalAmountResolved,
           payment_cycle: validated.payment_cycle,
           tax_mode: contractInput.tax_mode ?? contract.tax_mode,
           notes: validated.notes ?? null,
           tenant_id: tenantResult.data,
           unit_id: validated.unit_id,
+          payment_conditions: parsedConditions.data,
         }, ctx);
       } catch (error) {
         if (isUniqueViolation(error)) {
@@ -745,6 +877,8 @@ export const contractService = {
       if (!cancelled) {
         return { success: false, error: 'contractCancellationFailed', errorCode: 'INTERNAL' };
       }
+
+      await auditService.log(auth, 'cancel', 'contract', id, contract, cancelled, ctx);
       return { success: true, data: cancelled };
     });
   },
@@ -775,6 +909,9 @@ export const contractService = {
       opening_paid_amount?: number | null;
       opening_payment_date?: string | null;
       opening_notes?: string | null;
+      historical_last_payment_amount?: number | null;
+      historical_last_payment_reference?: string | null;
+      payment_conditions?: ContractPaymentCondition[];
     },
     ctx: LogContext,
   ): Promise<ServiceResult<Contract>> {
@@ -809,12 +946,41 @@ export const contractService = {
       if (!validation.valid || !validation.data) {
         return { success: false, error: validation.errors.join(', '), errorCode: 'VALIDATION' };
       }
+      const parsedConditions = parseContractPaymentConditions(input.payment_conditions);
+      if (!parsedConditions.success) {
+        return { success: false, error: 'invalidPaymentConditions', errorCode: 'VALIDATION' };
+      }
 
-      const taxedDraft = await applyOdooTaxRatesToContractLines(
+      let draftLines = (await applyOdooTaxRatesToContractLines(
         validation.data.lines,
         validation.data.tax_mode,
         ctx,
-      );
+      )).lines;
+
+      if (
+        validation.data.start_date
+        && validation.data.end_date
+        && draftLines.every((line) => (
+          normalizeContractLineAmountBasis(line.amount_basis) !== 'annual_untaxed'
+          || (line.annual_amount_untaxed != null && line.annual_amount_untaxed > 0)
+        ))
+        && draftLines.some((line) => (
+          normalizeContractLineAmountBasis(line.amount_basis) === 'annual_untaxed'
+          || Number(line.amount) > 0
+        ))
+      ) {
+        try {
+          draftLines = resolveContractLinesForPersistence({
+            start_date: validation.data.start_date,
+            end_date: validation.data.end_date,
+            payment_cycle: validation.data.payment_cycle,
+            payment_conditions: parsedConditions.data,
+            lines: draftLines,
+          }).lines;
+        } catch {
+          // Incomplete drafts keep source amounts until dates/lines are valid.
+        }
+      }
 
       const tenantValidation = validationService.validateOptionalTenant({
         full_name: input.tenant_name,
@@ -845,6 +1011,10 @@ export const contractService = {
             openingPaymentDate: input.opening_payment_date ?? null,
             openingNotes: input.opening_notes ?? null,
             openingBalanceTotal: 0,
+            // Schedule is finalized on activate; cutover is derived then.
+            odooTrackingStartDate: null,
+            historicalLastPaymentAmount: input.historical_last_payment_amount ?? null,
+            historicalLastPaymentReference: input.historical_last_payment_reference?.trim() || null,
             notes: validation.data.notes ?? null,
           },
           tenant: tenantValidation.data.full_name
@@ -860,20 +1030,13 @@ export const contractService = {
                 countryCode: tenantValidation.data.country_code,
               }
             : null,
-          lines: taxedDraft.lines.map((line, index) => ({
-            line_type: line.line_type,
-            unit_id: line.unit_id ?? null,
-            description: line.description ?? null,
-            amount: line.amount,
-            period_start: line.period_start ?? validation.data.start_date,
-            period_end: line.period_end ?? validation.data.end_date,
-            odoo_line_id: line.odoo_line_id ?? null,
-            odoo_product_id: line.odoo_product_id ?? null,
-            odoo_product_name: line.odoo_product_name ?? null,
-            tax_rate: line.tax_rate ?? 0,
-            tax_treatment: line.tax_treatment === 'zero_rated' ? 'zero_rated' : 'standard',
-            sort_order: line.sort_order ?? index,
-          })),
+          lines: draftLines.map((line, index) => toPersistedContractLineInput(
+            line,
+            index,
+            validation.data.start_date,
+            validation.data.end_date,
+          )),
+          paymentConditions: parsedConditions.data,
         }, ctx);
 
         await auditService.log(
@@ -954,6 +1117,9 @@ export const contractService = {
       opening_paid_amount?: number | null;
       opening_payment_date?: string | null;
       opening_notes?: string | null;
+      historical_last_payment_amount?: number | null;
+      historical_last_payment_reference?: string | null;
+      payment_conditions?: ContractPaymentCondition[];
     },
     ctx: LogContext,
   ): Promise<ServiceResult<Contract>> {
@@ -983,12 +1149,19 @@ export const contractService = {
         opening_paid_amount,
         opening_payment_date,
         opening_notes,
+        historical_last_payment_amount,
+        historical_last_payment_reference,
+        payment_conditions,
         ...contractInput
       } = input;
       const openingBalance: ContractOpeningBalanceInput = {
         paid_through_date: paid_through_date ?? null,
         opening_paid_amount: opening_paid_amount ?? null,
       };
+      const parsedConditions = parseContractPaymentConditions(payment_conditions);
+      if (!parsedConditions.success) {
+        return { success: false, error: 'invalidPaymentConditions', errorCode: 'VALIDATION' };
+      }
 
       const validation = validationService.validateContract({
         ...contractInput,
@@ -1009,7 +1182,6 @@ export const contractService = {
       );
       let lines = taxed.lines;
       const primaryUnitId = validated.unit_id;
-      const totalAmount = validated.total_amount;
       const unitIds = rentalUnitIds(lines, primaryUnitId);
       const loadedUnits = new Map<string, Awaited<ReturnType<typeof unitsRepository.findById>>>();
       for (const unitId of unitIds) {
@@ -1060,6 +1232,25 @@ export const contractService = {
         return line;
       });
 
+      let totalAmountResolved = 0;
+      try {
+        const resolved = resolveContractLinesForPersistence({
+          start_date: validated.start_date,
+          end_date: validated.end_date,
+          payment_cycle: validated.payment_cycle,
+          payment_conditions: parsedConditions.data,
+          lines,
+        });
+        lines = resolved.lines;
+        totalAmountResolved = resolved.total_amount;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Invalid contract schedule';
+        return { success: false, error: message, errorCode: 'VALIDATION' };
+      }
+      if (totalAmountResolved <= 0) {
+        return { success: false, error: 'amountPositive', errorCode: 'VALIDATION' };
+      }
+
       const tenantValidation = validationService.validateTenant({
         full_name: tenant_name,
         phone: tenant_phone,
@@ -1079,7 +1270,7 @@ export const contractService = {
         unit_id: primaryUnitId,
         start_date: validated.start_date,
         end_date: validated.end_date,
-        total_amount: totalAmount,
+        total_amount: totalAmountResolved,
         payment_cycle: validated.payment_cycle,
         tax_mode: contractInput.tax_mode ?? 'taxable',
       };
@@ -1095,17 +1286,8 @@ export const contractService = {
             start_date: validated.start_date,
             end_date: validated.end_date,
             payment_cycle: validated.payment_cycle,
-            lines: lines.map((line, index) => ({
-              lineType: line.line_type,
-              unitId: line.unit_id ?? null,
-              description: line.description ?? null,
-              odooProductId: line.odoo_product_id ?? null,
-              odooProductName: line.odoo_product_name ?? null,
-              amount: line.amount,
-              taxRate: line.tax_rate ?? 0,
-              taxTreatment: line.tax_treatment === 'zero_rated' ? 'zero_rated' : 'standard',
-              sortOrder: line.sort_order ?? index,
-            })),
+            payment_conditions: parsedConditions.data,
+            lines: lines.map((line, index) => toContractBillingLineInput(line, index)),
           }),
           openingBalance,
         );
@@ -1130,7 +1312,7 @@ export const contractService = {
             contractNumber: String(validated.contract_number).trim(),
             startDate: validated.start_date,
             endDate: validated.end_date,
-            totalAmount,
+            totalAmount: totalAmountResolved,
             paymentCycle: validated.payment_cycle,
             taxMode: contractInput.tax_mode ?? 'taxable',
             paidThroughDate: paid_through_date ?? null,
@@ -1138,6 +1320,9 @@ export const contractService = {
             openingPaymentDate: opening_payment_date ?? null,
             openingNotes: opening_notes ?? null,
             openingBalanceTotal: schedule.reduce((sum, period) => sum + period.paid_amount, 0),
+            odooTrackingStartDate: resolveOdooTrackingStartDate(schedule, paid_through_date),
+            historicalLastPaymentAmount: historical_last_payment_amount ?? null,
+            historicalLastPaymentReference: historical_last_payment_reference?.trim() || null,
             notes: validated.notes ?? null,
           },
           tenant: {
@@ -1163,20 +1348,13 @@ export const contractService = {
             dueDate: period.periodStart,
             lineItems: period.lineItems,
           })),
-          lines: lines.map((line, index) => ({
-            line_type: line.line_type,
-            unit_id: line.unit_id ?? null,
-            description: line.description ?? null,
-            amount: line.amount,
-            period_start: line.period_start ?? validated.start_date,
-            period_end: line.period_end ?? validated.end_date,
-            odoo_line_id: line.odoo_line_id ?? null,
-            odoo_product_id: line.odoo_product_id ?? null,
-            odoo_product_name: line.odoo_product_name ?? null,
-            tax_rate: line.tax_rate ?? 0,
-            tax_treatment: line.tax_treatment === 'zero_rated' ? 'zero_rated' : 'standard',
-            sort_order: line.sort_order ?? index,
-          })),
+          paymentConditions: parsedConditions.data,
+          lines: lines.map((line, index) => toPersistedContractLineInput(
+            line,
+            index,
+            validated.start_date,
+            validated.end_date,
+          )),
         }, ctx);
 
         await auditService.log(auth, 'activated', 'contract', contract.id, existing, contract, ctx);
@@ -1238,6 +1416,149 @@ export const contractService = {
           error: message,
         });
         return { success: false, error: 'contractDraftDeleteFailed', errorCode: 'INTERNAL' };
+      }
+    });
+  },
+
+  /**
+   * Import-only cutover update: set opening-balance fields and settle local invoices.
+   * Does not change unit, tenant, dates, or contract totals.
+   */
+  async applyOpeningBalanceFromImport(
+    auth: AuthContext,
+    contractId: string,
+    input: {
+      paid_through_date?: string | null;
+      opening_paid_amount?: number | null;
+      opening_payment_date?: string | null;
+    },
+    ctx: LogContext,
+  ): Promise<ServiceResult<Contract>> {
+    if (!hasPermission(auth, 'contracts.update')) {
+      return { success: false, error: 'Unauthorized', errorCode: 'FORBIDDEN' };
+    }
+
+    return withSpan('contractService.applyOpeningBalanceFromImport', {
+      ...ctx,
+      service: 'contract',
+      user_id: auth.userId,
+    }, async () => {
+      const existing = await contractsRepository.findById(contractId, ctx);
+      if (!existing) return { success: false, error: 'contractNotFound', errorCode: 'NOT_FOUND' };
+      if (existing.status !== 'active' && existing.status !== 'draft') {
+        return { success: false, error: 'contractNotEditable', errorCode: 'VALIDATION' };
+      }
+      if (!existing.start_date || !existing.end_date) {
+        return { success: false, error: 'contractDatesInvalid', errorCode: 'VALIDATION' };
+      }
+
+      const openingBalance: ContractOpeningBalanceInput = {
+        paid_through_date: input.paid_through_date ?? null,
+        opening_paid_amount: input.opening_paid_amount ?? null,
+      };
+      const openingErrors = validateContractOpeningBalance(
+        { start_date: existing.start_date, end_date: existing.end_date },
+        openingBalance,
+      );
+      if (openingErrors.length > 0) {
+        return { success: false, error: openingErrors.join(', '), errorCode: 'VALIDATION' };
+      }
+
+      if (
+        input.opening_payment_date
+        && (
+          input.opening_payment_date < existing.start_date
+          || input.opening_payment_date > existing.end_date
+        )
+      ) {
+        return { success: false, error: 'lastPaymentOutOfRange', errorCode: 'VALIDATION' };
+      }
+
+      const invoices = existing.invoices?.length
+        ? existing.invoices
+        : await invoicesRepository.findByContractId(contractId, ctx);
+
+      const paymentCounts = new Map<string, number>();
+      for (const invoice of invoices) {
+        const paidSum = await paymentsRepository.sumByInvoice(invoice.id, ctx);
+        if (paidSum > 0) paymentCounts.set(invoice.id, paidSum);
+      }
+
+      const blocked = openingBalanceImportBlockedReason(invoices, paymentCounts);
+      if (blocked === 'odooLinkedInvoices') {
+        return { success: false, error: 'odooLinkedInvoices', errorCode: 'VALIDATION' };
+      }
+      if (blocked === 'localPaymentsExist') {
+        return { success: false, error: 'localPaymentsExist', errorCode: 'VALIDATION' };
+      }
+
+      const schedulePeriods = [...invoices]
+        .sort((a, b) => a.period_start.localeCompare(b.period_start))
+        .map((invoice) => ({
+          periodStart: invoice.period_start,
+          periodEnd: invoice.period_end,
+          amount: Number(invoice.amount),
+          amountUntaxed: Number(invoice.amount_untaxed ?? invoice.amount),
+          amountTax: Number(invoice.amount_tax ?? 0),
+          amountTotal: Number(invoice.amount_total ?? invoice.amount),
+        }));
+
+      const settled = schedulePeriods.length > 0
+        ? applyOpeningBalanceToSchedule(schedulePeriods, openingBalance)
+        : [];
+      // Without invoices (draft), cutover is finalized on activate when the schedule exists.
+      const odooTrackingStartDate = schedulePeriods.length > 0
+        ? resolveOdooTrackingStartDate(schedulePeriods, input.paid_through_date)
+        : null;
+      const openingBalanceTotal = settled.reduce((sum, period) => sum + period.paid_amount, 0);
+
+      try {
+        for (const period of settled) {
+          const invoice = invoices.find((row) => (
+            row.period_start === period.periodStart
+            && row.period_end === period.periodEnd
+          ));
+          if (!invoice) continue;
+          const nextStatus = computeInvoiceStatus(
+            Number(invoice.amount),
+            period.paid_amount,
+            invoice.due_date,
+            invoice.status === 'invoice_issued' ? 'invoice_issued' : 'due',
+          );
+          await invoicesRepository.update(invoice.id, {
+            paid_amount: period.paid_amount,
+            status: nextStatus,
+          }, ctx);
+        }
+
+        const updated = await contractsRepository.update(contractId, {
+          paid_through_date: input.paid_through_date ?? null,
+          opening_paid_amount: input.opening_paid_amount ?? 0,
+          opening_payment_date: input.opening_payment_date ?? null,
+          opening_balance_total: openingBalanceTotal,
+          odoo_tracking_start_date: odooTrackingStartDate,
+        }, ctx);
+
+        await auditService.log(
+          auth,
+          'update',
+          'contract',
+          contractId,
+          existing,
+          updated,
+          ctx,
+        );
+        return { success: true, data: updated };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        logger.error('Failed to apply opening balance from import', {
+          ...ctx,
+          service: 'contract',
+          operation: 'applyOpeningBalanceFromImport',
+          user_id: auth.userId,
+          error: message,
+        });
+        return { success: false, error: 'openingBalanceUpdateFailed', errorCode: 'INTERNAL' };
       }
     });
   },

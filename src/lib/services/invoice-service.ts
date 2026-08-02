@@ -41,6 +41,19 @@ export const invoiceService = {
     return invoicesRepository.findAll(ctx, filters);
   },
 
+  async listPage(
+    auth: AuthContext,
+    ctx: LogContext,
+    filters?: {
+      status?: InvoiceStatus | InvoiceStatus[];
+      locationId?: string;
+      page?: number;
+      pageSize?: number;
+    },
+  ) {
+    return invoicesRepository.findPage(ctx, filters);
+  },
+
   async getById(auth: AuthContext, id: string, ctx: LogContext) {
     return invoicesRepository.findById(id, ctx);
   },

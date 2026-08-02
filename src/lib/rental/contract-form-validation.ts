@@ -6,9 +6,16 @@ import {
 } from '@/lib/rental/calculations';
 import {
   applyOpeningBalanceToSchedule,
+  resolveFirstUnpaidPeriod,
+  resolveOdooTrackingStartDate,
   type SettledContractPeriod,
 } from '@/lib/rental/contract-opening-balance';
-import type { ContractLineType, PaymentCycle } from '@/types/database';
+import type {
+  ContractLineAmountBasis,
+  ContractLineType,
+  ContractPaymentCondition,
+  PaymentCycle,
+} from '@/types/database';
 import { normalizeNumberInputValue } from '@/lib/i18n/numbers';
 import { isValidSaudiNationalId, normalizeNationalId } from '@/lib/validation/saudi-national-id';
 
@@ -26,7 +33,8 @@ export type ContractFormField =
   | 'tenant_email'
   | 'tenant_national_id'
   | 'schedule'
-  | 'lines';
+  | 'lines'
+  | 'payment_conditions';
 
 export type ContractFormErrorCode =
   | 'unitRequired'
@@ -54,7 +62,10 @@ export type ContractFormErrorCode =
   | 'duplicateUnits'
   | 'lineAmountPositive'
   | 'serviceProductRequired'
-  | 'taxRateInvalid';
+  | 'taxRateInvalid'
+  | 'conditionAfterYearsInvalid'
+  | 'conditionAfterContractEnd'
+  | 'conditionPercentageInvalid';
 
 export type ContractFormFieldErrors = Partial<Record<ContractFormField, ContractFormErrorCode>>;
 
@@ -63,11 +74,21 @@ export interface ContractFormLineValues {
   line_type: ContractLineType;
   unit_id: string;
   description: string;
+  /** Legacy full-contract inclusive total, or derived display for annual lines. */
   amount: string;
+  amount_basis: ContractLineAmountBasis;
+  /** Annual pre-tax source when amount_basis is annual_untaxed. */
+  annual_amount_untaxed: string;
   odoo_product_id: string;
   odoo_product_name: string;
   tax_rate: string;
   tax_treatment: 'standard' | 'zero_rated';
+}
+
+export interface ContractPaymentConditionFormValues {
+  enabled: boolean;
+  applies_after_years: string;
+  percentage: string;
 }
 
 export interface ContractFormValues {
@@ -85,6 +106,7 @@ export interface ContractFormValues {
   tenant_email: string;
   tenant_national_id: string;
   lines: ContractFormLineValues[];
+  payment_conditions: ContractPaymentConditionFormValues[];
 }
 
 export interface ContractInvoicePreview {
@@ -96,6 +118,9 @@ export interface ContractInvoicePreview {
   totalAmount: number;
   totalUntaxed: number;
   totalTax: number;
+  odooTrackingStartDate: string | null;
+  firstUnpaidPeriodStart: string | null;
+  firstUnpaidPeriodEnd: string | null;
   periods: SettledContractPeriod<ContractBillingPeriod>[];
   error?: ContractFormErrorCode;
 }
@@ -110,8 +135,65 @@ function parseAmount(value: string | undefined): number | null {
   return amount;
 }
 
+export function contractPaymentConditionsFromFormValues(
+  conditions: ContractPaymentConditionFormValues[],
+): ContractPaymentCondition[] {
+  return conditions.map((condition) => ({
+    condition_type: 'percentage_increase_after',
+    enabled: condition.enabled,
+    applies_after_months: Math.round((parseAmount(condition.applies_after_years) ?? 0) * 12),
+    percentage: parseAmount(condition.percentage) ?? 0,
+    target: 'rental',
+  }));
+}
+
+/** Missing basis defaults to annual entry (new-contract path). Only explicit legacy stays inclusive. */
+export function normalizeContractFormAmountBasis(
+  value: ContractFormLineValues['amount_basis'] | null | undefined,
+): ContractLineAmountBasis {
+  return value === 'contract_total_inclusive' ? 'contract_total_inclusive' : 'annual_untaxed';
+}
+
+/**
+ * Normalize a form line so annual entry always reads/writes annual_amount_untaxed.
+ * Recovers values typed into `amount` when sticky UI state briefly used the legacy field.
+ */
+export function normalizeContractFormLine(line: ContractFormLineValues): ContractFormLineValues {
+  const amountBasis = normalizeContractFormAmountBasis(line.amount_basis);
+  const annualRaw = line.annual_amount_untaxed?.trim() ?? '';
+  const amountRaw = line.amount?.trim() ?? '';
+  if (amountBasis === 'annual_untaxed') {
+    return {
+      ...line,
+      amount_basis: amountBasis,
+      annual_amount_untaxed: annualRaw || amountRaw,
+      amount: '',
+    };
+  }
+  return {
+    ...line,
+    amount_basis: amountBasis,
+    annual_amount_untaxed: '',
+    amount: amountRaw,
+  };
+}
+
+export function lineSourceAmount(line: ContractFormLineValues): number | null {
+  const normalized = normalizeContractFormLine(line);
+  if (normalized.amount_basis === 'annual_untaxed') {
+    return parseAmount(normalized.annual_amount_untaxed);
+  }
+  return parseAmount(normalized.amount);
+}
+
 export function sumContractLineAmounts(lines: ContractFormLineValues[]): number {
   return lines.reduce((sum, line) => sum + (parseAmount(line.amount) ?? 0), 0);
+}
+
+export function hasLegacyContractTotalPricing(lines: ContractFormLineValues[]): boolean {
+  return lines.some(
+    (line) => normalizeContractFormAmountBasis(line.amount_basis) === 'contract_total_inclusive',
+  );
 }
 
 export function validateContractForm(
@@ -122,6 +204,7 @@ export function validateContractForm(
   const requireUnit = options?.requireUnit ?? true;
   const draftMode = options?.mode === 'draft';
   const lines = values.lines ?? [];
+  const conditions = values.payment_conditions ?? [];
 
   if (!values.contract_number.trim()) {
     errors.contract_number = 'contractNumberRequired';
@@ -156,6 +239,7 @@ export function validateContractForm(
     ) {
       errors.end_date = 'endBeforeStart';
     }
+    validatePaymentConditions(values, conditions, errors);
     return errors;
   }
 
@@ -173,7 +257,7 @@ export function validateContractForm(
     if (new Set(unitIds).size !== unitIds.length) {
       errors.lines = 'duplicateUnits';
     }
-    if (lines.some((line) => (parseAmount(line.amount) ?? 0) <= 0)) {
+    if (lines.some((line) => (lineSourceAmount(line) ?? 0) <= 0)) {
       errors.lines = 'lineAmountPositive';
     }
     if (lines.some((line) => line.line_type === 'service' && !line.odoo_product_id?.trim())) {
@@ -214,7 +298,9 @@ export function validateContractForm(
     errors.end_date = 'endBeforeStart';
   }
 
-  const amount = sumContractLineAmounts(lines);
+  const amount = hasLegacyContractTotalPricing(lines)
+    ? sumContractLineAmounts(lines)
+    : lines.reduce((sum, line) => sum + (lineSourceAmount(line) ?? 0), 0);
   if (amount <= 0) {
     errors.total_amount = 'amountPositive';
   }
@@ -259,6 +345,8 @@ export function validateContractForm(
     errors.tenant_email = 'tenantEmailInvalid';
   }
 
+  validatePaymentConditions(values, conditions, errors);
+
   if (
     !errors.start_date
     && !errors.end_date
@@ -266,6 +354,7 @@ export function validateContractForm(
     && !errors.paid_through_date
     && !errors.opening_paid_amount
     && !errors.lines
+    && !errors.payment_conditions
   ) {
     const preview = buildInvoicePreview(values, amount, openingPaid);
     if (preview.error === 'tooManyPeriods') {
@@ -280,8 +369,45 @@ export function validateContractForm(
   return errors;
 }
 
+function validatePaymentConditions(
+  values: ContractFormValues,
+  conditions: ContractPaymentConditionFormValues[],
+  errors: ContractFormFieldErrors,
+) {
+  for (const condition of conditions) {
+    if (!condition.enabled) continue;
+    const afterYears = parseAmount(condition.applies_after_years);
+    const percentage = parseAmount(condition.percentage);
+    if (
+      afterYears == null
+      || !Number.isInteger(afterYears)
+      || afterYears < 1
+      || afterYears > 100
+    ) {
+      errors.payment_conditions = 'conditionAfterYearsInvalid';
+      return;
+    }
+    if (percentage == null || percentage <= 0 || percentage > 1000) {
+      errors.payment_conditions = 'conditionPercentageInvalid';
+      return;
+    }
+    if (
+      isReasonableContractDate(values.start_date)
+      && isReasonableContractDate(values.end_date)
+    ) {
+      const threshold = new Date(`${values.start_date}T00:00:00Z`);
+      threshold.setUTCFullYear(threshold.getUTCFullYear() + afterYears);
+      if (threshold.toISOString().slice(0, 10) > values.end_date) {
+        errors.payment_conditions = 'conditionAfterContractEnd';
+        return;
+      }
+    }
+  }
+}
+
 export function previewContractInvoices(values: ContractFormValues): ContractInvoicePreview {
-  const amount = sumContractLineAmounts(values.lines ?? []);
+  const lines = values.lines ?? [];
+  const sourceTotal = lines.reduce((sum, line) => sum + (lineSourceAmount(line) ?? 0), 0);
   const openingPaidRaw = values.opening_paid_amount.trim();
   const openingPaid = openingPaidRaw ? parseAmount(openingPaidRaw) : null;
 
@@ -289,7 +415,8 @@ export function previewContractInvoices(values: ContractFormValues): ContractInv
     !isReasonableContractDate(values.start_date)
     || !isReasonableContractDate(values.end_date)
     || values.end_date < values.start_date
-    || amount <= 0
+    || sourceTotal <= 0
+    || lines.some((line) => (lineSourceAmount(line) ?? 0) <= 0)
   ) {
     return {
       ready: false,
@@ -300,6 +427,9 @@ export function previewContractInvoices(values: ContractFormValues): ContractInv
       totalAmount: 0,
       totalUntaxed: 0,
       totalTax: 0,
+      odooTrackingStartDate: null,
+      firstUnpaidPeriodStart: null,
+      firstUnpaidPeriodEnd: null,
       periods: [],
     };
   }
@@ -318,7 +448,7 @@ export function previewContractInvoices(values: ContractFormValues): ContractInv
     return emptyPreview('openingPaidNegative');
   }
 
-  return buildInvoicePreview(values, amount, openingPaid);
+  return buildInvoicePreview(values, sourceTotal, openingPaid);
 }
 
 function emptyPreview(error: ContractFormErrorCode): ContractInvoicePreview {
@@ -331,6 +461,9 @@ function emptyPreview(error: ContractFormErrorCode): ContractInvoicePreview {
     totalAmount: 0,
     totalUntaxed: 0,
     totalTax: 0,
+    odooTrackingStartDate: null,
+    firstUnpaidPeriodStart: null,
+    firstUnpaidPeriodEnd: null,
     periods: [],
     error,
   };
@@ -346,23 +479,38 @@ function buildInvoicePreview(
       start_date: values.start_date,
       end_date: values.end_date,
       payment_cycle: values.payment_cycle,
-      lines: values.lines.map((line, index) => ({
-        lineType: line.line_type,
-        unitId: line.line_type === 'rental' ? line.unit_id : null,
-        description: line.description,
-        odooProductId: line.odoo_product_id ? Number(line.odoo_product_id) : null,
-        odooProductName: line.odoo_product_name || null,
-        amount: Number(line.amount),
-        taxRate: line.tax_rate == null ? 15 : Number(line.tax_rate),
-        taxTreatment: line.tax_treatment === 'zero_rated' ? 'zero_rated' : 'standard',
-        sortOrder: index,
-      })),
+      payment_conditions: contractPaymentConditionsFromFormValues(
+        values.payment_conditions ?? [],
+      ),
+      lines: values.lines.map((line, index) => {
+        const normalized = normalizeContractFormLine(line);
+        const amountBasis = normalized.amount_basis;
+        return {
+          lineType: normalized.line_type,
+          unitId: normalized.line_type === 'rental' ? normalized.unit_id : null,
+          description: normalized.description,
+          odooProductId: normalized.odoo_product_id ? Number(normalized.odoo_product_id) : null,
+          odooProductName: normalized.odoo_product_name || null,
+          amount: Number(normalized.amount) || 0,
+          amountBasis,
+          annualAmountUntaxed: amountBasis === 'annual_untaxed'
+            ? Number(normalized.annual_amount_untaxed)
+            : null,
+          taxRate: normalized.tax_rate == null ? 15 : Number(normalized.tax_rate),
+          taxTreatment: normalized.tax_treatment === 'zero_rated' ? 'zero_rated' : 'standard',
+          sortOrder: index,
+        };
+      }),
     });
 
     if (schedule.length > MAX_CONTRACT_PERIODS) {
       return emptyPreview('tooManyPeriods');
     }
 
+    const derivedTotal = schedule.reduce(
+      (sum, period) => Math.round((sum + period.amountTotal) * 100) / 100,
+      0,
+    );
     const paidThrough = values.paid_through_date.trim() || null;
     if (openingPaid != null && openingPaid > 0) {
       const firstOpen = schedule.find(
@@ -375,9 +523,12 @@ function buildInvoicePreview(
           fullyPaidCount: 0,
           partiallyPaidCount: 0,
           dueCount: 0,
-          totalAmount: amount,
+          totalAmount: derivedTotal || amount,
           totalUntaxed: schedule.reduce((sum, period) => sum + period.amountUntaxed, 0),
           totalTax: schedule.reduce((sum, period) => sum + period.amountTax, 0),
+          odooTrackingStartDate: resolveOdooTrackingStartDate(schedule, paidThrough),
+          firstUnpaidPeriodStart: firstOpen.periodStart,
+          firstUnpaidPeriodEnd: firstOpen.periodEnd,
           periods: [],
           error: 'openingPaidExceedsPeriod',
         };
@@ -388,6 +539,7 @@ function buildInvoicePreview(
       paid_through_date: paidThrough,
       opening_paid_amount: openingPaid,
     });
+    const firstUnpaid = resolveFirstUnpaidPeriod(schedule, paidThrough);
 
     return {
       ready: true,
@@ -398,6 +550,9 @@ function buildInvoicePreview(
       totalAmount: settled.reduce((sum, period) => sum + period.amountTotal, 0),
       totalUntaxed: settled.reduce((sum, period) => sum + period.amountUntaxed, 0),
       totalTax: settled.reduce((sum, period) => sum + period.amountTax, 0),
+      odooTrackingStartDate: resolveOdooTrackingStartDate(schedule, paidThrough),
+      firstUnpaidPeriodStart: firstUnpaid?.periodStart ?? null,
+      firstUnpaidPeriodEnd: firstUnpaid?.periodEnd ?? null,
       periods: settled,
     };
   } catch (error) {

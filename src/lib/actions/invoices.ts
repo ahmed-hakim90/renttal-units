@@ -34,6 +34,7 @@ export async function getInvoices(locale: string, filters?: { status?: InvoiceSt
 }
 
 export async function getDashboardStats(locale: string, filters?: { locationId?: string }) {
+  // Auth required; invoiceService.getDashboardCounts enforces invoices.view before querying.
   const auth = await requireAuth(locale, await getCtx());
   return invoiceService.getDashboardCounts(
     auth,
@@ -129,4 +130,37 @@ export async function recordPayment(locale: string, data: {
 export async function getPayments(locale: string, filters?: { invoiceId?: string }) {
   const auth = await requirePermission(locale, 'payments.view', await getCtx());
   return paymentService.list(auth, { ...await getCtx(), user_id: auth.userId, role: auth.role }, filters);
+}
+
+export async function getPaymentsPage(
+  locale: string,
+  filters?: { invoiceId?: string; page?: number; pageSize?: number },
+) {
+  const auth = await requirePermission(locale, 'payments.view', await getCtx());
+  return paymentService.listPage(
+    auth,
+    { ...await getCtx(), user_id: auth.userId, role: auth.role },
+    filters,
+  );
+}
+
+export async function getInvoicesPage(
+  locale: string,
+  filters?: {
+    status?: InvoiceStatus | InvoiceStatus[];
+    locationId?: string;
+    page?: number;
+    pageSize?: number;
+  },
+) {
+  const auth = await requirePermission(locale, 'invoices.view', await getCtx());
+  const page = await invoiceService.listPage(
+    auth,
+    { ...await getCtx(), user_id: auth.userId, role: auth.role },
+    filters,
+  );
+  return {
+    ...page,
+    items: sanitizeOdooInvoiceErrors(page.items),
+  };
 }

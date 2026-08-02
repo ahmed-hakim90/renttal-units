@@ -162,7 +162,7 @@ export function buildActionableNotifications(
   if (access.canViewContracts && counts.draftCount > 0) {
     notifications.push({
       kind: 'draft_contracts',
-      href: '/contracts',
+      href: '/contracts?status=draft',
       count: counts.draftCount,
     });
   }
@@ -170,7 +170,7 @@ export function buildActionableNotifications(
   if (access.canViewContracts && counts.expiringCount > 0) {
     notifications.push({
       kind: 'expiring_contracts',
-      href: '/contracts',
+      href: '/contracts?expiring=30',
       count: counts.expiringCount,
     });
   }

@@ -2,7 +2,13 @@
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import type { ContractCancellationHandling, ContractLineInput, ContractTaxMode, PaymentCycle } from '@/types/database';
+import type {
+  ContractCancellationHandling,
+  ContractLineInput,
+  ContractPaymentCondition,
+  ContractTaxMode,
+  PaymentCycle,
+} from '@/types/database';
 import { hasPermission } from '@/lib/auth/permissions';
 import { requireAuth, requirePermission } from '@/lib/auth/session';
 import { getCorrelationId } from '@/lib/observability/correlation-id';
@@ -51,6 +57,18 @@ export async function getContracts(locale: string) {
   return contractService.list(auth, { ...(await getCtx()), user_id: auth.userId, role: auth.role });
 }
 
+export async function getContractsPage(
+  locale: string,
+  filters?: { page?: number; pageSize?: number },
+) {
+  const auth = await requirePermission(locale, 'contracts.view', await getCtx());
+  return contractService.listPage(
+    auth,
+    { ...(await getCtx()), user_id: auth.userId, role: auth.role },
+    filters,
+  );
+}
+
 export async function createContract(locale: string, data: {
   unit_id?: string;
   lines?: ContractLineInput[];
@@ -75,6 +93,9 @@ export async function createContract(locale: string, data: {
   opening_paid_amount?: number | null;
   opening_payment_date?: string | null;
   opening_notes?: string | null;
+  historical_last_payment_amount?: number | null;
+  historical_last_payment_reference?: string | null;
+  payment_conditions?: ContractPaymentCondition[];
 }) {
   const auth = await requirePermission(locale, 'contracts.create', await getCtx());
   const ctx = { ...(await getCtx()), user_id: auth.userId, role: auth.role };
@@ -93,6 +114,12 @@ export async function createContract(locale: string, data: {
     opening_paid_amount: flags.contracts_opening_balance ? data.opening_paid_amount : null,
     opening_payment_date: flags.contracts_opening_balance ? data.opening_payment_date : null,
     opening_notes: flags.contracts_opening_balance ? data.opening_notes : null,
+    historical_last_payment_amount: flags.contracts_opening_balance
+      ? data.historical_last_payment_amount
+      : null,
+    historical_last_payment_reference: flags.contracts_opening_balance
+      ? data.historical_last_payment_reference
+      : null,
   }, ctx);
   if (result.success) revalidateContractViews(locale);
   return result;
@@ -111,6 +138,7 @@ export async function updateContract(locale: string, id: string, data: {
   tenant_phone?: string | null;
   tenant_email?: string | null;
   tenant_national_id?: string | null;
+  payment_conditions?: ContractPaymentCondition[];
 }) {
   const auth = await requirePermission(locale, 'contracts.update', await getCtx());
   const ctx = { ...(await getCtx()), user_id: auth.userId, role: auth.role };
@@ -163,6 +191,9 @@ type ContractDraftPayload = {
   opening_paid_amount?: number | null;
   opening_payment_date?: string | null;
   opening_notes?: string | null;
+  historical_last_payment_amount?: number | null;
+  historical_last_payment_reference?: string | null;
+  payment_conditions?: ContractPaymentCondition[];
 };
 
 export async function saveContractDraft(locale: string, data: ContractDraftPayload) {
@@ -188,6 +219,12 @@ export async function saveContractDraft(locale: string, data: ContractDraftPaylo
     opening_paid_amount: flags.contracts_opening_balance ? data.opening_paid_amount : null,
     opening_payment_date: flags.contracts_opening_balance ? data.opening_payment_date : null,
     opening_notes: flags.contracts_opening_balance ? data.opening_notes : null,
+    historical_last_payment_amount: flags.contracts_opening_balance
+      ? data.historical_last_payment_amount
+      : null,
+    historical_last_payment_reference: flags.contracts_opening_balance
+      ? data.historical_last_payment_reference
+      : null,
   }, ctx);
   if (result.success) revalidateContractViews(locale, result.data?.id);
   return result;
@@ -217,6 +254,9 @@ export async function activateContract(locale: string, contractId: string, data:
   opening_paid_amount?: number | null;
   opening_payment_date?: string | null;
   opening_notes?: string | null;
+  historical_last_payment_amount?: number | null;
+  historical_last_payment_reference?: string | null;
+  payment_conditions?: ContractPaymentCondition[];
 }) {
   if (!contractIdSchema.safeParse(contractId).success) {
     return { success: false as const, error: 'contractNotFound', errorCode: 'NOT_FOUND' as const };
@@ -243,6 +283,12 @@ export async function activateContract(locale: string, contractId: string, data:
     opening_paid_amount: flags.contracts_opening_balance ? data.opening_paid_amount : null,
     opening_payment_date: flags.contracts_opening_balance ? data.opening_payment_date : null,
     opening_notes: flags.contracts_opening_balance ? data.opening_notes : null,
+    historical_last_payment_amount: flags.contracts_opening_balance
+      ? data.historical_last_payment_amount
+      : null,
+    historical_last_payment_reference: flags.contracts_opening_balance
+      ? data.historical_last_payment_reference
+      : null,
   }, ctx);
   if (result.success) revalidateContractViews(locale, contractId);
   return result;

@@ -17,6 +17,7 @@ const candidates = [
     contractStatus: 'active',
     contractStart: '2026-01-27',
     contractEnd: '2027-01-26',
+    odooTrackingStartDate: null,
     tenantOdooPartnerId: 917,
     tenantName: 'Tenant',
     unitId: 'unit-10',
@@ -35,6 +36,7 @@ const candidates = [
     contractStatus: 'active',
     contractStart: '2026-01-27',
     contractEnd: '2027-01-26',
+    odooTrackingStartDate: null,
     tenantOdooPartnerId: 917,
     tenantName: 'Tenant',
     unitId: 'unit-10',
@@ -74,6 +76,38 @@ test('matches the second scheduled invoice by unit, tenant, period, and amount',
 
   assert.equal(result.reason, 'unitTenantPeriod');
   assert.equal(result.candidate?.invoiceNumber, 'DUE-000005');
+});
+
+test('uses the Odoo invoice date when legacy invoice lines have no period fields', () => {
+  const result = matchOdooLineToLocalInvoice({
+    odooInvoiceId: 57212,
+    partnerOdooId: 917,
+    reference: null,
+    unitId: 'unit-10',
+    periodStart: null,
+    periodEnd: null,
+    invoiceDate: '2026-07-27',
+    amountTotal: 22_750,
+  }, candidates);
+
+  assert.equal(result.reason, 'unitTenantPeriod');
+  assert.equal(result.candidate?.invoiceNumber, 'DUE-000005');
+});
+
+test('does not auto-match a legacy invoice when its amount differs', () => {
+  const result = matchOdooLineToLocalInvoice({
+    odooInvoiceId: 57212,
+    partnerOdooId: 917,
+    reference: null,
+    unitId: 'unit-10',
+    periodStart: null,
+    periodEnd: null,
+    invoiceDate: '2026-07-27',
+    amountTotal: 22_751,
+  }, candidates);
+
+  assert.equal(result.reason, 'amountMismatch');
+  assert.equal(result.candidate, null);
 });
 
 test('matches a composite invoice using the document total including services', () => {
@@ -218,6 +252,19 @@ test('saving selected documents does not automatically load another preview', as
   assert.doesNotMatch(commitHandler, /handlePreview\('incremental'\)/);
   assert.match(commitHandler, /successfulItemIds/);
   assert.match(commitHandler, /setSelectedIds\(new Set\(failedByItemId\.keys\(\)\)\)/);
+});
+
+test('unchanged imported Odoo documents are not offered for approval again', async () => {
+  const [service, component] = await Promise.all([
+    readFile(new URL('../src/lib/odoo/import-service.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../src/components/import/import-odoo-center-client.tsx', import.meta.url), 'utf8'),
+  ]);
+
+  assert.match(service, /existingWriteTime === incomingWriteTime/);
+  assert.match(service, /rentalLines\.every\(\(line\) => line\.matchReason === 'odooInvoiceId'\)/);
+  assert.match(service, /\? 'ignored'/);
+  assert.match(component, /item\.itemStatus === 'ready'/);
+  assert.match(component, /item\.itemStatus === 'ignored'/);
 });
 
 test('reconciliation preview is local-first and Sync All requires approval', async () => {

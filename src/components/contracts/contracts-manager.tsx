@@ -1,9 +1,10 @@
 'use client';
 
 import { Fragment, useMemo, useRef, useState } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { CalendarX, ChevronDown, Pencil, Plus } from 'lucide-react';
-import { cancelContract } from '@/lib/actions/contracts';
+import { CalendarX, ChevronDown, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { cancelContract, deleteContractDraft } from '@/lib/actions/contracts';
 import { Button, buttonStyles } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ListSearch, useListSearchValue } from '@/components/ui/list-search';
@@ -11,6 +12,7 @@ import { Modal } from '@/components/ui/modal';
 import { Badge } from '@/components/ui/badge';
 import { formatCurrency, formatDate } from '@/lib/i18n/format';
 import { getContractDisplayStatus } from '@/lib/rental/calculations';
+import { isContractExpiringSoon } from '@/lib/rental/contract-expiry';
 import { getInvoiceDisplayStatus, hasOverdueInvoice } from '@/lib/rental/invoice-display';
 import { matchesSearch } from '@/lib/search/matches-search';
 import { Link } from '@/lib/i18n/navigation';
@@ -101,10 +103,12 @@ export function ContractsManager({
   contracts,
   locale,
   canEdit,
+  canDeleteDraft = false,
 }: {
   contracts: Contract[];
   locale: string;
   canEdit: boolean;
+  canDeleteDraft?: boolean;
 }) {
   const t = useTranslations('contracts');
   const tc = useTranslations('common');
@@ -112,7 +116,13 @@ export function ContractsManager({
   const ts = useTranslations('common.status');
   const loc = locale as Locale;
   const search = useListSearchValue();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const router = useRouter();
+  const expiringOnly = searchParams.get('expiring') === '30';
+  const draftOnly = searchParams.get('status') === 'draft';
   const [cancelOpen, setCancelOpen] = useState(false);
+  const [deleteDraftOpen, setDeleteDraftOpen] = useState(false);
   const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
   const [expandedInvoiceContracts, setExpandedInvoiceContracts] = useState<Set<string>>(
     () => new Set()
@@ -120,8 +130,18 @@ export function ContractsManager({
   const [isSaving, setIsSaving] = useState(false);
   const isSavingRef = useRef(false);
 
+  function clearListFilter(key: 'expiring' | 'status') {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete(key);
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname);
+  }
+
   const visibleContracts = useMemo(() => {
-    return contracts.filter((contract) => matchesSearch(search, [
+    return contracts.filter((contract) => {
+      if (expiringOnly && !isContractExpiringSoon(contract)) return false;
+      if (draftOnly && contract.status !== 'draft') return false;
+      return matchesSearch(search, [
       contract.contract_number,
       contract.start_date,
       contract.end_date,
@@ -183,8 +203,9 @@ export function ContractsManager({
         invoice.odoo_invoice_name,
       ]),
       ...(contract.attachments ?? []).map((attachment) => attachment.original_filename),
-    ]));
-  }, [contracts, search, t, tc, ts]);
+    ]);
+    });
+  }, [contracts, draftOnly, expiringOnly, search, t, tc, ts]);
 
   function getActionErrorMessage(error: string) {
     if (error === 'featureDisabled') return tFeature('featureDisabled');
@@ -198,6 +219,8 @@ export function ContractsManager({
     if (error === 'duplicateNationalId') return t('duplicateNationalId');
     if (error === 'contractHasFinancialActivity') return t('contractHasFinancialActivity');
     if (error === 'contractNotFound') return t('contractNotFound');
+    if (error === 'contractNotDraft') return t('contractNotDraft');
+    if (error === 'contractDraftDeleteFailed') return t('contractDraftDeleteFailed');
     return t('validationFailed');
   }
 
@@ -218,6 +241,26 @@ export function ContractsManager({
       if (result.success) {
         toast.success(tc('success'));
         setCancelOpen(false);
+        setSelectedContract(null);
+      } else {
+        toast.error(result.error ? getActionErrorMessage(result.error) : tc('error'));
+      }
+    } finally {
+      isSavingRef.current = false;
+      setIsSaving(false);
+    }
+  }
+
+  async function handleDeleteDraft() {
+    if (!selectedContract || isSavingRef.current) return;
+
+    isSavingRef.current = true;
+    setIsSaving(true);
+    try {
+      const result = await deleteContractDraft(locale, selectedContract.id);
+      if (result.success) {
+        toast.success(tc('success'));
+        setDeleteDraftOpen(false);
         setSelectedContract(null);
       } else {
         toast.error(result.error ? getActionErrorMessage(result.error) : tc('error'));
@@ -249,9 +292,36 @@ export function ContractsManager({
         )}
       </div>
 
+      {(expiringOnly || draftOnly) && (
+        <div className="mb-3 flex flex-wrap gap-2">
+          {expiringOnly && (
+            <button
+              type="button"
+              onClick={() => clearListFilter('expiring')}
+              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-xs font-medium"
+            >
+              {t('expiringFilter')}
+              <X className="size-3.5" aria-hidden="true" />
+              <span className="sr-only">{t('clearExpiringFilter')}</span>
+            </button>
+          )}
+          {draftOnly && (
+            <button
+              type="button"
+              onClick={() => clearListFilter('status')}
+              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-xs font-medium"
+            >
+              {t('draftFilter')}
+              <X className="size-3.5" aria-hidden="true" />
+              <span className="sr-only">{t('clearDraftFilter')}</span>
+            </button>
+          )}
+        </div>
+      )}
+
       {visibleContracts.length === 0 ? (
         <div className="surface-panel px-6 py-12 text-center text-muted-foreground">
-          {search.trim() ? tc('noResults') : t('empty')}
+          {search.trim() || expiringOnly || draftOnly ? tc('noResults') : t('empty')}
         </div>
       ) : (
         <>
@@ -310,14 +380,28 @@ export function ContractsManager({
                     </div>
                   </div>
                   {canEdit && contract.status === 'draft' && (
-                    <div className="mt-4">
+                    <div className="mt-4 flex gap-2">
                       <Link
                         href={`/contracts/${contract.id}/edit`}
-                        className={buttonStyles({ variant: 'outline', size: 'sm', className: 'w-full' })}
+                        className={buttonStyles({ variant: 'outline', size: 'sm', className: 'flex-1' })}
                       >
                         <Pencil />
                         {t('continueDraft')}
                       </Link>
+                      {(canDeleteDraft || canEdit) && (
+                        <Button
+                          className="flex-1"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedContract(contract);
+                            setDeleteDraftOpen(true);
+                          }}
+                        >
+                          <Trash2 />
+                          {t('deleteDraft')}
+                        </Button>
+                      )}
                     </div>
                   )}
                   {canEdit && contract.status === 'active' && (
@@ -437,6 +521,20 @@ export function ContractsManager({
                                 >
                                   <Pencil />
                                 </Link>
+                                {(canDeleteDraft || canEdit) && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon-sm"
+                                    title={t('deleteDraft')}
+                                    aria-label={t('deleteDraft')}
+                                    onClick={() => {
+                                      setSelectedContract(contract);
+                                      setDeleteDraftOpen(true);
+                                    }}
+                                  >
+                                    <Trash2 />
+                                  </Button>
+                                )}
                               </div>
                             )}
                             {contract.status === 'active' && (
@@ -544,6 +642,38 @@ export function ContractsManager({
               <Button type="submit" disabled={isSaving}>{isSaving ? tc('loading') : t('cancel')}</Button>
             </div>
           </form>
+        )}
+      </Modal>
+
+      <Modal
+        open={deleteDraftOpen}
+        onClose={() => !isSaving && setDeleteDraftOpen(false)}
+        title={t('deleteDraft')}
+      >
+        {selectedContract && (
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              {selectedContract.contract_number}
+            </p>
+            <div className="form-actions">
+              <Button
+                variant="outline"
+                type="button"
+                disabled={isSaving}
+                onClick={() => setDeleteDraftOpen(false)}
+              >
+                {tc('cancel')}
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                disabled={isSaving}
+                onClick={handleDeleteDraft}
+              >
+                {isSaving ? tc('loading') : t('deleteDraft')}
+              </Button>
+            </div>
+          </div>
         )}
       </Modal>
     </>

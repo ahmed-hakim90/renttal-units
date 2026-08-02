@@ -11,6 +11,8 @@ export const AUDIT_ACTIONS = [
   'update_user_email',
   'update_user_email_partial_failure',
   'reset_user_password',
+  'deactivate_user',
+  'reactivate_user',
   'update_role',
   'create_role',
   'update_role_permissions',
@@ -30,6 +32,7 @@ export const AUDIT_ENTITY_TYPES = [
   'payment',
   'location',
   'unit',
+  'tenant',
   'setting',
 ] as const;
 

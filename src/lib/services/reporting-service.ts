@@ -24,6 +24,36 @@ function contractTouchesUnitIds(contract: Contract, unitIds: Set<string>) {
   ));
 }
 
+/**
+ * Historical Odoo documents before a contract cutover are represented by local
+ * opening-balance invoices. Including both would double-count statement totals.
+ */
+function isOdooDocumentBeforeContractCutover(
+  document: {
+    invoice_date: string | null;
+    lines?: Array<{
+      unit_id: string | null;
+      contract_id: string | null;
+      period_start: string | null;
+      is_rental: boolean;
+    }> | null;
+  },
+  contractsById: Map<string, Contract>,
+  activeContractByUnit: Map<string, Contract>,
+) {
+  const rentalLines = (document.lines ?? []).filter((line) => line.is_rental);
+  if (rentalLines.length === 0) return false;
+
+  return rentalLines.every((line) => {
+    const linked = line.contract_id ? contractsById.get(line.contract_id) : null;
+    const unitContract = line.unit_id ? activeContractByUnit.get(line.unit_id) : null;
+    const cutover = linked?.odoo_tracking_start_date ?? unitContract?.odoo_tracking_start_date ?? null;
+    if (!cutover) return false;
+    const periodStart = line.period_start ?? document.invoice_date;
+    return Boolean(periodStart && periodStart < cutover);
+  });
+}
+
 export const reportingService = {
   async getDebtAgingInvoices(
     auth: AuthContext,
@@ -74,17 +104,43 @@ export const reportingService = {
     const { countContractsExpiringSoon } = await import('@/lib/rental/contract-expiry');
 
     return withSpan('reportingService.getDashboardOverview', { ...ctx, service: 'reporting', user_id: auth.userId }, async () => {
+      const canViewUnits = hasPermission(auth, 'units.view');
+      const canViewLocations = hasPermission(auth, 'locations.view');
+      const canViewContracts = hasPermission(auth, 'contracts.view');
+
+      const emptySummary: DashboardPortfolioSummary = {
+        totalUnits: 0,
+        totalLocations: 0,
+        occupancyRate: 0,
+        monthlyRevenue: 0,
+        totalContracts: 0,
+        totalContractsValue: 0,
+        activeContracts: 0,
+        expiringContracts: 0,
+        vacantUnits: 0,
+        maintenanceUnits: 0,
+        draftContracts: 0,
+      };
+
+      if (!canViewUnits && !canViewLocations && !canViewContracts) {
+        return { summary: emptySummary, locationsOccupancy: [] };
+      }
+
       const [allUnits, allLocations, allActiveContracts, contractStats] = await Promise.all([
-        unitsRepository.findAll(ctx, filters?.locationId ? { locationId: filters.locationId } : undefined),
-        locationsRepository.findAll(ctx),
-        contractsRepository.findActive(ctx),
-        contractsRepository.getSummaryStats(ctx),
+        canViewUnits || canViewLocations
+          ? unitsRepository.findAll(ctx, filters?.locationId ? { locationId: filters.locationId } : undefined)
+          : Promise.resolve([]),
+        canViewLocations ? locationsRepository.findAll(ctx) : Promise.resolve([]),
+        canViewContracts ? contractsRepository.findActive(ctx) : Promise.resolve([]),
+        canViewContracts
+          ? contractsRepository.getSummaryStats(ctx)
+          : Promise.resolve({ totalCount: 0, totalValue: 0, activeCount: 0, draftCount: 0 }),
       ]);
 
       const locations = filters?.locationId
         ? allLocations.filter((location) => location.id === filters.locationId)
         : allLocations;
-      const units = allUnits;
+      const units = canViewUnits || canViewLocations ? allUnits : [];
       const unitIds = new Set(units.map((unit) => unit.id));
       const activeContracts = filters?.locationId
         ? allActiveContracts.filter((contract) => contractTouchesUnitIds(contract, unitIds))
@@ -145,7 +201,7 @@ export const reportingService = {
           totalContracts: summaryStats.totalCount,
           totalContractsValue: summaryStats.totalValue,
           activeContracts: summaryStats.activeCount,
-          expiringContracts: hasPermission(auth, 'contracts.view')
+          expiringContracts: canViewContracts
             ? countContractsExpiringSoon(activeContracts)
             : 0,
           vacantUnits,
@@ -207,7 +263,16 @@ export const reportingService = {
         unitInvoices.push(invoice);
         invoicesByUnit.set(invoice.unit_id, unitInvoices);
       }
-      const normalizedOdooIds = new Set(odooDocuments.map((document) => document.odoo_invoice_id));
+      const contractsById = new Map(locationContracts.map((contract) => [contract.id, contract]));
+      const activeContractByUnit = new Map<string, Contract>();
+      for (const [unitId, unitContracts] of contractsByUnit) {
+        const active = unitContracts.find((contract) => contract.status === 'active');
+        if (active) activeContractByUnit.set(unitId, active);
+      }
+      const operationalOdooDocuments = odooDocuments.filter((document) => (
+        !isOdooDocumentBeforeContractCutover(document, contractsById, activeContractByUnit)
+      ));
+      const normalizedOdooIds = new Set(operationalOdooDocuments.map((document) => document.odoo_invoice_id));
       const odooLinesByUnit = new Map<string, Array<{
         amountTotal: number;
         documentId: string;
@@ -216,7 +281,7 @@ export const reportingService = {
         documentResidual: number;
         documentUnitCount: number;
       }>>();
-      for (const document of odooDocuments) {
+      for (const document of operationalOdooDocuments) {
         const documentUnitIds = new Set((document.lines ?? []).map((line) => line.unit_id).filter(Boolean));
         for (const line of document.lines ?? []) {
           if (!line.unit_id) continue;
@@ -301,12 +366,12 @@ export const reportingService = {
         contractCount: locationContracts.length,
         contractValueTotal: locationContracts.reduce((sum, contract) => sum + Number(contract.total_amount), 0),
         invoiceTotal: localOnlyInvoices.reduce((sum, invoice) => sum + Number(invoice.amount), 0)
-          + odooDocuments.reduce((sum, document) => sum + Number(document.amount_total), 0),
+          + operationalOdooDocuments.reduce((sum, document) => sum + Number(document.amount_total), 0),
         paidTotal: localOnlyInvoices.reduce((sum, invoice) => sum + Number(invoice.paid_amount), 0)
-          + odooDocuments.reduce((sum, document) => sum + Number(document.amount_paid), 0),
+          + operationalOdooDocuments.reduce((sum, document) => sum + Number(document.amount_paid), 0),
         remainingTotal: localOnlyInvoices.reduce((sum, invoice) => sum + sumInvoiceRemaining(invoice), 0)
-          + odooDocuments.reduce((sum, document) => sum + Number(document.amount_residual), 0),
-        odooInvoiceCount: odooDocuments.length
+          + operationalOdooDocuments.reduce((sum, document) => sum + Number(document.amount_residual), 0),
+        odooInvoiceCount: operationalOdooDocuments.length
           + localOnlyInvoices.filter((invoice) => invoice.odoo_invoice_id).length,
         odooFailedCount: invoices.filter((invoice) => invoice.odoo_sync_status === 'failed').length,
       };

@@ -45,6 +45,35 @@ export function applyContractWideOdooTaxRates(
   }));
 }
 
+export function taxSelectionForLine(
+  line: Pick<ContractLineInput, 'tax_rate' | 'tax_treatment'>,
+  fallback: ContractTaxSelection = 'non_taxable',
+): ContractTaxSelection {
+  if (line.tax_treatment === 'zero_rated') return 'zero_rated';
+  if (line.tax_rate == null) return fallback;
+  return Number(line.tax_rate) > 0 ? 'taxable' : 'non_taxable';
+}
+
+/**
+ * Resolves each line's selected treatment against trusted Odoo settings.
+ * Client-provided rates choose taxable versus non-taxable but never become the
+ * authoritative rate persisted on contract and invoice snapshots.
+ */
+export function applyOdooTaxRatesPerLine(
+  lines: ContractLineInput[],
+  fallback: ContractTaxSelection,
+  settings: Pick<OdooSettings, 'vatRate' | 'zeroRatedTaxRate'>,
+): ContractLineInput[] {
+  return lines.map((line) => {
+    const selection = taxSelectionForLine(line, fallback);
+    return {
+      ...line,
+      tax_rate: resolveTaxRateForSelection(selection, settings),
+      tax_treatment: selection === 'zero_rated' ? 'zero_rated' : 'standard',
+    };
+  });
+}
+
 export function contractTaxSelectionFromPayload(input: {
   tax_mode?: 'taxable' | 'non_taxable' | null;
   lines?: Array<{ tax_treatment?: ContractTaxTreatment | null }> | null;

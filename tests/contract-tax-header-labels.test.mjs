@@ -35,23 +35,23 @@ describe('contract tax header labels', () => {
   it('shows selected tax in the contract editor sticky header', () => {
     const source = readFileSync(join(root, 'src/components/contracts/contract-editor.tsx'), 'utf8');
     assert.match(source, /totalAmountWithTax/);
-    assert.match(source, /lineAmountWithTax/);
+    assert.match(source, /annualAmountUntaxedWithTax/);
     assert.match(source, /headerTaxBreakdown/);
-    assert.match(source, /splitTaxInclusiveAmount/);
+    assert.match(source, /preview\.totalUntaxed/);
     assert.match(source, /selectedTaxLabel/);
   });
 
-  it('renders the tax selector as the final contract-lines row', () => {
+  it('renders independent desktop and mobile tax selectors for each line', () => {
     const source = readFileSync(join(root, 'src/components/contracts/contract-editor.tsx'), 'utf8');
     const linesSection = source.indexOf("<SheetSection title={t('linesSection')}>");
-    const desktopTaxSelector = source.indexOf('name="tax_selection"', linesSection);
+    const desktopTaxSelector = source.indexOf('name={`tax-${line.key}`}', linesSection);
     const desktopLinesFooter = source.indexOf('</tfoot>', linesSection);
-    const mobileTaxSelector = source.indexOf('name="tax_selection_mobile"', desktopLinesFooter);
+    const mobileTaxSelector = source.indexOf('name={`tax-m-${line.key}`}', desktopLinesFooter);
     const linesSectionEnd = source.indexOf('</SheetSection>', mobileTaxSelector);
 
     assert.ok(linesSection >= 0);
     assert.ok(desktopTaxSelector > linesSection && desktopTaxSelector < desktopLinesFooter);
     assert.ok(mobileTaxSelector > desktopLinesFooter && mobileTaxSelector < linesSectionEnd);
-    assert.equal(source.indexOf('name="tax_selection"'), desktopTaxSelector);
+    assert.doesNotMatch(source, /name="tax_selection(_mobile)?"/);
   });
 });

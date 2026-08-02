@@ -1,16 +1,25 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { PageHeader } from '@/components/layout/page-header';
-import { getInvoices } from '@/lib/actions/invoices';
+import { getInvoicesPage } from '@/lib/actions/invoices';
 import { InvoicesTable } from '@/components/invoices/invoices-table';
+import { ListPagination } from '@/components/ui/list-pagination';
 import { requirePermission } from '@/lib/auth/session';
 import { hasPermission } from '@/lib/auth/permissions';
 import { getCorrelationId } from '@/lib/observability/correlation-id';
 import { redirect } from '@/lib/i18n/navigation';
 import { getPublicOdooSettings } from '@/lib/odoo/settings';
 import { loadFeatureFlags } from '@/lib/features/load-feature-flags';
+import { parseListPage } from '@/lib/pagination/list-page';
 
-export default async function FullyPaidPage({ params }: { params: Promise<{ locale: string }> }) {
+export default async function FullyPaidPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ locale: string }>;
+  searchParams: Promise<{ page?: string }>;
+}) {
   const { locale } = await params;
+  const { page: rawPage } = await searchParams;
   setRequestLocale(locale);
   const ctx = { correlation_id: await getCorrelationId() };
   const auth = await requirePermission(locale, 'invoices.view', ctx);
@@ -20,8 +29,9 @@ export default async function FullyPaidPage({ params }: { params: Promise<{ loca
   }
 
   const t = await getTranslations('invoices');
-  const [invoices, odooSettings] = await Promise.all([
-    getInvoices(locale, { status: 'fully_paid' }),
+  const page = parseListPage(rawPage);
+  const [invoicesPage, odooSettings] = await Promise.all([
+    getInvoicesPage(locale, { status: 'fully_paid', page }),
     getPublicOdooSettings(ctx),
   ]);
 
@@ -29,7 +39,7 @@ export default async function FullyPaidPage({ params }: { params: Promise<{ loca
     <div>
       <PageHeader title={t('fullyPaid')} />
       <InvoicesTable
-        invoices={invoices}
+        invoices={invoicesPage.items}
         locale={locale}
         canEdit={false}
         canManageOdoo={hasPermission(auth, 'odoo.manage')}
@@ -38,6 +48,11 @@ export default async function FullyPaidPage({ params }: { params: Promise<{ loca
         showOdooManualSend={featureFlags.odoo_invoice_manual_send}
         odooIntegrationEnabled={odooSettings.enabled}
         invoiceSendVisibleStatus={odooSettings.invoiceSendVisibleStatus}
+      />
+      <ListPagination
+        page={invoicesPage.page}
+        totalPages={invoicesPage.totalPages}
+        total={invoicesPage.total}
       />
     </div>
   );

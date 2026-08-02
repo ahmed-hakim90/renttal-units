@@ -4,10 +4,12 @@ import { addMonths, differenceInCalendarDays, format, subDays } from 'date-fns';
 import { OdooClient, type OdooRecord } from '@/lib/odoo/client';
 import { buildOdooCategoryDomain } from '@/lib/odoo/category-domain';
 import {
+  isOdooInputBeforeContractTracking,
   localContractOptionsForLine,
   matchOdooLineToLocalInvoice,
   type LocalInvoiceMatchCandidate,
 } from '@/lib/odoo/import-matching';
+import { firstDayOfNextReconciliationMonth } from '@/lib/odoo/reconciliation-window';
 import { getOdooSettings, getRentalProductCategoryIds } from '@/lib/odoo/settings';
 import { odooImportRepository } from '@/lib/repositories/odoo-import';
 import { invoicesRepository } from '@/lib/repositories/invoices';
@@ -35,6 +37,7 @@ const SAFE_IMPORT_COMMIT_ERRORS = new Set([
   'LOCAL_INVOICE_UNIT_MISMATCH',
   'LOCAL_INVOICE_PERIOD_MISMATCH',
   'LOCAL_INVOICE_OUTSIDE_CONTRACT',
+  'LOCAL_INVOICE_BEFORE_ODOO_TRACKING',
   'LOCAL_INVOICE_AMOUNT_MISMATCH',
   'CONTRACT_NOT_ACTIVE',
   'CONTRACT_TENANT_MISMATCH',
@@ -45,6 +48,7 @@ const IMPORT_DATABASE_ERROR_CODES: Record<string, string> = {
   LOCAL_INVOICE_UNIT_MISMATCH: 'localInvoiceMismatch',
   LOCAL_INVOICE_PERIOD_MISMATCH: 'localInvoiceMismatch',
   LOCAL_INVOICE_OUTSIDE_CONTRACT: 'localInvoiceMismatch',
+  LOCAL_INVOICE_BEFORE_ODOO_TRACKING: 'localInvoiceBeforeOdooTracking',
   LOCAL_INVOICE_AMOUNT_MISMATCH: 'invoiceAmountMismatch',
   CONTRACT_NOT_ACTIVE: 'contractNotActive',
   CONTRACT_TENANT_MISMATCH: 'contractTenantMismatch',
@@ -201,6 +205,7 @@ function localInvoiceCandidatesFromInvoices(invoices: Invoice[]) {
       contractStatus: invoice.contract.status,
       contractStart: invoice.contract.start_date,
       contractEnd: invoice.contract.end_date,
+      odooTrackingStartDate: invoice.contract.odoo_tracking_start_date ?? null,
       tenantOdooPartnerId: invoice.tenant?.odoo_partner_id ?? null,
       tenantName: invoice.tenant?.full_name ?? null,
       unitId: invoice.unit_id,
@@ -214,14 +219,20 @@ function localInvoiceCandidatesFromInvoices(invoices: Invoice[]) {
 }
 
 async function loadReconciliationLocalInvoices(ctx: LogContext): Promise<OdooReconciliationLocalInvoice[]> {
-  const invoices = await invoicesRepository.findAll(ctx);
+  const invoices = await invoicesRepository.findAll(ctx, {
+    status: ['due', 'invoice_issued', 'partially_paid', 'overdue'],
+    periodStartBefore: firstDayOfNextReconciliationMonth(),
+  });
   return invoices
     .filter((invoice) => (
       invoice.contract?.status === 'active'
-      && ['due', 'invoice_issued', 'partially_paid', 'overdue'].includes(invoice.status)
       && invoice.contract_id
       && invoice.contract
       && invoice.unit
+      && (
+        !invoice.contract.odoo_tracking_start_date
+        || invoice.period_start >= invoice.contract.odoo_tracking_start_date
+      )
     ))
     .map((invoice) => ({
       id: invoice.id,
@@ -529,6 +540,10 @@ async function buildImportPayloads(ctx: LogContext, since?: string | null) {
     .filter((unit) => unit.odoo_product_id != null)
     .map((unit) => [unit.odoo_product_id as number, unit]));
   const localInvoiceCandidates = localInvoiceCandidatesFromInvoices(localInvoices);
+  const existingDocumentsById = new Map(existingDocuments.map((document) => [
+    document.odoo_invoice_id,
+    document,
+  ]));
   const existingIds = new Set(existingDocuments.map((document) => document.odoo_invoice_id));
   const moves = await loadMoves(client, productIds, since);
   const lineIds = Array.from(new Set(moves.flatMap((move) => idArray(move.invoice_line_ids))));
@@ -599,6 +614,7 @@ async function buildImportPayloads(ctx: LogContext, since?: string | null) {
               unitId: unit?.id ?? null,
               periodStart,
               periodEnd,
+              invoiceDate: dateValue(move.invoice_date),
               amountTotal: rentalLineCount === 1 ? documentAmountTotal : amountTotal,
             }, localInvoiceCandidates);
         const contractOptions = isService
@@ -616,10 +632,10 @@ async function buildImportPayloads(ctx: LogContext, since?: string | null) {
           ? null
           : !unit
             ? 'unitProductNotLinked'
-            : !periodStart || !periodEnd
-              ? 'periodMissing'
-              : match?.candidate
+            : match?.candidate
                 ? null
+                : !periodStart || !periodEnd
+                  ? 'periodMissing'
                 : match?.reason ?? 'contractNotMatched';
         return {
           odooLineId: line.id,
@@ -718,11 +734,38 @@ async function buildImportPayloads(ctx: LogContext, since?: string | null) {
       if (payloadLines.some((line) => line.reviewReason)) {
         errors.push(...new Set(payloadLines.map((line) => line.reviewReason).filter((value): value is string => Boolean(value))));
       }
-      if (existingIds.has(move.id)) errors.push('existingDocumentWillUpdate');
-      const status: OdooImportItemStatus = errors.some((error) => error !== 'existingDocumentWillUpdate')
+      const existingDocument = existingDocumentsById.get(move.id);
+      const existingWriteTime = existingDocument?.odoo_write_date
+        ? Date.parse(existingDocument.odoo_write_date)
+        : Number.NaN;
+      const incomingWriteTime = payload.writeDate ? Date.parse(payload.writeDate) : Number.NaN;
+      const rentalLines = payloadLines.filter((line) => line.isRental);
+      const unchanged = Boolean(
+        existingDocument
+        && Number.isFinite(existingWriteTime)
+        && existingWriteTime === incomingWriteTime
+        && rentalLines.length > 0
+        && rentalLines.every((line) => line.matchReason === 'odooInvoiceId'),
+      );
+      if (existingDocument && !unchanged) errors.push('existingDocumentWillUpdate');
+      const hasReviewError = errors.some((error) => error !== 'existingDocumentWillUpdate');
+      const status: OdooImportItemStatus = hasReviewError
         ? 'needs_review'
-        : 'ready';
+        : unchanged
+          ? 'ignored'
+          : 'ready';
       return { payload, errors, status };
+    })
+    .filter((item) => {
+      const rentalLines = item.payload.lines.filter((line) => line.isRental);
+      if (rentalLines.length === 0) return true;
+      // Historical Odoo invoices before contract cutover are opening-balance only.
+      return !rentalLines.every((line) => isOdooInputBeforeContractTracking({
+        partnerOdooId: item.payload.partnerOdooId,
+        unitId: line.unitId,
+        periodStart: line.periodStart,
+        invoiceDate: item.payload.invoiceDate,
+      }, localInvoiceCandidates));
     });
 }
 
@@ -925,6 +968,12 @@ export const odooImportService = {
               || localInvoice.period_end !== periodEnd
             ) {
               throw new Error('localInvoiceMismatch');
+            }
+            if (
+              localInvoice.contract?.odoo_tracking_start_date
+              && localInvoice.period_start < localInvoice.contract.odoo_tracking_start_date
+            ) {
+              throw new Error('localInvoiceBeforeOdooTracking');
             }
             if (
               localInvoice.contract?.status !== 'active'

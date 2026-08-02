@@ -1,6 +1,13 @@
 import { createClient } from '@/lib/supabase/server';
 import type { Payment, PaymentMethod } from '@/types/database';
 import type { LogContext } from '@/lib/observability';
+import {
+  DEFAULT_LIST_PAGE_SIZE,
+  listPageRange,
+  MAX_UNBOUNDED_LIST_ROWS,
+  toListPageResult,
+  type ListPageResult,
+} from '@/lib/pagination/list-page';
 
 export const paymentsRepository = {
   async findAll(ctx: LogContext, filters?: { invoiceId?: string }): Promise<Payment[]> {
@@ -8,11 +15,32 @@ export const paymentsRepository = {
     let query = supabase
       .from('payments')
       .select('*, invoice:invoices(*, unit:units(*, location:locations(*)))')
-      .order('payment_date', { ascending: false });
+      .order('payment_date', { ascending: false })
+      .limit(MAX_UNBOUNDED_LIST_ROWS);
     if (filters?.invoiceId) query = query.eq('invoice_id', filters.invoiceId);
     const { data, error } = await query;
     if (error) throw error;
     return data ?? [];
+  },
+
+  async findPage(
+    ctx: LogContext,
+    filters?: { invoiceId?: string; page?: number; pageSize?: number },
+  ): Promise<ListPageResult<Payment>> {
+    const { page, pageSize, from, to } = listPageRange(
+      filters?.page ?? 1,
+      filters?.pageSize ?? DEFAULT_LIST_PAGE_SIZE,
+    );
+    const supabase = await createClient();
+    let query = supabase
+      .from('payments')
+      .select('*, invoice:invoices(*, unit:units(*, location:locations(*)))', { count: 'exact' })
+      .order('payment_date', { ascending: false })
+      .range(from, to);
+    if (filters?.invoiceId) query = query.eq('invoice_id', filters.invoiceId);
+    const { data, error, count } = await query;
+    if (error) throw error;
+    return toListPageResult(data ?? [], count, page, pageSize);
   },
 
   async findById(id: string, ctx: LogContext): Promise<Payment | null> {

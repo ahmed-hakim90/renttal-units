@@ -54,9 +54,14 @@ export const importLogsRepository = {
     return data;
   },
 
-  async findAll(ctx: LogContext): Promise<ImportLog[]> {
+  async findAll(ctx: LogContext, limit = 100): Promise<ImportLog[]> {
     const supabase = await createClient();
-    const { data, error } = await supabase.from('import_logs').select('*').order('created_at', { ascending: false });
+    const cappedLimit = Math.min(Math.max(limit, 1), 100);
+    const { data, error } = await supabase
+      .from('import_logs')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(cappedLimit);
     if (error) throw error;
     return data ?? [];
   },

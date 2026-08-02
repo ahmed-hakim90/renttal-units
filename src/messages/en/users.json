@@ -45,5 +45,21 @@
   "systemOwnerProtected": "Only a system owner can change another system owner's login details.",
   "rateLimited": "Too many attempts. Try again in 15 minutes.",
   "activity": "User activity",
-  "auditLoadFailed": "User activity could not be loaded."
+  "auditLoadFailed": "User activity could not be loaded.",
+  "status": "Status",
+  "active": "Active",
+  "inactive": "Inactive",
+  "actions": "Actions",
+  "deactivate": "Deactivate",
+  "reactivate": "Reactivate",
+  "confirmDeactivateTitle": "Deactivate user?",
+  "confirmDeactivateDescription": "This user will not be able to sign in until reactivated.",
+  "confirmReactivateTitle": "Reactivate user?",
+  "confirmReactivateDescription": "This user will be able to sign in again.",
+  "deactivated": "User deactivated successfully",
+  "reactivated": "User reactivated successfully",
+  "deactivateFailed": "User could not be deactivated. Try again.",
+  "reactivateFailed": "User could not be reactivated. Try again.",
+  "cannotDeactivateSelf": "You cannot deactivate your own account.",
+  "cannotDeactivateLastOwner": "Cannot deactivate the last system owner."
 }

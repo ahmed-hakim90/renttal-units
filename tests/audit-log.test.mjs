@@ -46,7 +46,8 @@ test('sensitive user changes protect system-owner accounts', () => {
   const ownerGuards = adminActions.match(
     /target\.assigned_role\?\.is_system_owner && !auth\.isAdminEditor/g,
   ) ?? [];
-  assert.equal(ownerGuards.length, 3);
+  // reset password, change role, deactivate/reactivate, and delete-path guards
+  assert.equal(ownerGuards.length, 4);
 });
 
 test('audit reads require the dedicated audit permission', () => {

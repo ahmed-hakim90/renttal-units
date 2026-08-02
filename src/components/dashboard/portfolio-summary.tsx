@@ -51,7 +51,7 @@ export async function PortfolioSummary({
       key: 'expiringContracts',
       label: t('expiringContracts'),
       value: formatNumber(summary.expiringContracts, loc),
-      href: '/contracts' as const,
+      href: '/contracts?expiring=30' as const,
       icon: CalendarClock,
       iconColor: 'bg-rose-50 text-rose-700',
       canOpen: true,

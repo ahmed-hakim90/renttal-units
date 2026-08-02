@@ -1,4 +1,4 @@
-import { ArrowLeft, Building2, FileText, ReceiptText } from 'lucide-react';
+import { ArrowLeft, Building2, FileText, Pencil, ReceiptText } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/lib/i18n/navigation';
 import { Badge } from '@/components/ui/badge';
@@ -21,11 +21,13 @@ export async function UnitDetail({
   contracts,
   invoices,
   locale,
+  canEdit = false,
 }: {
   unit: Unit;
   contracts: Contract[];
   invoices: Invoice[];
   locale: string;
+  canEdit?: boolean;
 }) {
   const [t, tc] = await Promise.all([
     getTranslations('units'),
@@ -40,13 +42,24 @@ export async function UnitDetail({
         title={unit.unit_number}
         subtitle={locationName}
         actions={(
-          <Link
-            href="/units"
-            className={buttonStyles({ variant: 'outline' })}
-          >
-            <ArrowLeft className="rtl:rotate-180" />
-            {t('backToUnits')}
-          </Link>
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+            {canEdit && (
+              <Link
+                href={`/units?edit=${unit.id}`}
+                className={buttonStyles({ size: 'sm' })}
+              >
+                <Pencil />
+                {t('edit')}
+              </Link>
+            )}
+            <Link
+              href="/units"
+              className={buttonStyles({ variant: 'outline', size: 'sm' })}
+            >
+              <ArrowLeft className="rtl:rotate-180" />
+              {t('backToUnits')}
+            </Link>
+          </div>
         )}
       />
 

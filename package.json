@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:odoo": "node --test --experimental-strip-types tests/*.test.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test --experimental-strip-types tests/*.test.mjs",
+    "test:odoo": "npm run test",
     "generate:icons": "node scripts/generate-pwa-icons.mjs"
   },
   "dependencies": {

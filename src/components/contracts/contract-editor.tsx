@@ -30,8 +30,10 @@ import { Link, useRouter } from '@/lib/i18n/navigation';
 import { formatCurrency, formatDate } from '@/lib/i18n/format';
 import { normalizeArabicDigits } from '@/lib/i18n/numbers';
 import {
+  contractPaymentConditionsFromFormValues,
+  hasLegacyContractTotalPricing,
+  normalizeContractFormLine,
   previewContractInvoices,
-  sumContractLineAmounts,
   validateContractForm,
   type ContractFormErrorCode,
   type ContractFormField,
@@ -39,10 +41,11 @@ import {
   type ContractFormValues,
 } from '@/lib/rental/contract-form-validation';
 import type { ContractEditorInitialValues } from '@/lib/rental/contract-form-values';
-import { splitTaxInclusiveAmount } from '@/lib/rental/tax';
+import type { ContractTaxSelection } from '@/lib/rental/contract-tax-rates';
 import { cn } from '@/lib/utils';
 import type { ContractLineType, PaymentCycle, Unit } from '@/types/database';
 import type { Locale } from '@/lib/i18n/routing';
+import { differenceInCalendarMonths, parseISO } from 'date-fns';
 
 type OdooPartnerResult = {
   id: number;
@@ -75,6 +78,8 @@ function newLine(
     unit_id: '',
     description: '',
     amount: '',
+    amount_basis: 'annual_untaxed',
+    annual_amount_untaxed: '',
     odoo_product_id: '',
     odoo_product_name: '',
     tax_rate: taxRate,
@@ -97,6 +102,11 @@ const EMPTY_FORM: ContractFormValues = {
   tenant_email: '',
   tenant_national_id: '',
   lines: [],
+  payment_conditions: [{
+    enabled: false,
+    applies_after_years: '5',
+    percentage: '10',
+  }],
 };
 
 function Icon({ children }: { children: ReactNode }) {
@@ -180,7 +190,15 @@ function SheetSection({
 }
 
 function unitSelectLabel(unit: Unit) {
-  return unit.unit_number?.trim() || unit.odoo_product_reference?.trim() || unit.id;
+  const name = unit.unit_number?.trim()
+    || unit.odoo_product_name?.trim()
+    || unit.odoo_product_reference?.trim()
+    || unit.id;
+  const number = name.match(
+    /\b(?:office|shop|showroom|warehouse|gas room)\s*(?:no\.?\s*)?([0-9]+[a-z-]*)/i,
+  )?.[1] ?? name.match(/(?:مكتب|محل|معرض|مستودع|غرفة غاز)\s*(?:رقم\s*)?([0-9٠-٩]+)/u)?.[1];
+
+  return number ? `#${number} · ${name}` : name;
 }
 
 function unitSelectKeywords(unit: Unit) {
@@ -205,11 +223,26 @@ function selectableUnitsForLine(units: Unit[], selectedUnitIds: Set<string>, lin
   });
 }
 
-function buildInitialForm(initialValues?: ContractEditorInitialValues): ContractFormValues {
+function buildInitialForm(
+  initialValues?: ContractEditorInitialValues,
+  forceAnnual = false,
+): ContractFormValues {
   return {
     ...EMPTY_FORM,
     ...initialValues,
-    lines: initialValues?.lines ?? [],
+    lines: (initialValues?.lines ?? []).map((line) => {
+      const normalized = normalizeContractFormLine(line as ContractFormLineValues);
+      return forceAnnual
+        ? {
+            ...normalized,
+            amount_basis: 'annual_untaxed' as const,
+            annual_amount_untaxed: normalized.annual_amount_untaxed || normalized.amount,
+            amount: '',
+          }
+        : normalized;
+    }),
+    payment_conditions: initialValues?.payment_conditions
+      ?? EMPTY_FORM.payment_conditions.map((condition) => ({ ...condition })),
   };
 }
 
@@ -250,6 +283,7 @@ export function ContractEditor({
   canDeleteDraft = false,
   scheduleLocked = false,
   initialServiceProducts = [],
+  initialPdf = null,
   odooVatRate = 15,
   odooZeroRatedTaxRate = 0,
 }: {
@@ -264,6 +298,7 @@ export function ContractEditor({
   /** Active contracts with issued/paid invoices cannot change schedule fields. */
   scheduleLocked?: boolean;
   initialServiceProducts?: ContractServiceProductOption[];
+  initialPdf?: { filename: string; url: string } | null;
   /** Rates resolved from configured Odoo tax IDs; applied to the whole contract. */
   odooVatRate?: number;
   odooZeroRatedTaxRate?: number;
@@ -274,33 +309,27 @@ export function ContractEditor({
   const loc = locale as Locale;
   const router = useRouter();
 
-  const [values, setValues] = useState<ContractFormValues>(() => buildInitialForm(initialValues));
-  const [taxSelection, setTaxSelection] = useState<'taxable' | 'zero_rated' | 'non_taxable'>(
-    initialValues?.taxSelection
-      ?? (initialValues?.applyVat === false ? 'non_taxable' : 'taxable'),
-  );
+  const forceAnnualPricing = mode === 'create';
+  const [values, setValues] = useState<ContractFormValues>(() => (
+    buildInitialForm(initialValues, forceAnnualPricing)
+  ));
 
-  function rateForTaxSelection(selection: 'taxable' | 'zero_rated' | 'non_taxable') {
+  function rateForTaxSelection(selection: ContractTaxSelection) {
     if (selection === 'taxable') return String(odooVatRate);
     if (selection === 'zero_rated') return String(odooZeroRatedTaxRate);
     return '0';
   }
 
-  function changeTaxSelection(next: 'taxable' | 'zero_rated') {
-    setTaxSelection(next);
-    setValues((previous) => ({
-      ...previous,
-      lines: previous.lines.map((line) => ({
-        ...line,
-        tax_rate: rateForTaxSelection(next),
-        tax_treatment: next === 'zero_rated' ? 'zero_rated' : 'standard',
-      })),
-    }));
+  function taxSelectionForFormLine(
+    line: Pick<ContractFormLineValues, 'tax_rate' | 'tax_treatment'>,
+  ): ContractTaxSelection {
+    if (line.tax_treatment === 'zero_rated') return 'zero_rated';
+    return Number(line.tax_rate) > 0 ? 'taxable' : 'non_taxable';
   }
 
-  function labelForTaxSelection(selection: 'taxable' | 'zero_rated' | 'non_taxable') {
+  function labelForTaxSelection(selection: ContractTaxSelection) {
     if (selection === 'taxable') return `${t('taxable')} (${odooVatRate}%)`;
-    if (selection === 'zero_rated') return `${t('zeroRated')} (${odooZeroRatedTaxRate}%)`;
+    if (selection === 'zero_rated') return t('zeroRated');
     return t('nonTaxable');
   }
   const [tenantPhone, setTenantPhone] = useState(initialValues?.tenant_phone ?? '');
@@ -327,6 +356,8 @@ export function ContractEditor({
   const [notes, setNotes] = useState(initialValues?.notes ?? '');
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
+  const displayedPdfUrl = pdfPreviewUrl ?? initialPdf?.url ?? null;
+  const displayedPdfFilename = pdfFile?.name ?? initialPdf?.filename ?? null;
   const pdfInputRef = useRef<HTMLInputElement>(null);
   const [currentContractId, setCurrentContractId] = useState<string | null>(contractId ?? null);
   const [isSaving, setIsSaving] = useState(false);
@@ -335,14 +366,21 @@ export function ContractEditor({
   const [validationMode, setValidationMode] = useState<'strict' | 'draft'>('strict');
   const autoSeeded = useRef(false);
 
-  const lineTotal = sumContractLineAmounts(values.lines);
-  const selectedTaxLabel = labelForTaxSelection(taxSelection);
-  const selectedTaxRate = Number(rateForTaxSelection(taxSelection));
-  const headerTax = splitTaxInclusiveAmount(lineTotal, selectedTaxRate);
+  const normalizedLines = values.lines.map((line) => (
+    forceAnnualPricing
+      ? normalizeContractFormLine({ ...line, amount_basis: 'annual_untaxed' })
+      : normalizeContractFormLine(line)
+  ));
+  const usesLegacyPricing = !forceAnnualPricing && hasLegacyContractTotalPricing(normalizedLines);
+  const lineTaxSelections = new Set(normalizedLines.map(taxSelectionForFormLine));
+  const selectedTaxLabel = lineTaxSelections.size <= 1
+    ? labelForTaxSelection(Array.from(lineTaxSelections)[0] ?? 'taxable')
+    : t('mixedTaxes');
   const formValues = {
     ...values,
-    total_amount: String(lineTotal || ''),
-    unit_id: values.lines.find((line) => line.line_type === 'rental' && line.unit_id)?.unit_id ?? '',
+    lines: normalizedLines,
+    total_amount: values.total_amount,
+    unit_id: normalizedLines.find((line) => line.line_type === 'rental' && line.unit_id)?.unit_id ?? '',
   };
 
   const errors = validateContractForm(formValues, {
@@ -350,6 +388,37 @@ export function ContractEditor({
     mode: validationMode,
   });
   const preview = previewContractInvoices(formValues);
+  const lineTotal = preview.ready ? preview.totalAmount : 0;
+  const headerTax = {
+    amountUntaxed: preview.totalUntaxed,
+    amountTax: preview.totalTax,
+  };
+  const previewYears = (() => {
+    if (!values.start_date || !values.end_date) return 0;
+    try {
+      const months = differenceInCalendarMonths(
+        parseISO(values.end_date),
+        parseISO(values.start_date),
+      ) + 1;
+      return Math.max(1, Math.round(months / 12));
+    } catch {
+      return 0;
+    }
+  })();
+  const previewRentalTotal = preview.ready
+    ? preview.periods.reduce((sum, period) => (
+      sum + period.lineItems
+        .filter((line) => line.lineType === 'rental')
+        .reduce((lineSum, line) => lineSum + line.amountTotal, 0)
+    ), 0)
+    : 0;
+  const previewServiceTotal = preview.ready
+    ? preview.periods.reduce((sum, period) => (
+      sum + period.lineItems
+        .filter((line) => line.lineType === 'service')
+        .reduce((lineSum, line) => lineSum + line.amountTotal, 0)
+    ), 0)
+    : 0;
   const hasErrors = Object.keys(errors).length > 0;
 
   const selectedUnitIds = useMemo(
@@ -419,9 +488,43 @@ export function ContractEditor({
   function updateLine(key: string, patch: Partial<ContractFormLineValues>) {
     setValues((prev) => ({
       ...prev,
-      lines: prev.lines.map((line) => (line.key === key ? { ...line, ...patch } : line)),
+      lines: prev.lines.map((line) => {
+        if (line.key !== key) return line;
+        const merged = {
+          ...line,
+          ...patch,
+          amount_basis: forceAnnualPricing
+            ? 'annual_untaxed' as const
+            : (patch.amount_basis ?? line.amount_basis),
+        };
+        return normalizeContractFormLine(merged);
+      }),
     }));
     touch('lines');
+  }
+
+  function updateLineTaxSelection(key: string, selection: ContractTaxSelection) {
+    updateLine(key, {
+      tax_rate: rateForTaxSelection(selection),
+      tax_treatment: selection === 'zero_rated' ? 'zero_rated' : 'standard',
+    });
+  }
+
+  function updateRentIncreaseCondition(
+    patch: Partial<ContractFormValues['payment_conditions'][number]>,
+  ) {
+    setValues((previous) => {
+      const current = previous.payment_conditions[0] ?? {
+        enabled: false,
+        applies_after_years: '5',
+        percentage: '10',
+      };
+      return {
+        ...previous,
+        payment_conditions: [{ ...current, ...patch }],
+      };
+    });
+    touch('payment_conditions');
   }
 
   function addLine(lineType: ContractLineType) {
@@ -430,8 +533,8 @@ export function ContractEditor({
       ...prev,
       lines: [...prev.lines, newLine(
         lineType,
-        rateForTaxSelection(taxSelection),
-        taxSelection === 'zero_rated' ? 'zero_rated' : 'standard',
+        rateForTaxSelection('taxable'),
+        'standard',
       )],
     }));
     touch('lines');
@@ -509,6 +612,7 @@ export function ContractEditor({
     if (error === 'contractUpdateFailed') return t('contractUpdateFailed');
     if (error === 'openingBalanceOutOfRange') return t('validation.paidThroughOutOfRange');
     if (error === 'contractDatesInvalid') return t('validation.startDateInvalid');
+    if (error === 'invalidPaymentConditions') return t('validation.conditionPercentageInvalid');
     return t('validationFailed');
   }
 
@@ -531,6 +635,7 @@ export function ContractEditor({
       'tenant_email',
       'tenant_national_id',
       'payment_cycle',
+      'payment_conditions',
       'schedule',
     ];
     for (const field of order) {
@@ -608,23 +713,33 @@ export function ContractEditor({
   }
 
   function mapLinesForPayload() {
-    return values.lines.map((line, index) => ({
-      line_type: line.line_type,
-      unit_id: line.line_type === 'rental' ? (line.unit_id || null) : null,
-      description: line.description.trim() || null,
-      amount: Number(line.amount) || 0,
-      odoo_product_id: line.line_type === 'rental'
-        ? units.find((unit) => unit.id === line.unit_id)?.odoo_product_id ?? null
-        : line.odoo_product_id ? Number(line.odoo_product_id) : null,
-      odoo_product_name: line.line_type === 'rental'
-        ? units.find((unit) => unit.id === line.unit_id)?.odoo_product_reference ?? null
-        : line.odoo_product_name || null,
-      tax_rate: Number(rateForTaxSelection(taxSelection)) || 0,
-      tax_treatment: taxSelection === 'zero_rated' ? 'zero_rated' as const : 'standard' as const,
-      period_start: values.start_date || null,
-      period_end: values.end_date || null,
-      sort_order: index,
-    }));
+    return values.lines.map((line, index) => {
+      const normalized = normalizeContractFormLine(
+        forceAnnualPricing ? { ...line, amount_basis: 'annual_untaxed' } : line,
+      );
+      const amountBasis = normalized.amount_basis;
+      return {
+        line_type: normalized.line_type,
+        unit_id: normalized.line_type === 'rental' ? (normalized.unit_id || null) : null,
+        description: normalized.description.trim() || null,
+        amount: amountBasis === 'annual_untaxed' ? 0 : (Number(normalized.amount) || 0),
+        amount_basis: amountBasis,
+        annual_amount_untaxed: amountBasis === 'annual_untaxed'
+          ? (Number(normalized.annual_amount_untaxed) || null)
+          : null,
+        odoo_product_id: normalized.line_type === 'rental'
+          ? units.find((unit) => unit.id === normalized.unit_id)?.odoo_product_id ?? null
+          : normalized.odoo_product_id ? Number(normalized.odoo_product_id) : null,
+        odoo_product_name: normalized.line_type === 'rental'
+          ? units.find((unit) => unit.id === normalized.unit_id)?.odoo_product_reference ?? null
+          : normalized.odoo_product_name || null,
+        tax_rate: Number(normalized.tax_rate) || 0,
+        tax_treatment: normalized.tax_treatment === 'zero_rated' ? 'zero_rated' as const : 'standard' as const,
+        period_start: values.start_date || null,
+        period_end: values.end_date || null,
+        sort_order: index,
+      };
+    });
   }
 
   function buildActivatePayload() {
@@ -633,7 +748,9 @@ export function ContractEditor({
       start_date: values.start_date,
       end_date: values.end_date,
       payment_cycle: values.payment_cycle,
-      tax_mode: taxSelection === 'taxable' ? ('taxable' as const) : ('non_taxable' as const),
+      tax_mode: values.lines.some((line) => taxSelectionForFormLine(line) === 'taxable')
+        ? ('taxable' as const)
+        : ('non_taxable' as const),
       notes: notes.trim() || null,
       paid_through_date: openingBalanceEnabled ? values.paid_through_date.trim() || null : null,
       opening_paid_amount: openingBalanceEnabled && values.opening_paid_amount.trim()
@@ -652,6 +769,7 @@ export function ContractEditor({
       tenant_country_code: tenantCountryCode.trim().toUpperCase().slice(0, 2) || null,
       sync_tenant_to_odoo: syncTenantToOdoo,
       lines: mapLinesForPayload(),
+      payment_conditions: contractPaymentConditionsFromFormValues(values.payment_conditions),
     };
   }
 
@@ -662,7 +780,9 @@ export function ContractEditor({
       start_date: values.start_date.trim() || null,
       end_date: values.end_date.trim() || null,
       payment_cycle: values.payment_cycle,
-      tax_mode: taxSelection === 'taxable' ? ('taxable' as const) : ('non_taxable' as const),
+      tax_mode: values.lines.some((line) => taxSelectionForFormLine(line) === 'taxable')
+        ? ('taxable' as const)
+        : ('non_taxable' as const),
       notes: notes.trim() || null,
       paid_through_date: openingBalanceEnabled ? values.paid_through_date.trim() || null : null,
       opening_paid_amount: openingBalanceEnabled && values.opening_paid_amount.trim()
@@ -680,6 +800,7 @@ export function ContractEditor({
       tenant_city: tenantCity.trim() || null,
       tenant_country_code: tenantCountryCode.trim().toUpperCase().slice(0, 2) || null,
       lines: mapLinesForPayload(),
+      payment_conditions: contractPaymentConditionsFromFormValues(values.payment_conditions),
     };
   }
 
@@ -787,6 +908,7 @@ export function ContractEditor({
         tenant_email: payload.tenant_email,
         tenant_national_id: payload.tenant_national_id,
         lines: payload.lines,
+        payment_conditions: payload.payment_conditions,
       });
 
       if (!result.success || !result.data) {
@@ -1052,6 +1174,15 @@ export function ContractEditor({
 
           {/* Contract lines — Odoo one2many style table */}
           <SheetSection title={t('linesSection')}>
+            {usesLegacyPricing ? (
+              <p className="mb-2 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-2 text-xs text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
+                {t('legacyPricingBanner')}
+              </p>
+            ) : (
+              <p className="mb-2 text-xs text-muted-foreground">
+                {t('annualPricingHint')}
+              </p>
+            )}
             {fieldError('lines') && <p className="text-xs text-destructive">{fieldError('lines')}</p>}
             {fieldError('unit_id') && <p className="text-xs text-destructive">{fieldError('unit_id')}</p>}
             {fieldError('total_amount') && (
@@ -1064,31 +1195,35 @@ export function ContractEditor({
                 <table className="w-full table-fixed text-sm">
                   <thead className="border-b border-border bg-muted/50">
                     <tr>
-                      <th className="w-[7.5rem] px-2 py-1.5 text-start text-[11px] font-semibold text-muted-foreground">
+                      <th className="w-[5.5rem] px-2 py-1.5 text-start text-[11px] font-semibold text-muted-foreground">
                         {t('lineType')}
                       </th>
-                      <th className="w-[32%] px-2 py-1.5 text-start text-[11px] font-semibold text-muted-foreground">
+                      <th className="w-[27%] px-2 py-1.5 text-start text-[11px] font-semibold text-muted-foreground">
                         {t('unit')} / {t('serviceProduct')}
                       </th>
                       <th className="px-2 py-1.5 text-start text-[11px] font-semibold text-muted-foreground">
                         {t('lineDescription')}
                       </th>
-                      <th className="w-[8.5rem] px-2 py-1.5 text-end text-[11px] font-semibold text-muted-foreground">
-                        {t('lineAmountWithTax', { tax: selectedTaxLabel })}
+                      <th className="w-[7rem] px-2 py-1.5 text-start text-[11px] font-semibold text-muted-foreground">
+                        {t('lineTax')}
                       </th>
-                      <th className="w-10 px-1 py-1.5" aria-label={tc('actions')} />
+                      <th className="w-[8.5rem] px-2 py-1.5 text-end text-[11px] font-semibold text-muted-foreground">
+                        {usesLegacyPricing ? t('lineAmount') : t('annualAmountUntaxed')}
+                      </th>
+                      <th className="w-8 px-1 py-1.5" aria-label={tc('actions')} />
                     </tr>
                   </thead>
                   <tbody>
-                    {values.lines.length === 0 ? (
+                    {normalizedLines.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="px-3 py-5 text-center text-sm text-muted-foreground">
+                        <td colSpan={6} className="px-3 py-5 text-center text-sm text-muted-foreground">
                           {t('linesEmptyHint')}
                         </td>
                       </tr>
                     ) : (
-                      values.lines.map((line) => {
+                      normalizedLines.map((line) => {
                         const availableUnits = selectableUnitsForLine(units, selectedUnitIds, line.unit_id);
+                        const isAnnualLine = line.amount_basis === 'annual_untaxed';
                         return (
                           <tr key={line.key} className="border-b border-border last:border-b-0 hover:bg-muted/20">
                             <td className="max-w-0 px-1 py-1 align-middle">
@@ -1169,6 +1304,23 @@ export function ContractEditor({
                                 />
                               </div>
                             </td>
+                            <td className="max-w-0 px-1 py-1 align-middle">
+                              <SelectField
+                                compact
+                                label={t('lineTax')}
+                                name={`tax-${line.key}`}
+                                value={taxSelectionForFormLine(line)}
+                                disabled={scheduleLocked}
+                                onChange={(value) => updateLineTaxSelection(
+                                  line.key,
+                                  value as ContractTaxSelection,
+                                )}
+                              >
+                                <option value="taxable">{t('taxable')} ({odooVatRate}%)</option>
+                                <option value="zero_rated">{t('zeroRated')}</option>
+                                <option value="non_taxable">{t('nonTaxable')}</option>
+                              </SelectField>
+                            </td>
                             <td className="px-1 py-1 align-middle">
                               <div className="relative min-w-0">
                                 <span className="pointer-events-none absolute inset-y-0 start-0 z-[1] flex w-7 items-center justify-center text-muted-foreground" aria-hidden="true">
@@ -1176,14 +1328,26 @@ export function ContractEditor({
                                 </span>
                                 <InputControl
                                   name={`amount-${line.key}`}
-                                  aria-label={t('lineAmountWithTax', { tax: selectedTaxLabel })}
+                                  aria-label={isAnnualLine
+                                    ? t('annualAmountUntaxedWithTax', {
+                                      tax: labelForTaxSelection(taxSelectionForFormLine(line)),
+                                    })
+                                    : t('lineAmountWithTax', {
+                                      tax: labelForTaxSelection(taxSelectionForFormLine(line)),
+                                    })}
                                   type="number"
                                   step="0.01"
                                   min="0.01"
                                   disabled={scheduleLocked}
                                   className={cn(cellInputClass, 'min-w-0 ps-7 pe-2 text-end tabular-nums')}
-                                  value={line.amount}
-                                  onChange={(e) => updateLine(line.key, { amount: e.target.value })}
+                                  value={isAnnualLine ? line.annual_amount_untaxed : line.amount}
+                                  onChange={(e) => updateLine(
+                                    line.key,
+                                    isAnnualLine
+                                      ? { annual_amount_untaxed: e.target.value, amount: '' }
+                                      : { amount: e.target.value },
+                                  )}
+                                  title={isAnnualLine ? undefined : t('legacyLineAmountHint')}
                                 />
                               </div>
                             </td>
@@ -1207,7 +1371,7 @@ export function ContractEditor({
                   </tbody>
                   <tfoot>
                     <tr className="border-t border-border bg-muted/30">
-                      <td colSpan={3} className="px-3 py-2">
+                      <td colSpan={4} className="px-3 py-2">
                         <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
                           <button
                             type="button"
@@ -1236,34 +1400,19 @@ export function ContractEditor({
                       </td>
                       <td />
                     </tr>
-                    <tr className="border-t border-border">
-                      <td colSpan={5} className="px-3 py-2">
-                        <div className="max-w-sm">
-                          <SelectField
-                            label={t('taxMode')}
-                            name="tax_selection"
-                            value={taxSelection}
-                            disabled={scheduleLocked}
-                            onChange={(value) => changeTaxSelection(value as 'taxable' | 'zero_rated')}
-                          >
-                            <option value="taxable">{t('taxable')} ({odooVatRate}%)</option>
-                            <option value="zero_rated">{t('zeroRated')} ({odooZeroRatedTaxRate}%)</option>
-                          </SelectField>
-                        </div>
-                      </td>
-                    </tr>
                   </tfoot>
                 </table>
               </div>
 
               {/* Mobile stacked rows — no horizontal overflow */}
               <div className="md:hidden">
-                {values.lines.length === 0 ? (
+                {normalizedLines.length === 0 ? (
                   <p className="px-3 py-8 text-center text-sm text-muted-foreground">{t('linesEmptyHint')}</p>
                 ) : (
                   <ul className="divide-y divide-border">
-                    {values.lines.map((line) => {
+                    {normalizedLines.map((line) => {
                       const availableUnits = selectableUnitsForLine(units, selectedUnitIds, line.unit_id);
+                      const isAnnualLine = line.amount_basis === 'annual_untaxed';
                       return (
                         <li key={line.key} className="space-y-2 p-3">
                           <div className="flex items-start justify-between gap-2">
@@ -1340,17 +1489,42 @@ export function ContractEditor({
                             onChange={(e) => updateLine(line.key, { description: e.target.value })}
                             placeholder={line.line_type === 'service' ? t('serviceFeePlaceholder') : undefined}
                           />
+                          <SelectField
+                            label={t('lineTax')}
+                            name={`tax-m-${line.key}`}
+                            value={taxSelectionForFormLine(line)}
+                            disabled={scheduleLocked}
+                            onChange={(value) => updateLineTaxSelection(
+                              line.key,
+                              value as ContractTaxSelection,
+                            )}
+                          >
+                            <option value="taxable">{t('taxable')} ({odooVatRate}%)</option>
+                            <option value="zero_rated">{t('zeroRated')}</option>
+                            <option value="non_taxable">{t('nonTaxable')}</option>
+                          </SelectField>
                           <Input
                             name={`amount-m-${line.key}`}
-                            label={t('lineAmountWithTax', { tax: selectedTaxLabel })}
+                            label={isAnnualLine
+                              ? t('annualAmountUntaxedWithTax', {
+                                tax: labelForTaxSelection(taxSelectionForFormLine(line)),
+                              })
+                              : t('lineAmountWithTax', {
+                                tax: labelForTaxSelection(taxSelectionForFormLine(line)),
+                              })}
                             type="number"
                             step="0.01"
                             min="0.01"
                             icon={<Icon><Wallet /></Icon>}
                             dense
                             disabled={scheduleLocked}
-                            value={line.amount}
-                            onChange={(e) => updateLine(line.key, { amount: e.target.value })}
+                            value={isAnnualLine ? line.annual_amount_untaxed : line.amount}
+                            onChange={(e) => updateLine(
+                              line.key,
+                              isAnnualLine
+                                ? { annual_amount_untaxed: e.target.value, amount: '' }
+                                : { amount: e.target.value },
+                            )}
                           />
                         </li>
                       );
@@ -1382,26 +1556,86 @@ export function ContractEditor({
                   </div>
                   <p className="text-sm font-semibold tabular-nums">{formatCurrency(lineTotal, loc)}</p>
                 </div>
-                <div className="border-t border-border px-3 py-2">
-                  <SelectField
-                    label={t('taxMode')}
-                    name="tax_selection_mobile"
-                    value={taxSelection}
-                    disabled={scheduleLocked}
-                    onChange={(value) => changeTaxSelection(value as 'taxable' | 'zero_rated')}
-                  >
-                    <option value="taxable">{t('taxable')} ({odooVatRate}%)</option>
-                    <option value="zero_rated">{t('zeroRated')} ({odooZeroRatedTaxRate}%)</option>
-                  </SelectField>
-                </div>
               </div>
+            </div>
+          </SheetSection>
+
+          <SheetSection title={t('paymentConditionsSection')}>
+            <div className="space-y-3">
+              <label className="flex items-start gap-3 rounded-lg border border-border bg-muted/20 px-3 py-2.5 text-sm">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 size-4 shrink-0"
+                  checked={values.payment_conditions[0]?.enabled ?? false}
+                  disabled={scheduleLocked}
+                  onChange={(event) => updateRentIncreaseCondition({ enabled: event.target.checked })}
+                />
+                <span>
+                  <span className="block font-medium">{t('rentIncreaseEnabled')}</span>
+                  <span className="mt-0.5 block text-xs text-muted-foreground">
+                    {t('rentIncreaseHint')}
+                  </span>
+                </span>
+              </label>
+              {(values.payment_conditions[0]?.enabled ?? false) && (
+                <>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <Input
+                      name="rent_increase_after_years"
+                      label={t('rentIncreaseAfterYears')}
+                      type="number"
+                      step="1"
+                      min="1"
+                      max="100"
+                      dense
+                      value={values.payment_conditions[0]?.applies_after_years ?? '5'}
+                      disabled={scheduleLocked}
+                      onChange={(event) => updateRentIncreaseCondition({
+                        applies_after_years: event.target.value,
+                      })}
+                      onBlur={() => touch('payment_conditions')}
+                      error={fieldError('payment_conditions')}
+                    />
+                    <Input
+                      name="rent_increase_percentage"
+                      label={t('rentIncreasePercentage')}
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      max="1000"
+                      dense
+                      value={values.payment_conditions[0]?.percentage ?? '10'}
+                      disabled={scheduleLocked}
+                      onChange={(event) => updateRentIncreaseCondition({
+                        percentage: event.target.value,
+                      })}
+                      onBlur={() => touch('payment_conditions')}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {t('rentIncreaseSummary', {
+                      years: values.payment_conditions[0]?.applies_after_years || '—',
+                      percentage: values.payment_conditions[0]?.percentage || '—',
+                    })}
+                  </p>
+                </>
+              )}
             </div>
           </SheetSection>
 
           {openingBalanceEnabled && (
             <SheetSection title={t('openingBalanceSection')}>
               <p className="text-[11px] text-muted-foreground">{t('openingBalanceHint')}</p>
-              <div className="grid items-end gap-2 sm:grid-cols-2 lg:grid-cols-4">
+              <p className="text-[11px] text-muted-foreground">{t('odooTrackingHint')}</p>
+              {preview.ready && preview.odooTrackingStartDate && (
+                <p className="rounded-md border border-border/70 bg-muted/30 px-2.5 py-1.5 text-[11px] text-muted-foreground">
+                  {t('odooTrackingStartPreview', {
+                    start: preview.firstUnpaidPeriodStart ?? preview.odooTrackingStartDate,
+                    end: preview.firstUnpaidPeriodEnd ?? '—',
+                  })}
+                </p>
+              )}
+              <div className="grid items-end gap-2 sm:grid-cols-2 lg:grid-cols-3">
                 <Input
                   name="paid_through_date"
                   label={t('paidThroughDate')}
@@ -1479,6 +1713,20 @@ export function ContractEditor({
             >
               {preview.ready && (
                 <div className="space-y-2">
+                  <p className="text-sm font-medium">
+                    {t('derivedContractTotal')}: {formatCurrency(preview.totalAmount, loc)}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {t('previewDuration', {
+                      years: previewYears,
+                      periods: preview.invoiceCount,
+                    })}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {t('previewRentalTotal', { amount: formatCurrency(previewRentalTotal, loc) })}
+                    {' · '}
+                    {t('previewServiceTotal', { amount: formatCurrency(previewServiceTotal, loc) })}
+                  </p>
                   <p className="text-sm text-muted-foreground">
                     {t('previewSummary', {
                       total: formatCurrency(preview.totalAmount, loc),
@@ -1537,9 +1785,9 @@ export function ContractEditor({
                     <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                       {t('contractPdf')}
                     </h2>
-                    {pdfFile && (
+                    {displayedPdfFilename && (
                       <p className="mt-0.5 truncate text-xs text-muted-foreground" dir="auto">
-                        {pdfFile.name}
+                        {displayedPdfFilename}
                       </p>
                     )}
                   </div>
@@ -1563,7 +1811,7 @@ export function ContractEditor({
                       onClick={() => pdfInputRef.current?.click()}
                     >
                       <Upload className="size-3.5" />
-                      {pdfFile ? t('replaceContractPdf') : t('uploadContractPdf')}
+                      {displayedPdfUrl ? t('replaceContractPdf') : t('uploadContractPdf')}
                     </Button>
                   </div>
                 </div>
@@ -1578,10 +1826,12 @@ export function ContractEditor({
                   onChange={(event) => choosePdfFile(event.target.files?.[0] ?? null)}
                 />
 
-                {pdfPreviewUrl ? (
+                {displayedPdfUrl ? (
                   <iframe
-                    src={pdfPreviewUrl}
-                    title={t('documentPreviewTitle', { filename: pdfFile?.name ?? 'contract.pdf' })}
+                    src={displayedPdfUrl}
+                    title={t('documentPreviewTitle', {
+                      filename: displayedPdfFilename ?? 'contract.pdf',
+                    })}
                     className="h-[min(70vh,42rem)] min-h-[22rem] w-full bg-muted/20"
                   />
                 ) : (

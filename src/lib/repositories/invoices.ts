@@ -2,6 +2,13 @@ import { createClient } from '@/lib/supabase/server';
 import type { Invoice, InvoiceStatus, OdooSyncStatus } from '@/types/database';
 import type { LogContext } from '@/lib/observability';
 import { getDashboardDueDateRange } from '@/lib/rental/dashboard-due-buckets';
+import {
+  DEFAULT_LIST_PAGE_SIZE,
+  listPageRange,
+  MAX_UNBOUNDED_LIST_ROWS,
+  toListPageResult,
+  type ListPageResult,
+} from '@/lib/pagination/list-page';
 
 const INVOICE_SELECT = '*, contract:contracts(*), unit:units(*, location:locations(*)), tenant:tenants(*), lines:invoice_lines(*)';
 
@@ -14,19 +21,61 @@ function filterInvoicesByLocation<T extends { unit?: { location_id?: string | nu
 }
 
 export const invoicesRepository = {
-  async findAll(ctx: LogContext, filters?: { status?: InvoiceStatus | InvoiceStatus[]; locationId?: string }): Promise<Invoice[]> {
+  async findAll(ctx: LogContext, filters?: {
+    status?: InvoiceStatus | InvoiceStatus[];
+    locationId?: string;
+    periodStartBefore?: string;
+  }): Promise<Invoice[]> {
     const supabase = await createClient();
     let query = supabase
       .from('invoices')
       .select(INVOICE_SELECT)
-      .order('due_date', { ascending: false });
+      .order('due_date', { ascending: false })
+      .limit(MAX_UNBOUNDED_LIST_ROWS);
     if (filters?.status) {
       const statuses = Array.isArray(filters.status) ? filters.status : [filters.status];
       query = query.in('status', statuses);
     }
+    if (filters?.periodStartBefore) {
+      query = query.lt('period_start', filters.periodStartBefore);
+    }
     const { data, error } = await query;
     if (error) throw error;
     return filterInvoicesByLocation(data ?? [], filters?.locationId);
+  },
+
+  async findPage(
+    ctx: LogContext,
+    filters?: {
+      status?: InvoiceStatus | InvoiceStatus[];
+      locationId?: string;
+      page?: number;
+      pageSize?: number;
+    },
+  ): Promise<ListPageResult<Invoice>> {
+    const { page, pageSize, from, to } = listPageRange(
+      filters?.page ?? 1,
+      filters?.pageSize ?? DEFAULT_LIST_PAGE_SIZE,
+    );
+    const supabase = await createClient();
+    let query = supabase
+      .from('invoices')
+      .select(INVOICE_SELECT, { count: 'exact' })
+      .order('due_date', { ascending: false })
+      .range(from, to);
+
+    if (filters?.status) {
+      const statuses = Array.isArray(filters.status) ? filters.status : [filters.status];
+      query = query.in('status', statuses);
+    }
+
+    const { data, error, count } = await query;
+    if (error) throw error;
+
+    const items = filterInvoicesByLocation(data ?? [], filters?.locationId);
+    // Location filtering happens after join; keep total honest for unfiltered pages.
+    const total = filters?.locationId ? items.length : count;
+    return toListPageResult(items, total, page, pageSize);
   },
 
   async findById(id: string, ctx: LogContext): Promise<Invoice | null> {

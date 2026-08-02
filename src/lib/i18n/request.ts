@@ -7,12 +7,13 @@ export default getRequestConfig(async ({ requestLocale }) => {
     locale = routing.defaultLocale;
   }
 
-  const [common, dashboard, locations, units, contracts, invoices, payments, reports, users, roles, audit, settings, featureFlags, notifications] =
+  const [common, dashboard, locations, units, tenants, contracts, invoices, payments, reports, users, roles, audit, settings, featureFlags, notifications] =
     await Promise.all([
       import(`../../messages/${locale}/common.json`),
       import(`../../messages/${locale}/dashboard.json`),
       import(`../../messages/${locale}/locations.json`),
       import(`../../messages/${locale}/units.json`),
+      import(`../../messages/${locale}/tenants.json`),
       import(`../../messages/${locale}/contracts.json`),
       import(`../../messages/${locale}/invoices.json`),
       import(`../../messages/${locale}/payments.json`),
@@ -32,6 +33,7 @@ export default getRequestConfig(async ({ requestLocale }) => {
       dashboard: dashboard.default,
       locations: locations.default,
       units: units.default,
+      tenants: tenants.default,
       contracts: contracts.default,
       invoices: invoices.default,
       payments: payments.default,

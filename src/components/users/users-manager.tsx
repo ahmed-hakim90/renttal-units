@@ -3,11 +3,13 @@
 import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
 import {
   createUser,
   resetUserPassword,
+  setUserActive,
   updateUserEmail,
   updateUserFullName,
   updateUserRole,
@@ -20,27 +22,35 @@ import {
 } from '@/components/auth/password-requirements';
 import { useSingleSubmit } from '@/lib/hooks/use-single-submit';
 import { formatDate } from '@/lib/i18n/format';
+import { useRouter } from '@/lib/i18n/navigation';
 import { type Locale } from '@/lib/i18n/routing';
 import { toast } from 'sonner';
 import { Eye, Plus } from 'lucide-react';
 import type { AuditLogReadModel, Profile, RoleSummary } from '@/types/database';
 
+function isUserActive(user: Profile) {
+  return user.is_active !== false;
+}
+
 export function UsersManager({
   users,
   roles,
   locale,
+  currentUserId,
   canEdit,
   canViewAudit,
 }: {
   users: Profile[];
   roles: RoleSummary[];
   locale: string;
+  currentUserId: string;
   canEdit: boolean;
   canViewAudit: boolean;
 }) {
   const t = useTranslations('users');
   const tc = useTranslations('common');
   const uiLocale = useLocale();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<Profile | null>(null);
   const [userAuditLogs, setUserAuditLogs] = useState<AuditLogReadModel[]>([]);
@@ -48,6 +58,7 @@ export function UsersManager({
   const [createPassword, setCreatePassword] = useState('');
   const [resetPassword, setResetPassword] = useState('');
   const [resetPasswordConfirmation, setResetPasswordConfirmation] = useState('');
+  const [statusTarget, setStatusTarget] = useState<{ user: Profile; active: boolean } | null>(null);
   const { isSubmitting, runOnce } = useSingleSubmit();
   const defaultRoleId = roles.find((role) => role.slug === 'viewer')?.id ?? roles[0]?.id ?? '';
 
@@ -169,6 +180,67 @@ export function UsersManager({
     });
   }
 
+  function statusErrorMessage(error: string | undefined) {
+    if (!error) return tc('error');
+    const known = [
+      'cannotDeactivateSelf',
+      'cannotDeactivateLastOwner',
+      'systemOwnerProtected',
+      'userNotFound',
+      'deactivateFailed',
+      'reactivateFailed',
+    ] as const;
+    if ((known as readonly string[]).includes(error)) {
+      return t(error as (typeof known)[number]);
+    }
+    return tc('error');
+  }
+
+  async function handleConfirmStatusChange() {
+    if (!statusTarget || !canEdit) return;
+    await runOnce(async () => {
+      const result = await setUserActive(locale, statusTarget.user.id, statusTarget.active);
+      if (result.success) {
+        toast.success(statusTarget.active ? t('reactivated') : t('deactivated'));
+        if (selectedUser?.id === statusTarget.user.id && result.data) {
+          setSelectedUser(result.data);
+        }
+        setStatusTarget(null);
+        router.refresh();
+      } else {
+        toast.error(statusErrorMessage('error' in result ? String(result.error) : undefined));
+      }
+    });
+  }
+
+  function renderStatusBadge(user: Profile) {
+    const active = isUserActive(user);
+    return (
+      <Badge
+        status={active ? 'active' : 'cancelled'}
+        label={active ? t('active') : t('inactive')}
+      />
+    );
+  }
+
+  function renderStatusAction(user: Profile) {
+    if (!canEdit) return null;
+    const active = isUserActive(user);
+    const isSelf = user.id === currentUserId;
+    return (
+      <Button
+        type="button"
+        variant={active ? 'outline' : 'primary'}
+        size="sm"
+        disabled={isSubmitting || (active && isSelf)}
+        title={active && isSelf ? t('cannotDeactivateSelf') : undefined}
+        onClick={() => setStatusTarget({ user, active: !active })}
+      >
+        {active ? t('deactivate') : t('reactivate')}
+      </Button>
+    );
+  }
+
   return (
     <>
       {canEdit && (
@@ -198,6 +270,10 @@ export function UsersManager({
                     <dd className="mt-0.5 font-medium">{roleLabel(user.assigned_role)}</dd>
                   </div>
                   <div>
+                    <dt className="text-xs text-muted-foreground">{t('status')}</dt>
+                    <dd className="mt-0.5">{renderStatusBadge(user)}</dd>
+                  </div>
+                  <div>
                     <dt className="text-xs text-muted-foreground">{t('createdAt')}</dt>
                     <dd className="mt-0.5">{formatDate(user.created_at, locale as Locale)}</dd>
                   </div>
@@ -217,10 +293,13 @@ export function UsersManager({
                         </option>
                       ))}
                     </select>
-                    <Button variant="outline" className="w-full" onClick={() => openUserDetails(user)}>
-                      <Eye />
-                      {t('viewDetails')}
-                    </Button>
+                    <div className="flex flex-col gap-2">
+                      {renderStatusAction(user)}
+                      <Button variant="outline" className="w-full" onClick={() => openUserDetails(user)}>
+                        <Eye />
+                        {t('viewDetails')}
+                      </Button>
+                    </div>
                   </div>
                 )}
               </article>
@@ -234,9 +313,10 @@ export function UsersManager({
                   <th>{t('email')}</th>
                   <th>{t('fullName')}</th>
                   <th>{t('role')}</th>
+                  <th>{t('status')}</th>
                   <th>{t('createdAt')}</th>
                   {canEdit && <th className="!text-end">{t('updateRole')}</th>}
-                  {canEdit && <th className="!text-end">{t('details')}</th>}
+                  {canEdit && <th className="!text-end">{t('actions')}</th>}
                 </tr>
               </thead>
               <tbody>
@@ -245,6 +325,7 @@ export function UsersManager({
                     <td className="font-medium">{user.email}</td>
                     <td>{user.full_name ?? '—'}</td>
                     <td>{roleLabel(user.assigned_role)}</td>
+                    <td>{renderStatusBadge(user)}</td>
                     <td>{formatDate(user.created_at, locale as Locale)}</td>
                     {canEdit && (
                       <td className="text-end">
@@ -264,15 +345,18 @@ export function UsersManager({
                     )}
                     {canEdit && (
                       <td className="text-end">
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          title={t('view')}
-                          aria-label={t('view')}
-                          onClick={() => openUserDetails(user)}
-                        >
-                          <Eye aria-hidden="true" />
-                        </Button>
+                        <div className="inline-flex items-center gap-2">
+                          {renderStatusAction(user)}
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            title={t('view')}
+                            aria-label={t('view')}
+                            onClick={() => openUserDetails(user)}
+                          >
+                            <Eye aria-hidden="true" />
+                          </Button>
+                        </div>
                       </td>
                     )}
                   </tr>
@@ -360,7 +444,18 @@ export function UsersManager({
                 <dt className="text-xs text-muted-foreground">{t('createdAt')}</dt>
                 <dd className="mt-1 font-medium">{formatDate(selectedUser.created_at, locale as Locale)}</dd>
               </div>
+              <div>
+                <dt className="text-xs text-muted-foreground">{t('status')}</dt>
+                <dd className="mt-1">{renderStatusBadge(selectedUser)}</dd>
+              </div>
             </dl>
+
+            {canEdit && (
+              <section>
+                <h3 className="mb-3 font-semibold">{t('actions')}</h3>
+                {renderStatusAction(selectedUser)}
+              </section>
+            )}
 
             <section>
               <h3 className="mb-3 font-semibold">{t('changeName')}</h3>
@@ -466,6 +561,49 @@ export function UsersManager({
             )}
           </div>
         )}
+      </Modal>
+
+      <Modal
+        open={statusTarget !== null}
+        onClose={() => !isSubmitting && setStatusTarget(null)}
+        title={
+          statusTarget?.active
+            ? t('confirmReactivateTitle')
+            : t('confirmDeactivateTitle')
+        }
+      >
+        <p className="text-sm text-muted-foreground">
+          {statusTarget?.active
+            ? t('confirmReactivateDescription')
+            : t('confirmDeactivateDescription')}
+        </p>
+        {statusTarget && (
+          <p className="mt-2 text-sm font-medium" dir="auto">
+            {statusTarget.user.full_name ?? statusTarget.user.email}
+          </p>
+        )}
+        <div className="form-actions mt-4">
+          <Button
+            variant="outline"
+            type="button"
+            disabled={isSubmitting}
+            onClick={() => setStatusTarget(null)}
+          >
+            {tc('cancel')}
+          </Button>
+          <Button
+            type="button"
+            variant={statusTarget?.active ? 'primary' : 'destructive'}
+            disabled={isSubmitting || !statusTarget}
+            onClick={() => void handleConfirmStatusChange()}
+          >
+            {isSubmitting
+              ? tc('loading')
+              : statusTarget?.active
+                ? t('reactivate')
+                : t('deactivate')}
+          </Button>
+        </div>
       </Modal>
     </>
   );

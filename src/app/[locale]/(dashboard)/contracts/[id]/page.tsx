@@ -3,6 +3,9 @@ import { setRequestLocale } from 'next-intl/server';
 import { ContractDetail } from '@/components/contracts/contract-detail';
 import { getContractPdfPreviewUrl } from '@/lib/actions/contract-attachments';
 import { getContract } from '@/lib/actions/contracts';
+import { canMutateModule } from '@/lib/auth/permissions';
+import { requirePermission } from '@/lib/auth/session';
+import { getCorrelationId } from '@/lib/observability/correlation-id';
 
 export default async function ContractDetailPage({
   params,
@@ -13,6 +16,8 @@ export default async function ContractDetailPage({
 }) {
   const [{ locale, id }, query] = await Promise.all([params, searchParams]);
   setRequestLocale(locale);
+  const ctx = { correlation_id: await getCorrelationId() };
+  const auth = await requirePermission(locale, 'contracts.view', ctx);
 
   const contract = await getContract(locale, id);
   if (!contract) notFound();
@@ -33,6 +38,7 @@ export default async function ContractDetailPage({
       selectedAttachment={selectedAttachment}
       previewUrl={previewResult?.success ? previewResult.data?.url ?? null : null}
       locale={locale}
+      canEdit={canMutateModule(auth, 'contracts')}
     />
   );
 }

@@ -248,6 +248,7 @@ function importIssueLabel(
     existingDocumentWillUpdate: t('existingDocumentWillUpdate'),
     localInvoiceRequired: t('noMatchingLocalInvoice'),
     localInvoiceMismatch: t('localInvoiceMismatch'),
+    localInvoiceBeforeOdooTracking: t('localInvoiceBeforeOdooTracking'),
     contractNotActive: t('contractNotActive'),
     contractTenantMismatch: t('contractTenantMismatch'),
     invoiceAmountMismatch: t('invoiceAmountMismatch'),
@@ -296,10 +297,25 @@ export function ImportOdooCenterClient({
       const exactMatches = candidates.filter((item) => item.document.lines.some((line) => (
         line.localInvoiceId === localInvoice.id
       )));
-      const item = exactMatches.length === 1 ? exactMatches[0] : candidates.length === 1 ? candidates[0] : null;
+      const dateCandidates = preview.documents.filter((item) => (
+        item.document.invoiceDate === localInvoice.periodStart
+        && item.document.lines.some((line) => (
+          line.unitId === localInvoice.unitId
+          && line.contractOptions.some((contract) => contract.invoices.some((invoice) => (
+            invoice.id === localInvoice.id
+          )))
+        ))
+      ));
+      const item = exactMatches.length === 1
+        ? exactMatches[0]
+        : candidates.length === 1
+          ? candidates[0]
+          : dateCandidates.length === 1
+            ? dateCandidates[0]
+            : null;
       const result = exactMatches.length === 1
         ? localInvoice.odooInvoiceId ? 'changed' : 'ready'
-        : candidates.length === 0 ? 'missing' : 'review';
+        : candidates.length > 0 || dateCandidates.length > 0 ? 'review' : 'missing';
       return { localInvoice, item, result };
     });
   }, [preview]);
@@ -352,6 +368,8 @@ export function ImportOdooCenterClient({
     if (!preview) return new Set<string>();
     return new Set(preview.documents
       .filter((item) => (
+        item.itemStatus === 'ready'
+        &&
         selectedIds.has(item.itemId)
         && item.document.lines.every((line) => (
           isLineReadyToCommit(
@@ -467,13 +485,16 @@ export function ImportOdooCenterClient({
   function toggleVisible() {
     setSelectedIds((current) => {
       const next = new Set(current);
-      const eligible = visibleDocuments.filter((item) => item.document.lines.every((line) => (
-        isLineReadyToCommit(
-          line,
-          lineMappings[item.itemId]?.[String(line.odooLineId)],
-          singleRentalDocumentTotal(item.document),
-        )
-      )));
+      const eligible = visibleDocuments.filter((item) => (
+        item.itemStatus === 'ready'
+        && item.document.lines.every((line) => (
+          isLineReadyToCommit(
+            line,
+            lineMappings[item.itemId]?.[String(line.odooLineId)],
+            singleRentalDocumentTotal(item.document),
+          )
+        ))
+      ));
       const allSelected = eligible.length > 0
         && eligible.every((item) => current.has(item.itemId));
       for (const item of eligible) {
@@ -814,13 +835,15 @@ export function ImportOdooCenterClient({
             <div className="divide-y divide-border">
               {pagedDocuments.map((item) => {
                 const unitIds = new Set(item.document.lines.map((line) => line.unitId).filter(Boolean));
-                const itemReady = item.document.lines.every((line) => (
-                  isLineReadyToCommit(
-                    line,
-                    lineMappings[item.itemId]?.[String(line.odooLineId)],
-                    singleRentalDocumentTotal(item.document),
-                  )
-                ));
+                const itemUnchanged = item.itemStatus === 'ignored';
+                const itemReady = item.itemStatus === 'ready'
+                  && item.document.lines.every((line) => (
+                    isLineReadyToCommit(
+                      line,
+                      lineMappings[item.itemId]?.[String(line.odooLineId)],
+                      singleRentalDocumentTotal(item.document),
+                    )
+                  ));
                 const localMatches = item.document.lines.flatMap((line) => {
                   const mapping = lineMappings[item.itemId]?.[String(line.odooLineId)];
                   const contract = line.contractOptions.find((option) => option.id === mapping?.contractId);
@@ -843,8 +866,12 @@ export function ImportOdooCenterClient({
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="font-semibold">{item.document.invoiceName}</span>
                           <Badge
-                            status={itemReady ? 'success' : 'pending'}
-                            label={itemReady ? tc('valid') : t('needsReview')}
+                            status={itemReady ? 'success' : itemUnchanged ? 'linked' : 'pending'}
+                            label={itemReady
+                              ? tc('valid')
+                              : itemUnchanged
+                                ? t('noOdooChanges')
+                                : t('needsReview')}
                           />
                           {unitIds.size > 1 && <Badge status="pending" label={t('multiUnitInvoice')} />}
                           <Badge status="linked" label={item.document.moveState} />

@@ -3,29 +3,46 @@ import type {
   Contract,
   ContractCancellationHandling,
   ContractLineInput,
+  ContractPaymentCondition,
   ContractTaxMode,
   OdooSyncStatus,
   PaymentCycle,
 } from '@/types/database';
 import type { LogContext } from '@/lib/observability';
+import {
+  DEFAULT_LIST_PAGE_SIZE,
+  listPageRange,
+  MAX_UNBOUNDED_LIST_ROWS,
+  toListPageResult,
+  type ListPageResult,
+} from '@/lib/pagination/list-page';
 
 const CONTRACT_SELECT = '*, unit:units(*, location:locations(*)), tenant:tenants(*), invoices(*, lines:invoice_lines(*)), lines:contract_lines(*, unit:units(*, location:locations(*))), attachments:contract_attachments(*)';
 
 function toRpcLines(lines: ContractLineInput[]) {
-  return lines.map((line, index) => ({
-    lineType: line.line_type,
-    unitId: line.unit_id ?? null,
-    description: line.description ?? null,
-    amount: line.amount,
-    periodStart: line.period_start ?? null,
-    periodEnd: line.period_end ?? null,
-    odooLineId: line.odoo_line_id ?? null,
-    odooProductId: line.odoo_product_id ?? null,
-    odooProductName: line.odoo_product_name ?? null,
-    taxRate: line.tax_rate ?? 0,
-    taxTreatment: line.tax_treatment ?? 'standard',
-    sortOrder: line.sort_order ?? index,
-  }));
+  return lines.map((line, index) => {
+    const amountBasis = line.amount_basis === 'annual_untaxed'
+      ? 'annual_untaxed'
+      : 'contract_total_inclusive';
+    return {
+      lineType: line.line_type,
+      unitId: line.unit_id ?? null,
+      description: line.description ?? null,
+      amount: line.amount,
+      amountBasis,
+      annualAmountUntaxed: amountBasis === 'annual_untaxed'
+        ? (line.annual_amount_untaxed ?? null)
+        : null,
+      periodStart: line.period_start ?? null,
+      periodEnd: line.period_end ?? null,
+      odooLineId: line.odoo_line_id ?? null,
+      odooProductId: line.odoo_product_id ?? null,
+      odooProductName: line.odoo_product_name ?? null,
+      taxRate: line.tax_rate ?? 0,
+      taxTreatment: line.tax_treatment ?? 'standard',
+      sortOrder: line.sort_order ?? index,
+    };
+  });
 }
 
 function sortContract(contract: Contract): Contract {
@@ -50,6 +67,9 @@ export const contractsRepository = {
       openingPaymentDate: string | null;
       openingNotes: string | null;
       openingBalanceTotal: number;
+      odooTrackingStartDate: string | null;
+      historicalLastPaymentAmount: number | null;
+      historicalLastPaymentReference: string | null;
       notes: string | null;
     };
     tenant: {
@@ -89,13 +109,15 @@ export const contractsRepository = {
       }>;
     }>;
     lines?: ContractLineInput[];
+    paymentConditions: ContractPaymentCondition[];
   }, ctx: LogContext): Promise<Contract> {
     const supabase = await createClient();
-    const { data, error } = await supabase.rpc('create_contract_with_schedule_atomic', {
+    const { data, error } = await supabase.rpc('create_contract_with_conditions_atomic', {
       p_contract: input.contract,
       p_tenant: input.tenant,
       p_schedule: input.schedule,
       p_lines: input.lines ? toRpcLines(input.lines) : null,
+      p_payment_conditions: input.paymentConditions,
     });
     if (error) throw error;
     if (!data) throw new Error('Contract was not created');
@@ -121,9 +143,29 @@ export const contractsRepository = {
     const { data, error } = await supabase
       .from('contracts')
       .select(CONTRACT_SELECT)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(MAX_UNBOUNDED_LIST_ROWS);
     if (error) throw error;
     return (data ?? []).map((row) => sortContract(row as Contract));
+  },
+
+  async findPage(
+    ctx: LogContext,
+    filters?: { page?: number; pageSize?: number },
+  ): Promise<ListPageResult<Contract>> {
+    const { page, pageSize, from, to } = listPageRange(
+      filters?.page ?? 1,
+      filters?.pageSize ?? DEFAULT_LIST_PAGE_SIZE,
+    );
+    const supabase = await createClient();
+    const { data, error, count } = await supabase
+      .from('contracts')
+      .select(CONTRACT_SELECT, { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(from, to);
+    if (error) throw error;
+    const items = (data ?? []).map((row) => sortContract(row as Contract));
+    return toListPageResult(items, count, page, pageSize);
   },
 
   async findById(id: string, ctx: LogContext): Promise<Contract | null> {
@@ -284,6 +326,15 @@ export const contractsRepository = {
       notes?: string | null;
       status?: 'draft' | 'active' | 'cancelled' | 'completed';
       unit_id?: string | null;
+      payment_conditions?: ContractPaymentCondition[];
+      paid_through_date?: string | null;
+      opening_paid_amount?: number | null;
+      opening_payment_date?: string | null;
+      opening_notes?: string | null;
+      opening_balance_total?: number | null;
+      odoo_tracking_start_date?: string | null;
+      historical_last_payment_amount?: number | null;
+      historical_last_payment_reference?: string | null;
     },
     ctx: LogContext
   ): Promise<Contract> {
@@ -322,6 +373,9 @@ export const contractsRepository = {
       openingPaymentDate: string | null;
       openingNotes: string | null;
       openingBalanceTotal: number;
+      odooTrackingStartDate: string | null;
+      historicalLastPaymentAmount: number | null;
+      historicalLastPaymentReference: string | null;
       notes: string | null;
     };
     tenant: {
@@ -336,9 +390,10 @@ export const contractsRepository = {
       countryCode: string | null;
     } | null;
     lines?: ContractLineInput[];
+    paymentConditions: ContractPaymentCondition[];
   }, ctx: LogContext): Promise<Contract> {
     const supabase = await createClient();
-    const { data, error } = await supabase.rpc('save_contract_draft_atomic', {
+    const { data, error } = await supabase.rpc('save_contract_draft_with_conditions_atomic', {
       p_contract_id: input.contractId ?? null,
       p_contract: {
         contractNumber: input.contract.contractNumber,
@@ -351,6 +406,9 @@ export const contractsRepository = {
         openingPaymentDate: input.contract.openingPaymentDate,
         openingNotes: input.contract.openingNotes,
         openingBalanceTotal: input.contract.openingBalanceTotal,
+        odooTrackingStartDate: input.contract.odooTrackingStartDate,
+        historicalLastPaymentAmount: input.contract.historicalLastPaymentAmount,
+        historicalLastPaymentReference: input.contract.historicalLastPaymentReference,
         notes: input.contract.notes,
       },
       p_tenant: input.tenant
@@ -367,6 +425,7 @@ export const contractsRepository = {
           }
         : {},
       p_lines: input.lines ? toRpcLines(input.lines) : [],
+      p_payment_conditions: input.paymentConditions,
     });
     if (error) throw error;
     if (!data) throw new Error('Draft was not saved');
@@ -388,6 +447,9 @@ export const contractsRepository = {
       openingPaymentDate: string | null;
       openingNotes: string | null;
       openingBalanceTotal: number;
+      odooTrackingStartDate: string | null;
+      historicalLastPaymentAmount: number | null;
+      historicalLastPaymentReference: string | null;
       notes: string | null;
     };
     tenant: {
@@ -427,9 +489,10 @@ export const contractsRepository = {
       }>;
     }>;
     lines: ContractLineInput[];
+    paymentConditions: ContractPaymentCondition[];
   }, ctx: LogContext): Promise<Contract> {
     const supabase = await createClient();
-    const { data, error } = await supabase.rpc('activate_contract_draft_atomic', {
+    const { data, error } = await supabase.rpc('activate_contract_draft_with_conditions_atomic', {
       p_contract_id: input.contractId,
       p_contract: {
         contractNumber: input.contract.contractNumber,
@@ -443,6 +506,9 @@ export const contractsRepository = {
         openingPaymentDate: input.contract.openingPaymentDate,
         openingNotes: input.contract.openingNotes,
         openingBalanceTotal: input.contract.openingBalanceTotal,
+        odooTrackingStartDate: input.contract.odooTrackingStartDate,
+        historicalLastPaymentAmount: input.contract.historicalLastPaymentAmount,
+        historicalLastPaymentReference: input.contract.historicalLastPaymentReference,
         notes: input.contract.notes,
       },
       p_tenant: {
@@ -458,6 +524,7 @@ export const contractsRepository = {
       },
       p_schedule: input.schedule,
       p_lines: toRpcLines(input.lines),
+      p_payment_conditions: input.paymentConditions,
     });
     if (error) throw error;
     if (!data) throw new Error('Draft was not activated');

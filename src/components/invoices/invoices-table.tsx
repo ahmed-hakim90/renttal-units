@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
 import { Badge } from '@/components/ui/badge';
-import { useListSearchValue } from '@/components/ui/list-search';
+import { ListSearch, useListSearchValue } from '@/components/ui/list-search';
+import { Link } from '@/lib/i18n/navigation';
 import { issueDueInvoice, recordPayment } from '@/lib/actions/invoices';
 import { checkOdooInvoiceStatus, sendInvoiceToOdoo } from '@/lib/actions/odoo';
 import {
@@ -28,7 +29,7 @@ import { isOdooInvoiceDeleted } from '@/lib/odoo/invoice-state';
 import { isFeatureDisabledResult } from '@/lib/features';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { CreditCard, ExternalLink, FileText, RefreshCw, Send } from 'lucide-react';
+import { CreditCard, ExternalLink, Eye, FileText, RefreshCw, Send } from 'lucide-react';
 import type { Invoice, PaymentMethod } from '@/types/database';
 import type { Locale } from '@/lib/i18n/routing';
 
@@ -157,7 +158,12 @@ export function InvoicesTable({
     ].some((value) => value?.toLowerCase().includes(search)));
   }, [invoices, search]);
 
-  const showActionsColumn = canEdit || (showOdooActions && canManageOdoo);
+  const showActionsColumn = true;
+
+  function invoiceDetailHref(invoice: Invoice) {
+    if (invoice.contract_id) return `/contracts/${invoice.contract_id}`;
+    return `/units/${invoice.unit_id}`;
+  }
 
   function canSendToOdoo(invoice: Invoice) {
     return shouldShowOdooInvoiceSendButton({
@@ -309,10 +315,27 @@ export function InvoicesTable({
     const busy = odooBusyId === inv.id;
     const showSend = canSendToOdoo(inv);
     const showCheck = canCheckOdooStatus(inv);
-    if (!showSend && !showCheck) return null;
+    const needsReview = inv.odoo_sync_status === 'needs_review';
+    const sendLabel = inv.odoo_sync_status === 'failed' ? t('retryOdoo') : t('sendToOdoo');
+    if (!showSend && !showCheck && !needsReview) return null;
 
     return (
       <>
+        {needsReview && (
+          <Link
+            href="/import#odoo-import-center"
+            className={
+              fullWidth
+                ? 'inline-flex h-9 w-full items-center justify-center gap-2 rounded-xl border border-border bg-card px-3 text-sm font-medium'
+                : 'inline-flex size-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground'
+            }
+            title={t('resolveInImportCenter')}
+            aria-label={t('resolveInImportCenter')}
+          >
+            <ExternalLink className="size-4" aria-hidden="true" />
+            {fullWidth ? t('resolveInImportCenter') : null}
+          </Link>
+        )}
         {showSend && (
           <Button
             className={fullWidth ? 'w-full' : undefined}
@@ -320,11 +343,13 @@ export function InvoicesTable({
             size={fullWidth ? 'sm' : 'icon-sm'}
             disabled={Boolean(odooBusyId)}
             onClick={() => handleSendToOdoo(inv)}
-            title={t('sendToOdoo')}
-            aria-label={t('sendToOdoo')}
+            title={sendLabel}
+            aria-label={sendLabel}
           >
-            <Send aria-hidden="true" />
-            {fullWidth ? (busy ? tCommon('loading') : t('sendToOdoo')) : null}
+            {inv.odoo_sync_status === 'failed'
+              ? <RefreshCw aria-hidden="true" className={busy ? 'animate-spin' : undefined} />
+              : <Send aria-hidden="true" />}
+            {fullWidth ? (busy ? tCommon('loading') : sendLabel) : null}
           </Button>
         )}
         {showCheck && (
@@ -347,8 +372,14 @@ export function InvoicesTable({
 
   return (
     <>
+      <div className="toolbar">
+        <ListSearch />
+      </div>
+
       {visibleInvoices.length === 0 ? (
-        <div className="surface-panel px-6 py-12 text-center text-muted-foreground">{t('empty')}</div>
+        <div className="surface-panel px-6 py-12 text-center text-muted-foreground">
+          {search ? tCommon('noResults') : t('empty')}
+        </div>
       ) : (
         <>
         <div className="grid gap-3 md:hidden">
@@ -417,23 +448,28 @@ export function InvoicesTable({
                   </div>
                 )}
               </div>
-              {showActionsColumn && (
-                <div className="mt-4 flex flex-col gap-2">
-                  {canEdit && !isOdooManagedInvoice(inv) && inv.status === 'due' && (
-                    <Button className="w-full" variant="issue" size="sm" onClick={() => { setSelectedInvoice(inv); setIssueInvoiceOpen(true); }}>
-                      <FileText />
-                      {t('issueInvoice')}
-                    </Button>
-                  )}
-                  {canEdit && !isOdooManagedInvoice(inv) && (inv.status === 'invoice_issued' || inv.status === 'partially_paid' || inv.status === 'overdue') && (
-                    <Button className="w-full" variant="payment" size="sm" onClick={() => { setSelectedInvoice(inv); setPaymentMode('full'); setPayOpen(true); }}>
-                      <CreditCard />
-                      {t('recordPayment')}
-                    </Button>
-                  )}
-                  {renderOdooButtons(inv, true)}
-                </div>
-              )}
+              <div className="mt-4 flex flex-col gap-2">
+                <Link
+                  href={invoiceDetailHref(inv)}
+                  className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-xl border border-border bg-card px-3 text-sm font-medium"
+                >
+                  <Eye className="size-4" />
+                  {t('viewDetails')}
+                </Link>
+                {canEdit && !isOdooManagedInvoice(inv) && inv.status === 'due' && (
+                  <Button className="w-full" variant="issue" size="sm" onClick={() => { setSelectedInvoice(inv); setIssueInvoiceOpen(true); }}>
+                    <FileText />
+                    {t('issueInvoice')}
+                  </Button>
+                )}
+                {canEdit && !isOdooManagedInvoice(inv) && (inv.status === 'invoice_issued' || inv.status === 'partially_paid' || inv.status === 'overdue') && (
+                  <Button className="w-full" variant="payment" size="sm" onClick={() => { setSelectedInvoice(inv); setPaymentMode('full'); setPayOpen(true); }}>
+                    <CreditCard />
+                    {t('recordPayment')}
+                  </Button>
+                )}
+                {renderOdooButtons(inv, true)}
+              </div>
             </div>
             );
           })}
@@ -462,7 +498,12 @@ export function InvoicesTable({
               {visibleInvoices.map((inv) => (
                 <tr key={inv.id} className={getInvoiceRowHighlight(inv.due_date, inv.status)}>
                   <td className="font-medium">
-                    <div>{inv.invoice_number}</div>
+                    <Link
+                      href={invoiceDetailHref(inv)}
+                      className="text-primary underline-offset-4 hover:underline"
+                    >
+                      {inv.invoice_number}
+                    </Link>
                     {isOldOutstandingDue(inv.due_date, inv.status) && (
                       <p className="mt-0.5 text-xs font-medium text-amber-800">{t('oldOutstanding')}</p>
                     )}
@@ -509,6 +550,14 @@ export function InvoicesTable({
                   {showActionsColumn && (
                     <td className="sticky end-0 z-10 w-px whitespace-nowrap border-s border-border bg-card text-end">
                       <div className="row-actions">
+                        <Link
+                          href={invoiceDetailHref(inv)}
+                          className="inline-flex size-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
+                          title={t('viewDetails')}
+                          aria-label={t('viewDetails')}
+                        >
+                          <Eye className="size-4" aria-hidden="true" />
+                        </Link>
                         {canEdit && !isOdooManagedInvoice(inv) && inv.status === 'due' && (
                           <Button
                             variant="issue"

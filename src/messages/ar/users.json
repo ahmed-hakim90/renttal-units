@@ -45,5 +45,21 @@
   "systemOwnerProtected": "لا يمكن تعديل بيانات دخول مالك النظام إلا بواسطة مالك نظام آخر.",
   "rateLimited": "محاولات كثيرة. حاول مرة أخرى بعد ١٥ دقيقة.",
   "activity": "نشاط المستخدم",
-  "auditLoadFailed": "تعذر تحميل نشاط المستخدم."
+  "auditLoadFailed": "تعذر تحميل نشاط المستخدم.",
+  "status": "الحالة",
+  "active": "نشط",
+  "inactive": "معطّل",
+  "actions": "الإجراءات",
+  "deactivate": "تعطيل",
+  "reactivate": "إعادة تفعيل",
+  "confirmDeactivateTitle": "تعطيل المستخدم؟",
+  "confirmDeactivateDescription": "لن يتمكن هذا المستخدم من تسجيل الدخول حتى تتم إعادة تفعيله.",
+  "confirmReactivateTitle": "إعادة تفعيل المستخدم؟",
+  "confirmReactivateDescription": "سيتمكن هذا المستخدم من تسجيل الدخول مرة أخرى.",
+  "deactivated": "تم تعطيل المستخدم بنجاح",
+  "reactivated": "تمت إعادة تفعيل المستخدم بنجاح",
+  "deactivateFailed": "تعذر تعطيل المستخدم. حاول مرة أخرى.",
+  "reactivateFailed": "تعذرت إعادة تفعيل المستخدم. حاول مرة أخرى.",
+  "cannotDeactivateSelf": "لا يمكنك تعطيل حسابك.",
+  "cannotDeactivateLastOwner": "لا يمكن تعطيل آخر مالك للنظام."
 }

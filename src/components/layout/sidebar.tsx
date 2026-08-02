@@ -4,7 +4,7 @@ import { useFormatter, useTranslations } from 'next-intl';
 import { Link, usePathname } from '@/lib/i18n/navigation';
 import {
   LayoutDashboard, MapPin, Building2, Calendar, FileText,
-  CreditCard, CheckCircle, History, BarChart3, Upload, Users, Settings,
+  CreditCard, CheckCircle, History, BarChart3, Upload, Users, UserRound, Settings,
   PanelLeftClose, PanelLeftOpen, X, LogOut, ScrollText, Flag, Shield,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -19,12 +19,13 @@ import type { AuthContext } from '@/types/database';
 const navItems: Array<{
   href: string;
   icon: typeof LayoutDashboard;
-  labelKey: 'dashboard' | 'locations' | 'units' | 'contracts' | 'dueThisMonth' | 'invoices' | 'partialPayments' | 'fullyPaid' | 'payments' | 'debtAging' | 'locationStatement' | 'import' | 'users' | 'roles' | 'auditLogs' | 'featureFlags' | 'settings';
+  labelKey: 'dashboard' | 'locations' | 'units' | 'tenants' | 'contracts' | 'dueThisMonth' | 'invoices' | 'partialPayments' | 'fullyPaid' | 'payments' | 'debtAging' | 'locationStatement' | 'import' | 'users' | 'roles' | 'auditLogs' | 'featureFlags' | 'settings';
   flagKey?: FeatureFlagKey;
 }> = [
   { href: '/dashboard', icon: LayoutDashboard, labelKey: 'dashboard' },
   { href: '/locations', icon: MapPin, labelKey: 'locations' },
   { href: '/units', icon: Building2, labelKey: 'units' },
+  { href: '/tenants', icon: UserRound, labelKey: 'tenants' },
   { href: '/contracts', icon: ScrollText, labelKey: 'contracts' },
   { href: '/due-this-month', icon: Calendar, labelKey: 'dueThisMonth' },
   { href: '/invoices', icon: FileText, labelKey: 'invoices' },

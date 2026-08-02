@@ -2,10 +2,12 @@
 
 import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { CalendarDays, Download, FileText, Landmark, Receipt, Search } from 'lucide-react';
+import { CalendarDays, Download, Eye, FileText, Landmark, Receipt, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardTitle } from '@/components/ui/card';
+import { Modal } from '@/components/ui/modal';
 import { formatCurrency, formatDate } from '@/lib/i18n/format';
+import { Link } from '@/lib/i18n/navigation';
 import type { Payment, PaymentMethod } from '@/types/database';
 import type { Locale } from '@/lib/i18n/routing';
 
@@ -36,10 +38,12 @@ export function PaymentsTable({
   payments,
   locale,
   canExport = false,
+  serverPaged = false,
 }: {
   payments: Payment[];
   locale: string;
   canExport?: boolean;
+  serverPaged?: boolean;
 }) {
   const t = useTranslations('payments');
   const tc = useTranslations('common');
@@ -49,6 +53,7 @@ export function PaymentsTable({
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [page, setPage] = useState(1);
+  const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
 
   const filteredPayments = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
@@ -88,7 +93,9 @@ export function PaymentsTable({
   }, [filteredPayments]);
 
   const totalPages = Math.max(1, Math.ceil(filteredPayments.length / pageSize));
-  const paginatedPayments = filteredPayments.slice((page - 1) * pageSize, page * pageSize);
+  const paginatedPayments = serverPaged
+    ? filteredPayments
+    : filteredPayments.slice((page - 1) * pageSize, page * pageSize);
 
   async function exportExcel() {
     if (!canExport) return;
@@ -286,6 +293,15 @@ export function PaymentsTable({
                     <p className="truncate">{payment.notes ?? '-'}</p>
                   </div>
                 </div>
+                <Button
+                  className="mt-4 w-full"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectedPayment(payment)}
+                >
+                  <Eye className="h-4 w-4" />
+                  {t('viewDetails')}
+                </Button>
               </Card>
             ))}
           </div>
@@ -302,6 +318,7 @@ export function PaymentsTable({
                   <th className="px-4 py-3 text-start">{t('paymentMethod')}</th>
                   <th className="px-4 py-3 text-start">{t('referenceNumber')}</th>
                   <th className="px-4 py-3 text-start">{t('notes')}</th>
+                  <th className="px-4 py-3 text-end">{tc('actions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -319,44 +336,110 @@ export function PaymentsTable({
                     <td className="max-w-[240px] truncate px-4 py-3 text-muted-foreground">
                       {payment.notes ?? '-'}
                     </td>
+                    <td className="px-4 py-3 text-end">
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        title={t('viewDetails')}
+                        aria-label={t('viewDetails')}
+                        onClick={() => setSelectedPayment(payment)}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
 
-          <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-muted-foreground">
-              {t('pageSummary', {
-                from: (page - 1) * pageSize + 1,
-                to: Math.min(page * pageSize, filteredPayments.length),
-                total: filteredPayments.length,
-              })}
-            </p>
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={page === 1}
-                onClick={() => setPage((current) => Math.max(1, current - 1))}
-              >
-                {tc('previous')}
-              </Button>
-              <span className="text-sm font-medium">{page} / {totalPages}</span>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={page === totalPages}
-                onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
-              >
-                {tc('next')}
-              </Button>
+          {!serverPaged && (
+            <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-muted-foreground">
+                {t('pageSummary', {
+                  from: (page - 1) * pageSize + 1,
+                  to: Math.min(page * pageSize, filteredPayments.length),
+                  total: filteredPayments.length,
+                })}
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={page === 1}
+                  onClick={() => setPage((current) => Math.max(1, current - 1))}
+                >
+                  {tc('previous')}
+                </Button>
+                <span className="text-sm font-medium">{page} / {totalPages}</span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={page === totalPages}
+                  onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                >
+                  {tc('next')}
+                </Button>
+              </div>
             </div>
-          </div>
+          )}
         </>
       )}
+
+      <Modal
+        open={selectedPayment !== null}
+        onClose={() => setSelectedPayment(null)}
+        title={t('viewDetails')}
+      >
+        {selectedPayment && (
+          <div className="space-y-3 text-sm">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <p className="text-xs text-muted-foreground">{t('invoice')}</p>
+                <p className="font-medium">{getInvoiceNumber(selectedPayment)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">{t('amount')}</p>
+                <p className="font-medium">{formatCurrency(Number(selectedPayment.amount), loc)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">{t('paymentDate')}</p>
+                <p>{formatDate(selectedPayment.payment_date, loc)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">{t('paymentMethod')}</p>
+                <p>{tc(`paymentMethod.${selectedPayment.payment_method}`)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">{t('unit')}</p>
+                <p>{getUnitNumber(selectedPayment) || '-'}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">{t('location')}</p>
+                <p>{getLocationName(selectedPayment, locale) || '-'}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">{t('referenceNumber')}</p>
+                <p>{selectedPayment.reference_number ?? '-'}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">{t('notes')}</p>
+                <p>{selectedPayment.notes ?? '-'}</p>
+              </div>
+            </div>
+            {selectedPayment.invoice?.contract_id && (
+              <Link
+                href={`/contracts/${selectedPayment.invoice.contract_id}`}
+                className="inline-flex text-sm font-medium text-primary underline-offset-4 hover:underline"
+              >
+                {t('openContract')}
+              </Link>
+            )}
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

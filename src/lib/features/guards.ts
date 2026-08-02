@@ -114,6 +114,10 @@ export function shouldShowOdooInvoiceSendButton(input: {
   if (input.invoice.odoo_sync_status === 'synced' && input.invoice.odoo_invoice_id) {
     return false;
   }
+  // Mapping/review issues must be resolved in the import center before another send.
+  if (input.invoice.odoo_sync_status === 'needs_review') {
+    return false;
+  }
   return true;
 }
 

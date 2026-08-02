@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   applyContractWideOdooTaxRates,
+  applyOdooTaxRatesPerLine,
   resolveTaxRateForSelection,
 } from '../src/lib/rental/contract-tax-rates.ts';
 
@@ -43,6 +44,23 @@ test('applies the selected Odoo rate to every contract line', () => {
   }
 });
 
+test('resolves each contract line tax independently using trusted Odoo rates', () => {
+  const lines = applyOdooTaxRatesPerLine(
+    [
+      { line_type: 'rental', amount: 1150, tax_rate: 99, tax_treatment: 'standard' },
+      { line_type: 'service', amount: 100, tax_rate: 0, tax_treatment: 'standard' },
+      { line_type: 'service', amount: 50, tax_rate: 99, tax_treatment: 'zero_rated' },
+    ],
+    'taxable',
+    { vatRate: 15, zeroRatedTaxRate: 0 },
+  );
+
+  assert.deepEqual(
+    lines.map((line) => [line.tax_rate, line.tax_treatment]),
+    [[15, 'standard'], [0, 'standard'], [0, 'zero_rated']],
+  );
+});
+
 test('odoo tax options expose amount and settings store both rates', () => {
   const service = read('src/lib/odoo/service.ts');
   assert.match(service, /function taxOptionFromRecord/);
@@ -50,6 +68,7 @@ test('odoo tax options expose amount and settings store both rates', () => {
   assert.match(service, /async resolveConfiguredTaxRates/);
   assert.match(read('src/lib/odoo/settings.ts'), /zeroRatedTaxRate: number/);
   assert.match(read('src/lib/services/contract-service.ts'), /applyOdooTaxRatesToContractLines/);
+  assert.match(read('src/lib/services/contract-service.ts'), /applyOdooTaxRatesPerLine/);
   assert.match(read('src/components/contracts/contract-editor.tsx'), /odooVatRate/);
   assert.match(read('src/components/contracts/contract-editor.tsx'), /rateForTaxSelection/);
 });

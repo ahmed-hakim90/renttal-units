@@ -15,19 +15,32 @@ export type ContractEditorInitialValues = Partial<ContractFormValues> & {
 };
 
 export function contractToFormValues(contract: Contract): ContractEditorInitialValues {
-  const lines = (contract.lines ?? []).map((line) => ({
-    key: line.id,
-    line_type: line.line_type,
-    unit_id: line.unit_id ?? '',
-    description: line.description ?? '',
-    amount: line.amount != null ? String(line.amount) : '',
-    odoo_product_id: line.odoo_product_id != null ? String(line.odoo_product_id) : '',
-    odoo_product_name: line.odoo_product_name ?? '',
-    tax_rate: String(line.tax_rate ?? 15),
-    tax_treatment: (line.tax_treatment === 'zero_rated' ? 'zero_rated' : 'standard') as
-      | 'standard'
-      | 'zero_rated',
-  }));
+  const rentIncreaseCondition = (contract.payment_conditions ?? []).find(
+    (condition) => condition.condition_type === 'percentage_increase_after'
+      && condition.target === 'rental',
+  );
+  const lines = (contract.lines ?? []).map((line) => {
+    const amountBasis = line.amount_basis === 'annual_untaxed'
+      ? 'annual_untaxed' as const
+      : 'contract_total_inclusive' as const;
+    return {
+      key: line.id,
+      line_type: line.line_type,
+      unit_id: line.unit_id ?? '',
+      description: line.description ?? '',
+      amount: line.amount != null ? String(line.amount) : '',
+      amount_basis: amountBasis,
+      annual_amount_untaxed: amountBasis === 'annual_untaxed' && line.annual_amount_untaxed != null
+        ? String(line.annual_amount_untaxed)
+        : '',
+      odoo_product_id: line.odoo_product_id != null ? String(line.odoo_product_id) : '',
+      odoo_product_name: line.odoo_product_name ?? '',
+      tax_rate: String(line.tax_rate ?? 15),
+      tax_treatment: (line.tax_treatment === 'zero_rated' ? 'zero_rated' : 'standard') as
+        | 'standard'
+        | 'zero_rated',
+    };
+  });
 
   return {
     unit_id: contract.unit_id ?? '',
@@ -46,6 +59,13 @@ export function contractToFormValues(contract: Contract): ContractEditorInitialV
     tenant_email: contract.tenant?.email ?? '',
     tenant_national_id: contract.tenant?.national_id ?? '',
     lines,
+    payment_conditions: [{
+      enabled: rentIncreaseCondition?.enabled ?? false,
+      applies_after_years: rentIncreaseCondition
+        ? String(rentIncreaseCondition.applies_after_months / 12)
+        : '5',
+      percentage: rentIncreaseCondition ? String(rentIncreaseCondition.percentage) : '10',
+    }],
     notes: contract.notes ?? '',
     taxSelection: (contract.lines ?? []).some((line) => line.tax_treatment === 'zero_rated')
       ? 'zero_rated'

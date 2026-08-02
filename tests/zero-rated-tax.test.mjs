@@ -44,15 +44,16 @@ test('issuing invoices requires zeroRatedTaxId when lines are zero-rated', () =>
   assert.match(odooActions, /!settings\.zeroRatedTaxId/);
 });
 
-test('contract UI exposes zero-rated tax selection for all lines', () => {
+test('contract editor exposes independent tax selection for each line', () => {
   const createForm = read('src/components/contracts/contract-create-form.tsx');
   const editor = read('src/components/contracts/contract-editor.tsx');
   assert.match(createForm, /zero_rated/);
   assert.match(createForm, /tax_treatment: next === 'zero_rated' \? 'zero_rated' : 'standard'/);
   assert.doesNotMatch(createForm, /<option value="non_taxable">/);
-  assert.match(editor, /taxSelection/);
+  assert.match(editor, /updateLineTaxSelection/);
   assert.match(editor, /zeroRated/);
-  assert.doesNotMatch(editor, /<option value="non_taxable">/);
+  assert.match(editor, /<option value="non_taxable">/);
+  assert.doesNotMatch(editor, /name="tax_selection"/);
 });
 
 test('invoice line recreation paths persist tax_treatment snapshots', () => {
@@ -60,7 +61,8 @@ test('invoice line recreation paths persist tax_treatment snapshots', () => {
   const rentalService = read('src/lib/services/rental-service.ts');
   const invoicesRepo = read('src/lib/repositories/invoices.ts');
   assert.match(contractService, /invoicesRepository\.createLines/);
-  assert.match(contractService, /taxTreatment: line\.tax_treatment === 'zero_rated'/);
+  assert.match(contractService, /tax_treatment: line\.taxTreatment/);
+  assert.match(contractService, /toContractBillingLineInput/);
   assert.match(rentalService, /calculateContractBillingSchedule/);
   assert.match(rentalService, /createLines/);
   assert.match(invoicesRepo, /tax_treatment: line\.tax_treatment \?\? 'standard'/);

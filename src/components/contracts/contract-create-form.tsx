@@ -50,6 +50,8 @@ function newLine(lineType: ContractLineType = 'rental'): ContractFormLineValues 
     unit_id: '',
     description: '',
     amount: '',
+    amount_basis: 'annual_untaxed',
+    annual_amount_untaxed: '',
     odoo_product_id: '',
     odoo_product_name: '',
     tax_rate: '15',
@@ -72,6 +74,11 @@ const EMPTY_FORM: ContractFormValues = {
   tenant_email: '',
   tenant_national_id: '',
   lines: [newLine('rental')],
+  payment_conditions: [{
+    enabled: false,
+    applies_after_years: '5',
+    percentage: '10',
+  }],
 };
 
 function SelectField({
@@ -337,7 +344,9 @@ export function ContractCreateForm({
           line_type: line.line_type,
           unit_id: line.line_type === 'rental' ? line.unit_id : null,
           description: line.description.trim() || null,
-          amount: Number(line.amount),
+          amount: 0,
+          amount_basis: 'annual_untaxed' as const,
+          annual_amount_untaxed: Number(line.annual_amount_untaxed) || null,
           odoo_product_id: line.line_type === 'rental'
             ? units.find((unit) => unit.id === line.unit_id)?.odoo_product_id ?? null
             : line.odoo_product_id ? Number(line.odoo_product_id) : null,
@@ -468,14 +477,14 @@ export function ContractCreateForm({
                   )}
                   <Input
                     name={`amount-${line.key}`}
-                    label={t('lineAmountWithTax', {
+                    label={t('annualAmountUntaxedWithTax', {
                       tax: taxSelection === 'taxable' ? `${t('taxable')} (15%)` : t('zeroRated'),
                     })}
                     type="number"
                     step="0.01"
                     min="0.01"
-                    value={line.amount}
-                    onChange={(e) => updateLine(line.key, { amount: e.target.value })}
+                    value={line.annual_amount_untaxed}
+                    onChange={(e) => updateLine(line.key, { annual_amount_untaxed: e.target.value })}
                   />
                 </div>
                 {line.line_type === 'rental' && (
@@ -659,6 +668,15 @@ export function ContractCreateForm({
         <div className="rounded-xl border border-border p-4 space-y-3">
           <p className="text-sm font-medium text-muted-foreground">{t('openingBalanceSection')}</p>
           <p className="text-xs text-muted-foreground">{t('openingBalanceHint')}</p>
+          <p className="text-xs text-muted-foreground">{t('odooTrackingHint')}</p>
+          {preview.ready && preview.odooTrackingStartDate && (
+            <p className="rounded-md border border-border/70 bg-muted/30 px-2.5 py-1.5 text-xs text-muted-foreground">
+              {t('odooTrackingStartPreview', {
+                start: preview.firstUnpaidPeriodStart ?? preview.odooTrackingStartDate,
+                end: preview.firstUnpaidPeriodEnd ?? '—',
+              })}
+            </p>
+          )}
           <Input
             name="paid_through_date"
             label={t('paidThroughDate')}

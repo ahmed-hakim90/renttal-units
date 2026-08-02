@@ -9,6 +9,9 @@ export type OdooSyncStatus = 'not_synced' | 'local_only' | 'synced' | 'failed' |
 export type ContractTaxMode = 'taxable' | 'non_taxable';
 export type ContractTaxTreatment = 'standard' | 'zero_rated';
 export type ContractLineType = 'rental' | 'service';
+export type ContractLineAmountBasis = 'annual_untaxed' | 'contract_total_inclusive';
+export type ContractPaymentConditionType = 'percentage_increase_after';
+export type ContractPaymentConditionTarget = 'rental' | 'all';
 export type OdooImportRunStatus = 'previewing' | 'ready' | 'committing' | 'completed' | 'failed';
 export type OdooImportItemStatus = 'ready' | 'needs_review' | 'duplicate' | 'imported' | 'failed' | 'ignored';
 export type OdooLineMappingStatus = 'matched' | 'unmatched' | 'needs_review' | 'service';
@@ -38,6 +41,10 @@ export interface Profile {
   created_at: string;
   updated_at: string;
   assigned_role?: RoleSummary | null;
+  /** Present when merged from auth admin listUsers; null means not banned. */
+  banned_until?: string | null;
+  /** Derived from banned_until when auth ban state is available. */
+  is_active?: boolean;
 }
 
 export interface RoleSummary {
@@ -152,7 +159,12 @@ export interface ContractLine {
   line_type: ContractLineType;
   unit_id: string | null;
   description: string | null;
+  /** Full-contract tax-inclusive total (derived for annual_untaxed lines). */
   amount: number;
+  /** Operator pricing source. Legacy contracts use contract_total_inclusive. */
+  amount_basis: ContractLineAmountBasis;
+  /** Annual pre-tax amount when amount_basis is annual_untaxed. */
+  annual_amount_untaxed: number | null;
   period_start: string | null;
   period_end: string | null;
   odoo_line_id: number | null;
@@ -164,6 +176,14 @@ export interface ContractLine {
   created_at: string;
   updated_at: string;
   unit?: Unit | null;
+}
+
+export interface ContractPaymentCondition {
+  condition_type: ContractPaymentConditionType;
+  enabled: boolean;
+  applies_after_months: number;
+  percentage: number;
+  target: ContractPaymentConditionTarget;
 }
 
 export interface Contract {
@@ -188,6 +208,13 @@ export interface Contract {
   opening_payment_date: string | null;
   opening_notes: string | null;
   opening_balance_total: number;
+  /** First local period_start eligible for Odoo link/sync. Null = no cutover filter. */
+  odoo_tracking_start_date: string | null;
+  /** Reference-only last historical payment amount (not used for balances). */
+  historical_last_payment_amount: number | null;
+  /** Reference-only last historical payment label/reference. */
+  historical_last_payment_reference: string | null;
+  payment_conditions: ContractPaymentCondition[];
   notes: string | null;
   created_at: string;
   updated_at: string;
@@ -203,6 +230,8 @@ export type ContractLineInput = {
   unit_id?: string | null;
   description?: string | null;
   amount: number;
+  amount_basis?: ContractLineAmountBasis;
+  annual_amount_untaxed?: number | null;
   period_start?: string | null;
   period_end?: string | null;
   odoo_line_id?: number | null;

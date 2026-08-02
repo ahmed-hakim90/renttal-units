@@ -165,6 +165,7 @@ export const NAV_PERMISSIONS: Record<string, PermissionKey | null> = {
   '/dashboard': null,
   '/locations': 'locations.view',
   '/units': 'units.view',
+  '/tenants': 'tenants.view',
   '/contracts': 'contracts.view',
   '/due-this-month': 'invoices.view',
   '/invoices': 'invoices.view',

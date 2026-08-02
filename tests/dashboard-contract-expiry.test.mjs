@@ -1,7 +1,14 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { countContractsExpiringSoon } from '../src/lib/rental/contract-expiry.ts';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import {
+  countContractsExpiringSoon,
+  isContractExpiringSoon,
+} from '../src/lib/rental/contract-expiry.ts';
 
+const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const asOfDate = new Date('2026-07-30T12:00:00Z');
 
 test('counts active contracts ending from today through the next 30 days', () => {
@@ -25,4 +32,19 @@ test('excludes expired, later, non-active, and undated contracts', () => {
   ], asOfDate);
 
   assert.equal(count, 0);
+});
+
+test('isContractExpiringSoon matches count helper membership', () => {
+  assert.equal(isContractExpiringSoon({ status: 'active', end_date: '2026-08-15' }, asOfDate), true);
+  assert.equal(isContractExpiringSoon({ status: 'active', end_date: '2026-08-30' }, asOfDate), false);
+});
+
+test('portfolio summary and notifications deep-link expiring contracts', () => {
+  const portfolio = readFileSync(
+    join(root, 'src/components/dashboard/portfolio-summary.tsx'),
+    'utf8',
+  );
+  const guards = readFileSync(join(root, 'src/lib/notifications/guards.ts'), 'utf8');
+  assert.match(portfolio, /\/contracts\?expiring=30/);
+  assert.match(guards, /\/contracts\?expiring=30/);
 });

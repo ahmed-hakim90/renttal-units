@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/lib/i18n/navigation';
 import { Button, buttonStyles } from '@/components/ui/button';
@@ -80,6 +81,7 @@ export function UnitsManager({
   const tFeature = useTranslations('featureFlags');
   const loc = locale as Locale;
   const router = useRouter();
+  const searchParams = useSearchParams();
   const search = useListSearchValue();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Unit | null>(null);
@@ -193,6 +195,22 @@ export function UnitsManager({
     setFormLocationId(unit.location_id);
     setSelectedStatus(getManualStatus(unit));
     setOpen(true);
+  }
+
+  // Open the edit modal from ?edit= when arriving from unit detail (render-time sync).
+  const editIdFromUrl = canEdit ? searchParams.get('edit') : null;
+  const [openedEditQueryId, setOpenedEditQueryId] = useState<string | null>(null);
+  if (editIdFromUrl !== openedEditQueryId) {
+    setOpenedEditQueryId(editIdFromUrl);
+    if (editIdFromUrl) {
+      const unitFromUrl = units.find((item) => item.id === editIdFromUrl);
+      if (unitFromUrl) {
+        setEditing(unitFromUrl);
+        setFormLocationId(unitFromUrl.location_id);
+        setSelectedStatus(getManualStatus(unitFromUrl));
+        setOpen(true);
+      }
+    }
   }
 
   function closeModal() {

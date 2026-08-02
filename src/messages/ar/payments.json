@@ -32,6 +32,8 @@
   "exceedsBalance": "مبلغ الدفع يتجاوز الرصيد المتبقي",
   "paymentManagedByOdoo": "مدفوعات هذه الفاتورة تُدار في Odoo وتتزامن تلقائيًا",
   "empty": "لا توجد مدفوعات مسجلة",
+  "viewDetails": "عرض التفاصيل",
+  "openContract": "فتح العقد المرتبط",
   "recordedBy": "سجل بواسطة",
   "paymentRecorded": "تم تسجيل الدفعة بنجاح"
 }

@@ -1,7 +1,14 @@
 import { addDays, addMonths, differenceInDays, format, intervalToDuration, parseISO, subDays } from 'date-fns';
 import { CONTRACT_DATE_MIN } from '@/lib/dates/contract-dates';
-import { splitTaxInclusiveAmount } from '@/lib/rental/tax';
-import type { Contract, ContractStatus, PaymentCycle, Unit } from '@/types/database';
+import { applyTaxExclusiveAmount, splitTaxInclusiveAmount } from '@/lib/rental/tax';
+import type {
+  Contract,
+  ContractLineAmountBasis,
+  ContractPaymentCondition,
+  ContractStatus,
+  PaymentCycle,
+  Unit,
+} from '@/types/database';
 
 export type ContractDisplayStatus = ContractStatus | 'expired';
 
@@ -35,7 +42,13 @@ export interface ContractBillingLineInput {
   description?: string | null;
   odooProductId?: number | null;
   odooProductName?: string | null;
+  /**
+   * Full-contract tax-inclusive total.
+   * Required for contract_total_inclusive; derived for annual_untaxed.
+   */
   amount: number;
+  amountBasis?: ContractLineAmountBasis;
+  annualAmountUntaxed?: number | null;
   taxRate: number;
   taxTreatment?: 'standard' | 'zero_rated';
   sortOrder?: number;
@@ -63,6 +76,14 @@ export interface ContractBillingPeriod extends ContractPaymentPeriod {
   lineItems: ContractBillingLinePeriod[];
 }
 
+type WeightedContractPeriod = UnitRentPeriod & {
+  dayWeight: number;
+};
+
+function roundMoney(value: number): number {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
 export function getCycleMonths(cycle: PaymentCycle): number {
   switch (cycle) {
     case 'monthly': return 1;
@@ -72,12 +93,12 @@ export function getCycleMonths(cycle: PaymentCycle): number {
   }
 }
 
-export function calculatePeriodAmount(monthlyRent: number, cycle: PaymentCycle): number {
-  return monthlyRent * getCycleMonths(cycle);
+export function getPaymentsPerYear(cycle: PaymentCycle): number {
+  return 12 / getCycleMonths(cycle);
 }
 
-function roundMoney(value: number): number {
-  return Math.round((value + Number.EPSILON) * 100) / 100;
+export function calculatePeriodAmount(monthlyRent: number, cycle: PaymentCycle): number {
+  return monthlyRent * getCycleMonths(cycle);
 }
 
 export function calculateRentPeriod(cycle: PaymentCycle, referenceDate: Date = new Date()) {
@@ -118,25 +139,42 @@ export function calculateAllUnitRentPeriods(unit: Unit, upToDate: Date = new Dat
   return periods;
 }
 
-export function calculateContractPaymentSchedule(
-  contract: Pick<Contract, 'start_date' | 'end_date' | 'payment_cycle' | 'total_amount'>
-): ContractPaymentPeriod[] {
-  if (!contract.start_date || !contract.end_date) {
-    throw new Error('Contract start_date and end_date are required to calculate payment schedule');
-  }
+function conditionMultiplierForPeriod(
+  periodStart: Date,
+  contractStart: Date,
+  paymentConditions: ContractPaymentCondition[],
+): number {
+  return paymentConditions.reduce((multiplier, condition) => {
+    if (
+      !condition.enabled
+      || condition.condition_type !== 'percentage_increase_after'
+      || !Number.isInteger(condition.applies_after_months)
+      || condition.applies_after_months < 1
+      || !Number.isFinite(condition.percentage)
+      || condition.percentage <= 0
+    ) {
+      return multiplier;
+    }
+    const threshold = addMonths(contractStart, condition.applies_after_months);
+    return periodStart >= threshold
+      ? multiplier * (1 + condition.percentage / 100)
+      : multiplier;
+  }, 1);
+}
 
-  if (contract.start_date < CONTRACT_DATE_MIN) {
+function buildWeightedContractPeriods(
+  startDate: string,
+  endDate: string,
+  paymentCycle: PaymentCycle,
+): WeightedContractPeriod[] {
+  if (startDate < CONTRACT_DATE_MIN) {
     throw new Error(`Contract start_date must be on or after ${CONTRACT_DATE_MIN}`);
   }
 
-  const contractStart = parseISO(contract.start_date);
-  const contractEnd = parseISO(contract.end_date);
-  const cycleMonths = getCycleMonths(contract.payment_cycle);
-
-  // Each period carries a weight: 1 for a full cycle, and a day-based fraction
-  // for a trailing partial cycle, so a stub period is prorated by its days
-  // instead of being charged a full cycle.
-  const periods: Array<UnitRentPeriod & { weight: number }> = [];
+  const contractStart = parseISO(startDate);
+  const contractEnd = parseISO(endDate);
+  const cycleMonths = getCycleMonths(paymentCycle);
+  const periods: WeightedContractPeriod[] = [];
   let periodStart = contractStart;
 
   while (periodStart <= contractEnd) {
@@ -146,101 +184,243 @@ export function calculateContractPaymentSchedule(
 
     const naturalPeriodEnd = subDays(addMonths(periodStart, cycleMonths), 1);
     const periodEnd = naturalPeriodEnd > contractEnd ? contractEnd : naturalPeriodEnd;
-
     const fullDays = differenceInDays(naturalPeriodEnd, periodStart) + 1;
     const actualDays = differenceInDays(periodEnd, periodStart) + 1;
 
     periods.push({
       periodStart: format(periodStart, 'yyyy-MM-dd'),
       periodEnd: format(periodEnd, 'yyyy-MM-dd'),
-      weight: actualDays / fullDays,
+      dayWeight: actualDays / fullDays,
     });
 
     periodStart = addMonths(periodStart, cycleMonths);
   }
 
-  if (periods.length === 0) return [];
+  return periods;
+}
 
-  const total = Number(contract.total_amount);
-  const totalWeight = periods.reduce((sum, period) => sum + period.weight, 0);
+function allocateByWeights(total: number, weights: number[]): number[] {
+  if (weights.length === 0) return [];
+  const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
+  if (totalWeight <= 0) {
+    throw new Error('Contract payment schedule weights must be positive');
+  }
+
   let assigned = 0;
-
-  return periods.map((period, index) => {
-    const isLast = index === periods.length - 1;
+  return weights.map((weight, index) => {
+    const isLast = index === weights.length - 1;
     const amount = isLast
       ? roundMoney(total - assigned)
-      : roundMoney((total * period.weight) / totalWeight);
+      : roundMoney((total * weight) / totalWeight);
     assigned = roundMoney(assigned + amount);
-    return { periodStart: period.periodStart, periodEnd: period.periodEnd, amount };
+    return amount;
   });
 }
 
+export function calculateContractPaymentSchedule(
+  contract: Pick<Contract, 'start_date' | 'end_date' | 'payment_cycle' | 'total_amount'>,
+  paymentConditions: ContractPaymentCondition[] = [],
+): ContractPaymentPeriod[] {
+  if (!contract.start_date || !contract.end_date) {
+    throw new Error('Contract start_date and end_date are required to calculate payment schedule');
+  }
+
+  const contractStart = parseISO(contract.start_date);
+  const periods = buildWeightedContractPeriods(
+    contract.start_date,
+    contract.end_date,
+    contract.payment_cycle,
+  );
+  if (periods.length === 0) return [];
+
+  const weights = periods.map((period) => (
+    period.dayWeight * conditionMultiplierForPeriod(
+      parseISO(period.periodStart),
+      contractStart,
+      paymentConditions,
+    )
+  ));
+  const amounts = allocateByWeights(Number(contract.total_amount), weights);
+
+  return periods.map((period, index) => ({
+    periodStart: period.periodStart,
+    periodEnd: period.periodEnd,
+    amount: amounts[index] ?? 0,
+  }));
+}
+
+function lineConditions(
+  paymentConditions: ContractPaymentCondition[] | undefined,
+  lineType: 'rental' | 'service',
+): ContractPaymentCondition[] {
+  return (paymentConditions ?? []).filter(
+    (condition) => condition.target === 'all' || condition.target === lineType,
+  );
+}
+
+function effectiveLineTax(line: ContractBillingLineInput): {
+  taxRate: number;
+  taxTreatment: 'standard' | 'zero_rated';
+} {
+  const taxTreatment = line.taxTreatment === 'zero_rated' ? 'zero_rated' as const : 'standard' as const;
+  const taxRate = taxTreatment === 'zero_rated' ? 0 : Math.max(0, Number(line.taxRate));
+  return { taxRate, taxTreatment };
+}
+
+function allocateAnnualUntaxedPeriods(input: {
+  annualAmountUntaxed: number;
+  paymentCycle: PaymentCycle;
+  periods: WeightedContractPeriod[];
+  contractStart: Date;
+  paymentConditions: ContractPaymentCondition[];
+}): number[] {
+  const paymentsPerYear = getPaymentsPerYear(input.paymentCycle);
+  const basePeriodUntaxed = Number(input.annualAmountUntaxed) / paymentsPerYear;
+  const exactAmounts = input.periods.map((period) => (
+    basePeriodUntaxed
+    * period.dayWeight
+    * conditionMultiplierForPeriod(
+      parseISO(period.periodStart),
+      input.contractStart,
+      input.paymentConditions,
+    )
+  ));
+  // Keep the signed/derived untaxed total exact in cents, round ordinary
+  // installments, and put the leftover cents on the final period.
+  const exactTotalCents = Math.round(
+    exactAmounts.reduce((sum, amount) => sum + amount, 0) * 100,
+  );
+  let assignedCents = 0;
+
+  return exactAmounts.map((exact, index) => {
+    const isLast = index === exactAmounts.length - 1;
+    const amountCents = isLast
+      ? exactTotalCents - assignedCents
+      : Math.round(exact * 100);
+    assignedCents += amountCents;
+    return amountCents / 100;
+  });
+}
+
+function billingLinePeriodFromAmounts(
+  line: ContractBillingLineInput,
+  lineIndex: number,
+  amountUntaxed: number,
+  amountTax: number,
+  amountTotal: number,
+): ContractBillingLinePeriod {
+  const { taxRate, taxTreatment } = effectiveLineTax(line);
+  return {
+    contractLineId: line.contractLineId ?? null,
+    lineType: line.lineType,
+    unitId: line.unitId ?? null,
+    description: line.description?.trim() || (
+      line.lineType === 'rental' ? 'Rental' : 'Service'
+    ),
+    odooProductId: line.odooProductId ?? null,
+    odooProductName: line.odooProductName ?? null,
+    amountUntaxed,
+    taxRate,
+    taxTreatment,
+    amountTax,
+    amountTotal,
+    sortOrder: line.sortOrder ?? lineIndex,
+  };
+}
+
 /**
- * Creates immutable invoice snapshots from contract lines. Contract line amounts
- * are VAT-inclusive totals for the whole contract and are allocated proportionally
- * across periods. VAT is extracted per invoice line to match the signed contract.
+ * Creates immutable invoice snapshots from contract lines.
+ *
+ * - annual_untaxed: operator enters annual pre-tax; schedule + VAT + line.amount are derived.
+ * - contract_total_inclusive (legacy): signed full-contract inclusive totals are allocated
+ *   across periods (with optional increase weights that still preserve the signed total).
  */
 export function calculateContractBillingSchedule(input: {
   start_date: string;
   end_date: string;
   payment_cycle: PaymentCycle;
   lines: ContractBillingLineInput[];
+  payment_conditions?: ContractPaymentCondition[];
 }): ContractBillingPeriod[] {
   if (input.lines.length === 0) return [];
 
-  const lineSchedules = input.lines.map((line) => ({
-    line,
-    periods: calculateContractPaymentSchedule({
+  const periods = buildWeightedContractPeriods(
+    input.start_date,
+    input.end_date,
+    input.payment_cycle,
+  );
+  if (periods.length === 0) return [];
+
+  const contractStart = parseISO(input.start_date);
+  const linePeriodItems = input.lines.map((line, lineIndex) => {
+    const { taxRate, taxTreatment } = effectiveLineTax(line);
+    const conditions = lineConditions(input.payment_conditions, line.lineType);
+    const amountBasis: ContractLineAmountBasis = line.amountBasis === 'annual_untaxed'
+      ? 'annual_untaxed'
+      : 'contract_total_inclusive';
+
+    if (amountBasis === 'annual_untaxed') {
+      const annual = Number(line.annualAmountUntaxed);
+      if (!Number.isFinite(annual) || annual <= 0) {
+        throw new Error('Annual untaxed amount must be greater than zero');
+      }
+      const untaxedPeriods = allocateAnnualUntaxedPeriods({
+        annualAmountUntaxed: annual,
+        paymentCycle: input.payment_cycle,
+        periods,
+        contractStart,
+        paymentConditions: conditions,
+      });
+      return untaxedPeriods.map((amountUntaxed) => {
+        const taxed = applyTaxExclusiveAmount(
+          amountUntaxed,
+          taxTreatment === 'zero_rated' ? 0 : taxRate,
+        );
+        return billingLinePeriodFromAmounts(
+          line,
+          lineIndex,
+          taxed.amountUntaxed,
+          taxed.amountTax,
+          taxed.amountTotal,
+        );
+      });
+    }
+
+    const inclusivePeriods = calculateContractPaymentSchedule({
       start_date: input.start_date,
       end_date: input.end_date,
       payment_cycle: input.payment_cycle,
       total_amount: line.amount,
-    }),
-  }));
-  const periodCount = lineSchedules[0]?.periods.length ?? 0;
+    }, conditions);
 
-  return Array.from({ length: periodCount }, (_, periodIndex) => {
-    const basePeriod = lineSchedules[0].periods[periodIndex];
-    if (!basePeriod) throw new Error('Contract line schedules are inconsistent');
-
-    const lineItems = lineSchedules.map(({ line, periods }, lineIndex) => {
-      const period = periods[periodIndex];
-      if (!period
-        || period.periodStart !== basePeriod.periodStart
-        || period.periodEnd !== basePeriod.periodEnd) {
-        throw new Error('Contract line schedules are inconsistent');
-      }
-      const taxRate = Math.max(0, Number(line.taxRate));
-      const taxTreatment = line.taxTreatment === 'zero_rated' ? 'zero_rated' as const : 'standard' as const;
-      const effectiveTaxRate = taxTreatment === 'zero_rated' ? 0 : taxRate;
-      const { amountUntaxed, amountTax, amountTotal } = splitTaxInclusiveAmount(
+    return inclusivePeriods.map((period) => {
+      const split = splitTaxInclusiveAmount(
         period.amount,
-        effectiveTaxRate,
+        taxTreatment === 'zero_rated' ? 0 : taxRate,
       );
-      return {
-        contractLineId: line.contractLineId ?? null,
-        lineType: line.lineType,
-        unitId: line.unitId ?? null,
-        description: line.description?.trim() || (
-          line.lineType === 'rental' ? 'Rental' : 'Service'
-        ),
-        odooProductId: line.odooProductId ?? null,
-        odooProductName: line.odooProductName ?? null,
-        amountUntaxed,
-        taxRate: effectiveTaxRate,
-        taxTreatment,
-        amountTax,
-        amountTotal,
-        sortOrder: line.sortOrder ?? lineIndex,
-      };
+      return billingLinePeriodFromAmounts(
+        line,
+        lineIndex,
+        split.amountUntaxed,
+        split.amountTax,
+        split.amountTotal,
+      );
+    });
+  });
+
+  return periods.map((period, periodIndex) => {
+    const lineItems = linePeriodItems.map((linePeriods) => {
+      const linePeriod = linePeriods[periodIndex];
+      if (!linePeriod) throw new Error('Contract line schedules are inconsistent');
+      return linePeriod;
     });
     const amountUntaxed = roundMoney(lineItems.reduce((sum, line) => sum + line.amountUntaxed, 0));
     const amountTax = roundMoney(lineItems.reduce((sum, line) => sum + line.amountTax, 0));
     const amountTotal = roundMoney(amountUntaxed + amountTax);
 
     return {
-      periodStart: basePeriod.periodStart,
-      periodEnd: basePeriod.periodEnd,
+      periodStart: period.periodStart,
+      periodEnd: period.periodEnd,
       amount: amountTotal,
       amountUntaxed,
       amountTax,
@@ -248,6 +428,33 @@ export function calculateContractBillingSchedule(input: {
       lineItems,
     };
   });
+}
+
+/**
+ * Server-authoritative derivation of full-contract inclusive line amounts from
+ * annual sources (or pass-through for legacy inclusive lines).
+ */
+export function deriveContractLineInclusiveAmounts(input: {
+  start_date: string;
+  end_date: string;
+  payment_cycle: PaymentCycle;
+  payment_conditions?: ContractPaymentCondition[];
+  lines: ContractBillingLineInput[];
+}): {
+  schedule: ContractBillingPeriod[];
+  lines: Array<ContractBillingLineInput & { amount: number }>;
+  totalAmount: number;
+} {
+  const schedule = calculateContractBillingSchedule(input);
+  const lines = input.lines.map((line, lineIndex) => {
+    const amount = roundMoney(schedule.reduce(
+      (sum, period) => sum + (period.lineItems[lineIndex]?.amountTotal ?? 0),
+      0,
+    ));
+    return { ...line, amount };
+  });
+  const totalAmount = roundMoney(lines.reduce((sum, line) => sum + line.amount, 0));
+  return { schedule, lines, totalAmount };
 }
 
 export function calculateUnitRentPeriod(unit: Unit, referenceDate: Date = new Date()): UnitRentPeriod | null {

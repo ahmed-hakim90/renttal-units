@@ -124,6 +124,12 @@ test('blocks opening balance inputs when the flag is off', async () => {
     shouldBlockOpeningBalanceInput(true, { paid_through_date: '2026-01-01' }),
     false,
   );
+  assert.equal(
+    shouldBlockOpeningBalanceInput(false, {
+      opening_notes: 'cutover note',
+    }),
+    true,
+  );
   assert.equal(shouldBlockOpeningBalanceInput(false, {}), false);
 });
 
@@ -224,7 +230,20 @@ test('keeps local invoice issue available when Odoo documents are disabled', asy
       ...baseInvoice,
       odoo_invoice_id: 55,
       odoo_sync_status: 'needs_review',
-      odoo_sync_error: 'odooInvoiceNotFound',
+      odoo_sync_error: 'odooInvoiceNeedsReview',
+    },
+  }), false);
+
+  assert.equal(shouldShowOdooInvoiceSendButton({
+    odooDocumentsEnabled: true,
+    manualSendEnabled: true,
+    canManageOdoo: true,
+    odooIntegrationEnabled: true,
+    visibleStatus: 'invoice_issued',
+    invoice: {
+      ...baseInvoice,
+      odoo_sync_status: 'failed',
+      odoo_sync_error: 'odooSyncFailed',
     },
   }), true);
 
