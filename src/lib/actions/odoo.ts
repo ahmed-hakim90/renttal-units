@@ -16,6 +16,7 @@ import type { OdooSettings } from '@/lib/odoo/settings';
 import { requireFeatureEnabled, loadFeatureFlags } from '@/lib/features/load-feature-flags';
 import { shouldAllowManualOdooInvoiceSend } from '@/lib/features/guards';
 import { featureDisabledResult } from '@/lib/features';
+import { isPeriodBeforeOdooTracking } from '@/lib/rental/contract-opening-balance';
 import { z } from 'zod';
 
 const SENSITIVE_LOG_KEY = /(?:api[_-]?key|password|passwd|token|secret|authorization|cookie)/i;
@@ -41,6 +42,7 @@ const SAFE_ODOO_SEND_ERRORS = new Set([
   'odooSyncFailed',
   'odooInvoiceNeedsReview',
   'invoiceNotReadyForOdoo',
+  'invoiceBeforeOdooTracking',
   'odooSendStageMismatch',
   'odooDisabled',
   'odooInvoiceNotFound',
@@ -369,6 +371,13 @@ export async function sendInvoiceToOdoo(locale: string, invoiceId: string) {
 
   if (!invoice.contract_id) {
     return { success: false as const, error: 'invoiceNotReadyForOdoo' };
+  }
+
+  if (isPeriodBeforeOdooTracking(
+    invoice.period_start,
+    invoice.contract?.odoo_tracking_start_date,
+  )) {
+    return { success: false as const, error: 'invoiceBeforeOdooTracking' };
   }
 
   if (!invoice.unit?.odoo_product_id) {

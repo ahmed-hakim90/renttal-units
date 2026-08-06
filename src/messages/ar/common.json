@@ -108,6 +108,7 @@
     "units": "الوحدات",
     "tenants": "المستأجرون",
     "contracts": "العقود",
+    "documents": "الملفات المرفوعة",
     "dueThisMonth": "مستحق الآن",
     "dueInvoiceCount": "عدد الفواتير المستحقة الآن: {count}",
     "invoiceCount": "{page}: {count} فاتورة",

@@ -10,7 +10,9 @@ export type ContractTaxMode = 'taxable' | 'non_taxable';
 export type ContractTaxTreatment = 'standard' | 'zero_rated';
 export type ContractLineType = 'rental' | 'service';
 export type ContractLineAmountBasis = 'annual_untaxed' | 'contract_total_inclusive';
-export type ContractPaymentConditionType = 'percentage_increase_after';
+export type ContractPaymentConditionType =
+  | 'percentage_increase_after'
+  | 'first_year_single_installment';
 export type ContractPaymentConditionTarget = 'rental' | 'all';
 export type OdooImportRunStatus = 'previewing' | 'ready' | 'committing' | 'completed' | 'failed';
 export type OdooImportItemStatus = 'ready' | 'needs_review' | 'duplicate' | 'imported' | 'failed' | 'ignored';
@@ -178,13 +180,23 @@ export interface ContractLine {
   unit?: Unit | null;
 }
 
-export interface ContractPaymentCondition {
-  condition_type: ContractPaymentConditionType;
+export interface ContractPercentageIncreaseCondition {
+  condition_type: 'percentage_increase_after';
   enabled: boolean;
   applies_after_months: number;
   percentage: number;
   target: ContractPaymentConditionTarget;
 }
+
+export interface ContractFirstYearSingleInstallmentCondition {
+  condition_type: 'first_year_single_installment';
+  enabled: boolean;
+  target: 'all';
+}
+
+export type ContractPaymentCondition =
+  | ContractPercentageIncreaseCondition
+  | ContractFirstYearSingleInstallmentCondition;
 
 export interface Contract {
   id: string;

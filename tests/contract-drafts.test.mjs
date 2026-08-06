@@ -124,6 +124,48 @@ test('actions gate draft mutations by permission', () => {
   assert.match(actions, /isCreate \? 'contracts\.create' : 'contracts\.update'/);
 });
 
+test('contract editor auto-saves valid drafts without navigating away', () => {
+  const editor = readFileSync(
+    join(root, 'src/components/contracts/contract-editor.tsx'),
+    'utf8',
+  );
+  assert.match(editor, /autoSaveTimerRef/);
+  assert.match(editor, /queueAutoSave/);
+  assert.match(editor, /saveContractDraft\(locale/);
+  assert.match(editor, /1_200/);
+  assert.match(editor, /currentContractIdRef/);
+  assert.match(editor, /await autoSavePromiseRef\.current/);
+  assert.match(editor, /autoSavingDraft/);
+});
+
+test('contract editor selects the last fully paid installment from the preview', () => {
+  const editor = readFileSync(
+    join(root, 'src/components/contracts/contract-editor.tsx'),
+    'utf8',
+  );
+  assert.match(editor, /selectLastFullyPaidPeriod/);
+  assert.match(editor, /paid_through_date: periodEnd/);
+  assert.match(editor, /last_fully_paid_installment/);
+  assert.match(editor, /period\.periodEnd/);
+  assert.match(editor, /noPaidInstallments/);
+  assert.doesNotMatch(editor, /t\('openingBalanceSection'\)/);
+  assert.doesNotMatch(editor, /name="opening_paid_amount"/);
+  assert.doesNotMatch(editor, /name="last_payment_date"/);
+  assert.doesNotMatch(editor, /name="opening_notes"/);
+});
+
+test('contract review shows opening totals and the first Odoo invoice lines', () => {
+  const editor = readFileSync(
+    join(root, 'src/components/contracts/contract-editor.tsx'),
+    'utf8',
+  );
+  assert.match(editor, /previewPaidTotal/);
+  assert.match(editor, /previewOutstandingTotal/);
+  assert.match(editor, /firstOdooPreviewPeriod/);
+  assert.match(editor, /firstOdooPreviewPeriod\.lineItems\.map/);
+  assert.match(editor, /odooInvoicePreview/);
+});
+
 test('i18n includes draft keys in EN and AR', () => {
   const en = JSON.parse(readFileSync(join(root, 'src/messages/en/contracts.json'), 'utf8'));
   const ar = JSON.parse(readFileSync(join(root, 'src/messages/ar/contracts.json'), 'utf8'));
@@ -137,6 +179,10 @@ test('i18n includes draft keys in EN and AR', () => {
     'addRentalUnit',
     'addServiceFee',
     'contractNotDraft',
+    'autoSavingDraft',
+    'autoSavedDraft',
+    'lastFullyPaid',
+    'odooInvoicePreview',
   ]) {
     assert.equal(typeof en[key], 'string', `missing en key ${key}`);
     assert.equal(typeof ar[key], 'string', `missing ar key ${key}`);

@@ -38,6 +38,27 @@ test('tenants management surface is wired end-to-end', () => {
   assert.match(read('src/messages/ar/tenants.json'), /"title"/);
 });
 
+test('uploaded documents page lists original filenames end-to-end', () => {
+  assert.match(read('src/app/[locale]/(dashboard)/documents/page.tsx'), /DocumentsTable/);
+  assert.match(read('src/app/[locale]/(dashboard)/documents/page.tsx'), /DocumentsUploadPanel/);
+  assert.match(read('src/app/[locale]/(dashboard)/documents/page.tsx'), /getContractAttachmentsPage/);
+  assert.match(read('src/lib/actions/contract-attachments.ts'), /getContractAttachmentsPage/);
+  assert.match(read('src/lib/actions/contract-attachments.ts'), /relinkContractPdf/);
+  assert.match(read('src/lib/actions/contract-attachments.ts'), /listContractLinkOptions/);
+  assert.match(
+    read('supabase/migrations/20260806174040_contract_documents_storage_update.sql'),
+    /contract_documents_update/,
+  );
+  assert.match(read('src/lib/repositories/contract-attachments.ts'), /contract_attachments/);
+  assert.match(read('src/components/documents/documents-table.tsx'), /original_filename/);
+  assert.match(read('src/components/documents/documents-upload-panel.tsx'), /uploadContractPdf/);
+  assert.match(read('src/components/layout/sidebar.tsx'), /\/documents/);
+  assert.match(read('src/lib/auth/permissions.ts'), /'\/documents': 'contracts\.view'/);
+  assert.match(read('src/messages/en/documents.json'), /"fileName"/);
+  assert.match(read('src/messages/ar/documents.json'), /"fileName"/);
+  assert.match(read('src/lib/i18n/request.ts'), /documents\.json/);
+});
+
 test('user deactivate/reactivate is permission and owner guarded', () => {
   const admin = read('src/lib/actions/admin.ts');
   assert.match(admin, /export async function setUserActive/);

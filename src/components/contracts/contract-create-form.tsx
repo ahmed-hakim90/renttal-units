@@ -78,6 +78,7 @@ const EMPTY_FORM: ContractFormValues = {
     enabled: false,
     applies_after_years: '5',
     percentage: '10',
+    first_year_single_installment: false,
   }],
 };
 

@@ -77,7 +77,7 @@ export interface ContractBillingPeriod extends ContractPaymentPeriod {
 }
 
 type WeightedContractPeriod = UnitRentPeriod & {
-  dayWeight: number;
+  cycleWeight: number;
 };
 
 function roundMoney(value: number): number {
@@ -166,6 +166,7 @@ function buildWeightedContractPeriods(
   startDate: string,
   endDate: string,
   paymentCycle: PaymentCycle,
+  paymentConditions: ContractPaymentCondition[] = [],
 ): WeightedContractPeriod[] {
   if (startDate < CONTRACT_DATE_MIN) {
     throw new Error(`Contract start_date must be on or after ${CONTRACT_DATE_MIN}`);
@@ -174,15 +175,23 @@ function buildWeightedContractPeriods(
   const contractStart = parseISO(startDate);
   const contractEnd = parseISO(endDate);
   const cycleMonths = getCycleMonths(paymentCycle);
+  const firstYearSingleInstallment = paymentConditions.some(
+    (condition) => condition.enabled
+      && condition.condition_type === 'first_year_single_installment',
+  );
   const periods: WeightedContractPeriod[] = [];
   let periodStart = contractStart;
+  let periodIndex = 0;
 
   while (periodStart <= contractEnd) {
     if (periods.length >= MAX_CONTRACT_PERIODS) {
       throw new Error(`Contract payment schedule exceeds maximum of ${MAX_CONTRACT_PERIODS} periods`);
     }
 
-    const naturalPeriodEnd = subDays(addMonths(periodStart, cycleMonths), 1);
+    const periodMonths = firstYearSingleInstallment && periodIndex === 0
+      ? 12
+      : cycleMonths;
+    const naturalPeriodEnd = subDays(addMonths(periodStart, periodMonths), 1);
     const periodEnd = naturalPeriodEnd > contractEnd ? contractEnd : naturalPeriodEnd;
     const fullDays = differenceInDays(naturalPeriodEnd, periodStart) + 1;
     const actualDays = differenceInDays(periodEnd, periodStart) + 1;
@@ -190,10 +199,11 @@ function buildWeightedContractPeriods(
     periods.push({
       periodStart: format(periodStart, 'yyyy-MM-dd'),
       periodEnd: format(periodEnd, 'yyyy-MM-dd'),
-      dayWeight: actualDays / fullDays,
+      cycleWeight: (periodMonths / cycleMonths) * (actualDays / fullDays),
     });
 
-    periodStart = addMonths(periodStart, cycleMonths);
+    periodStart = addMonths(periodStart, periodMonths);
+    periodIndex += 1;
   }
 
   return periods;
@@ -230,11 +240,12 @@ export function calculateContractPaymentSchedule(
     contract.start_date,
     contract.end_date,
     contract.payment_cycle,
+    paymentConditions,
   );
   if (periods.length === 0) return [];
 
   const weights = periods.map((period) => (
-    period.dayWeight * conditionMultiplierForPeriod(
+    period.cycleWeight * conditionMultiplierForPeriod(
       parseISO(period.periodStart),
       contractStart,
       paymentConditions,
@@ -278,7 +289,7 @@ function allocateAnnualUntaxedPeriods(input: {
   const basePeriodUntaxed = Number(input.annualAmountUntaxed) / paymentsPerYear;
   const exactAmounts = input.periods.map((period) => (
     basePeriodUntaxed
-    * period.dayWeight
+    * period.cycleWeight
     * conditionMultiplierForPeriod(
       parseISO(period.periodStart),
       input.contractStart,
@@ -348,6 +359,7 @@ export function calculateContractBillingSchedule(input: {
     input.start_date,
     input.end_date,
     input.payment_cycle,
+    input.payment_conditions,
   );
   if (periods.length === 0) return [];
 

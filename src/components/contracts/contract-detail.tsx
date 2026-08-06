@@ -22,7 +22,7 @@ import { applyOpeningBalanceToSchedule } from '@/lib/rental/contract-opening-bal
 import { getInvoiceDisplayStatus } from '@/lib/rental/invoice-display';
 import { cn } from '@/lib/utils';
 import type { Locale } from '@/lib/i18n/routing';
-import type { Contract, ContractAttachment, InvoiceStatus } from '@/types/database';
+import type { Contract, ContractAttachment, ContractPercentageIncreaseCondition, InvoiceStatus } from '@/types/database';
 
 interface ContractScheduleRow {
   key: string;
@@ -135,8 +135,10 @@ export async function ContractDetail({
   const projectedSchedule = invoices.length === 0 ? draftScheduleRows(contract) : [];
   const isProjectedSchedule = projectedSchedule.length > 0;
   const rentIncreaseCondition = (contract.payment_conditions ?? []).find(
-    (condition) => condition.condition_type === 'percentage_increase_after'
-      && condition.target === 'rental',
+    (condition): condition is ContractPercentageIncreaseCondition => (
+      condition.condition_type === 'percentage_increase_after'
+      && condition.target === 'rental'
+    ),
   );
   const scheduleRows: ContractScheduleRow[] = invoices.length > 0
     ? invoices.map((invoice) => ({

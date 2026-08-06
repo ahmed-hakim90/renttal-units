@@ -58,6 +58,7 @@
   "odooInvoiceNeedsReview": "The Odoo invoice needs review before this invoice can be sent again.",
   "serviceProductInvalid": "A service line is missing its Odoo product. Link service products before sending.",
   "invoiceNotReadyForOdoo": "This invoice is not ready to send to Odoo. Issue it first and confirm the contract link.",
+  "invoiceBeforeOdooTracking": "This is a historical installment before Odoo tracking starts and cannot be sent.",
   "odooSendStageMismatch": "This invoice is not in the configured stage for sending to Odoo.",
   "odooDisabled": "Odoo integration is disabled in settings.",
   "daysOverdueLabel": "{days} days overdue",

@@ -58,6 +58,7 @@
   "odooInvoiceNeedsReview": "فاتورة Odoo تحتاج مراجعة قبل إعادة إرسال هذه الفاتورة.",
   "serviceProductInvalid": "بند خدمة يفتقد منتج Odoo. اربط منتجات الخدمات قبل الإرسال.",
   "invoiceNotReadyForOdoo": "هذه الفاتورة غير جاهزة للإرسال إلى Odoo. أصدرها أولاً وتأكد من ربط العقد.",
+  "invoiceBeforeOdooTracking": "هذه دفعة تاريخية قبل بداية متابعة Odoo ولا يمكن إرسالها.",
   "odooSendStageMismatch": "هذه الفاتورة ليست في المرحلة المضبوطة للإرسال إلى Odoo.",
   "odooDisabled": "تكامل Odoo متوقف في الإعدادات.",
   "daysOverdueLabel": "متأخر {days} يوم",

@@ -1,5 +1,5 @@
 import type { ContractFormValues } from '@/lib/rental/contract-form-validation';
-import type { Contract } from '@/types/database';
+import type { Contract, ContractPercentageIncreaseCondition } from '@/types/database';
 
 export type ContractEditorInitialValues = Partial<ContractFormValues> & {
   notes?: string;
@@ -14,10 +14,17 @@ export type ContractEditorInitialValues = Partial<ContractFormValues> & {
   sync_tenant_to_odoo?: boolean;
 };
 
+function isRentalPercentageIncrease(
+  condition: Contract['payment_conditions'][number],
+): condition is ContractPercentageIncreaseCondition {
+  return condition.condition_type === 'percentage_increase_after' && condition.target === 'rental';
+}
+
 export function contractToFormValues(contract: Contract): ContractEditorInitialValues {
-  const rentIncreaseCondition = (contract.payment_conditions ?? []).find(
-    (condition) => condition.condition_type === 'percentage_increase_after'
-      && condition.target === 'rental',
+  const rentIncreaseCondition = (contract.payment_conditions ?? []).find(isRentalPercentageIncrease);
+  const firstYearSingleInstallment = (contract.payment_conditions ?? []).some(
+    (condition) => condition.condition_type === 'first_year_single_installment'
+      && condition.enabled,
   );
   const lines = (contract.lines ?? []).map((line) => {
     const amountBasis = line.amount_basis === 'annual_untaxed'
@@ -65,6 +72,7 @@ export function contractToFormValues(contract: Contract): ContractEditorInitialV
         ? String(rentIncreaseCondition.applies_after_months / 12)
         : '5',
       percentage: rentIncreaseCondition ? String(rentIncreaseCondition.percentage) : '10',
+      first_year_single_installment: firstYearSingleInstallment,
     }],
     notes: contract.notes ?? '',
     taxSelection: (contract.lines ?? []).some((line) => line.tax_treatment === 'zero_rated')

@@ -108,6 +108,7 @@
     "units": "Units",
     "tenants": "Tenants",
     "contracts": "Contracts",
+    "documents": "Uploaded Files",
     "dueThisMonth": "Due Now",
     "dueInvoiceCount": "{count} invoices due now",
     "invoiceCount": "{page}: {count} invoices",

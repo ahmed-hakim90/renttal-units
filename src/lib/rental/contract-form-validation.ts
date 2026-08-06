@@ -89,6 +89,7 @@ export interface ContractPaymentConditionFormValues {
   enabled: boolean;
   applies_after_years: string;
   percentage: string;
+  first_year_single_installment: boolean;
 }
 
 export interface ContractFormValues {
@@ -138,13 +139,23 @@ function parseAmount(value: string | undefined): number | null {
 export function contractPaymentConditionsFromFormValues(
   conditions: ContractPaymentConditionFormValues[],
 ): ContractPaymentCondition[] {
-  return conditions.map((condition) => ({
+  const mapped: ContractPaymentCondition[] = conditions.map((condition) => ({
     condition_type: 'percentage_increase_after',
     enabled: condition.enabled,
     applies_after_months: Math.round((parseAmount(condition.applies_after_years) ?? 0) * 12),
     percentage: parseAmount(condition.percentage) ?? 0,
     target: 'rental',
   }));
+
+  if (conditions.some((condition) => condition.first_year_single_installment)) {
+    mapped.push({
+      condition_type: 'first_year_single_installment',
+      enabled: true,
+      target: 'all',
+    });
+  }
+
+  return mapped;
 }
 
 /** Missing basis defaults to annual entry (new-contract path). Only explicit legacy stays inclusive. */

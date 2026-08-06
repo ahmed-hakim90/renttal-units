@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import {
@@ -67,6 +67,9 @@ export type ContractServiceProductOption = {
   display_name: string;
 };
 
+type ContractDraftPayload = Parameters<typeof saveContractDraft>[1];
+type AutoSaveStatus = 'idle' | 'saving' | 'saved' | 'error';
+
 function newLine(
   lineType: ContractLineType = 'rental',
   taxRate = '15',
@@ -106,6 +109,7 @@ const EMPTY_FORM: ContractFormValues = {
     enabled: false,
     applies_after_years: '5',
     percentage: '10',
+    first_year_single_installment: false,
   }],
 };
 
@@ -360,28 +364,38 @@ export function ContractEditor({
   const displayedPdfFilename = pdfFile?.name ?? initialPdf?.filename ?? null;
   const pdfInputRef = useRef<HTMLInputElement>(null);
   const [currentContractId, setCurrentContractId] = useState<string | null>(contractId ?? null);
+  const currentContractIdRef = useRef<string | null>(contractId ?? null);
   const [isSaving, setIsSaving] = useState(false);
+  const [autoSaveStatus, setAutoSaveStatus] = useState<AutoSaveStatus>('idle');
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autoSavePromiseRef = useRef<Promise<void> | null>(null);
+  const queuedAutoSaveRef = useRef<{
+    payload: ContractDraftPayload;
+    signature: string;
+  } | null>(null);
+  const lastAutoSavedSignatureRef = useRef('');
+  const suppressAutoSaveRef = useRef(false);
   const [touched, setTouched] = useState<Partial<Record<ContractFormField, boolean>>>({});
   const [attempted, setAttempted] = useState(false);
   const [validationMode, setValidationMode] = useState<'strict' | 'draft'>('strict');
   const autoSeeded = useRef(false);
 
-  const normalizedLines = values.lines.map((line) => (
+  const normalizedLines = useMemo(() => values.lines.map((line) => (
     forceAnnualPricing
       ? normalizeContractFormLine({ ...line, amount_basis: 'annual_untaxed' })
       : normalizeContractFormLine(line)
-  ));
+  )), [forceAnnualPricing, values.lines]);
   const usesLegacyPricing = !forceAnnualPricing && hasLegacyContractTotalPricing(normalizedLines);
   const lineTaxSelections = new Set(normalizedLines.map(taxSelectionForFormLine));
   const selectedTaxLabel = lineTaxSelections.size <= 1
     ? labelForTaxSelection(Array.from(lineTaxSelections)[0] ?? 'taxable')
     : t('mixedTaxes');
-  const formValues = {
+  const formValues = useMemo(() => ({
     ...values,
     lines: normalizedLines,
     total_amount: values.total_amount,
     unit_id: normalizedLines.find((line) => line.line_type === 'rental' && line.unit_id)?.unit_id ?? '',
-  };
+  }), [normalizedLines, values]);
 
   const errors = validateContractForm(formValues, {
     requireUnit: validationMode !== 'draft',
@@ -419,12 +433,149 @@ export function ContractEditor({
         .reduce((lineSum, line) => lineSum + line.amountTotal, 0)
     ), 0)
     : 0;
+  const previewPaidTotal = preview.ready
+    ? preview.periods.reduce((sum, period) => sum + Number(period.paid_amount), 0)
+    : 0;
+  const previewOutstandingTotal = preview.ready
+    ? Math.max(0, preview.totalAmount - previewPaidTotal)
+    : 0;
+  const firstOdooPreviewPeriod = preview.ready
+    ? preview.periods.find((period) => period.status !== 'fully_paid') ?? null
+    : null;
   const hasErrors = Object.keys(errors).length > 0;
 
   const selectedUnitIds = useMemo(
     () => new Set(values.lines.filter((line) => line.line_type === 'rental' && line.unit_id).map((line) => line.unit_id)),
     [values.lines],
   );
+
+  const draftPayload = useMemo<ContractDraftPayload>(() => ({
+    contractId: currentContractId,
+    contract_number: values.contract_number.trim(),
+    start_date: values.start_date.trim() || null,
+    end_date: values.end_date.trim() || null,
+    payment_cycle: values.payment_cycle,
+    tax_mode: normalizedLines.some((line) => (
+      line.tax_treatment !== 'zero_rated' && Number(line.tax_rate) > 0
+    )) ? 'taxable' : 'non_taxable',
+    notes: notes.trim() || null,
+    paid_through_date: openingBalanceEnabled ? values.paid_through_date.trim() || null : null,
+    opening_paid_amount: openingBalanceEnabled && values.opening_paid_amount.trim()
+      ? Number(values.opening_paid_amount)
+      : null,
+    opening_payment_date: openingBalanceEnabled ? values.last_payment_date.trim() || null : null,
+    opening_notes: openingBalanceEnabled ? values.opening_notes.trim() || null : null,
+    tenant_name: values.tenant_name.trim() || null,
+    tenant_phone: normalizeArabicDigits(tenantPhone).trim() || null,
+    tenant_email: values.tenant_email.trim() || null,
+    tenant_national_id: values.tenant_national_id.trim() || null,
+    tenant_odoo_partner_id: tenantOdooPartnerId,
+    tenant_vat: tenantVat.trim() || null,
+    tenant_street: tenantStreet.trim() || null,
+    tenant_city: tenantCity.trim() || null,
+    tenant_country_code: tenantCountryCode.trim().toUpperCase().slice(0, 2) || null,
+    lines: normalizedLines.map((line, index) => ({
+      line_type: line.line_type,
+      unit_id: line.line_type === 'rental' ? (line.unit_id || null) : null,
+      description: line.description.trim() || null,
+      amount: line.amount_basis === 'annual_untaxed' ? 0 : (Number(line.amount) || 0),
+      amount_basis: line.amount_basis,
+      annual_amount_untaxed: line.amount_basis === 'annual_untaxed'
+        ? (Number(line.annual_amount_untaxed) || null)
+        : null,
+      odoo_product_id: line.line_type === 'rental'
+        ? units.find((unit) => unit.id === line.unit_id)?.odoo_product_id ?? null
+        : line.odoo_product_id ? Number(line.odoo_product_id) : null,
+      odoo_product_name: line.line_type === 'rental'
+        ? units.find((unit) => unit.id === line.unit_id)?.odoo_product_reference ?? null
+        : line.odoo_product_name || null,
+      tax_rate: Number(line.tax_rate) || 0,
+      tax_treatment: line.tax_treatment === 'zero_rated' ? 'zero_rated' as const : 'standard' as const,
+      period_start: values.start_date || null,
+      period_end: values.end_date || null,
+      sort_order: index,
+    })),
+    payment_conditions: contractPaymentConditionsFromFormValues(values.payment_conditions),
+  }), [
+    currentContractId,
+    normalizedLines,
+    notes,
+    openingBalanceEnabled,
+    tenantCity,
+    tenantCountryCode,
+    tenantOdooPartnerId,
+    tenantPhone,
+    tenantStreet,
+    tenantVat,
+    units,
+    values,
+  ]);
+
+  const autoSaveSignature = useMemo(() => JSON.stringify({
+    ...draftPayload,
+    contractId: null,
+  }), [draftPayload]);
+
+  const queueAutoSave = useCallback((
+    payload: ContractDraftPayload,
+    signature: string,
+  ): Promise<void> => {
+    queuedAutoSaveRef.current = { payload, signature };
+    if (autoSavePromiseRef.current) return autoSavePromiseRef.current;
+
+    const run = (async () => {
+      while (queuedAutoSaveRef.current) {
+        const next = queuedAutoSaveRef.current;
+        queuedAutoSaveRef.current = null;
+        if (suppressAutoSaveRef.current) continue;
+
+        setAutoSaveStatus('saving');
+        const result = await saveContractDraft(locale, {
+          ...next.payload,
+          contractId: currentContractIdRef.current,
+        });
+        if (!result.success || !result.data) {
+          setAutoSaveStatus('error');
+          continue;
+        }
+
+        currentContractIdRef.current = result.data.id;
+        setCurrentContractId(result.data.id);
+        lastAutoSavedSignatureRef.current = next.signature;
+        setAutoSaveStatus('saved');
+      }
+    })();
+
+    autoSavePromiseRef.current = run.finally(() => {
+      autoSavePromiseRef.current = null;
+    });
+    return autoSavePromiseRef.current;
+  }, [locale]);
+
+  useEffect(() => {
+    currentContractIdRef.current = currentContractId;
+  }, [currentContractId]);
+
+  useEffect(() => {
+    if (mode === 'edit-active' || suppressAutoSaveRef.current) return;
+    if (!draftPayload.contract_number) return;
+    if (lastAutoSavedSignatureRef.current === autoSaveSignature) return;
+    const draftErrors = validateContractForm(formValues, { mode: 'draft' });
+    if (Object.keys(draftErrors).length > 0) return;
+
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    autoSaveTimerRef.current = setTimeout(() => {
+      autoSaveTimerRef.current = null;
+      void queueAutoSave(draftPayload, autoSaveSignature);
+    }, 1_200);
+
+    return () => {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+        autoSaveTimerRef.current = null;
+      }
+    };
+  }, [autoSaveSignature, draftPayload, formValues, mode, queueAutoSave]);
 
   useEffect(() => {
     return () => {
@@ -481,6 +632,17 @@ export function ContractEditor({
     setValues((prev) => ({ ...prev, [key]: value }));
   }
 
+  function selectLastFullyPaidPeriod(periodEnd: string | null) {
+    setValues((previous) => ({
+      ...previous,
+      paid_through_date: periodEnd ?? '',
+      opening_paid_amount: '',
+      last_payment_date: '',
+      opening_notes: '',
+    }));
+    touch('paid_through_date');
+  }
+
   function touch(field: ContractFormField) {
     setTouched((prev) => ({ ...prev, [field]: true }));
   }
@@ -518,6 +680,7 @@ export function ContractEditor({
         enabled: false,
         applies_after_years: '5',
         percentage: '10',
+        first_year_single_installment: false,
       };
       return {
         ...previous,
@@ -775,32 +938,8 @@ export function ContractEditor({
 
   function buildDraftPayload() {
     return {
-      contractId: currentContractId,
-      contract_number: values.contract_number.trim(),
-      start_date: values.start_date.trim() || null,
-      end_date: values.end_date.trim() || null,
-      payment_cycle: values.payment_cycle,
-      tax_mode: values.lines.some((line) => taxSelectionForFormLine(line) === 'taxable')
-        ? ('taxable' as const)
-        : ('non_taxable' as const),
-      notes: notes.trim() || null,
-      paid_through_date: openingBalanceEnabled ? values.paid_through_date.trim() || null : null,
-      opening_paid_amount: openingBalanceEnabled && values.opening_paid_amount.trim()
-        ? Number(values.opening_paid_amount)
-        : null,
-      opening_payment_date: openingBalanceEnabled ? values.last_payment_date.trim() || null : null,
-      opening_notes: openingBalanceEnabled ? values.opening_notes.trim() || null : null,
-      tenant_name: values.tenant_name.trim() || null,
-      tenant_phone: normalizeArabicDigits(tenantPhone).trim() || null,
-      tenant_email: values.tenant_email.trim() || null,
-      tenant_national_id: values.tenant_national_id.trim() || null,
-      tenant_odoo_partner_id: tenantOdooPartnerId,
-      tenant_vat: tenantVat.trim() || null,
-      tenant_street: tenantStreet.trim() || null,
-      tenant_city: tenantCity.trim() || null,
-      tenant_country_code: tenantCountryCode.trim().toUpperCase().slice(0, 2) || null,
-      lines: mapLinesForPayload(),
-      payment_conditions: contractPaymentConditionsFromFormValues(values.payment_conditions),
+      ...draftPayload,
+      contractId: currentContractIdRef.current,
     };
   }
 
@@ -827,8 +966,14 @@ export function ContractEditor({
     }
     if (isSaving) return;
 
+    suppressAutoSaveRef.current = true;
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+      autoSaveTimerRef.current = null;
+    }
     setIsSaving(true);
     try {
+      await autoSavePromiseRef.current;
       const result = await saveContractDraft(locale, buildDraftPayload());
       if (!result.success || !result.data) {
         toast.error(result.error ? getActionErrorMessage(result.error) : t('contractDraftSaveFailed'));
@@ -836,7 +981,10 @@ export function ContractEditor({
       }
 
       const savedId = result.data.id;
+      currentContractIdRef.current = savedId;
       setCurrentContractId(savedId);
+      lastAutoSavedSignatureRef.current = autoSaveSignature;
+      setAutoSaveStatus('saved');
       await uploadPdfIfNeeded(savedId);
       toast.success(t('draftSaved'));
 
@@ -844,6 +992,7 @@ export function ContractEditor({
         router.push(`/contracts/${savedId}/edit`);
       }
     } finally {
+      suppressAutoSaveRef.current = false;
       setIsSaving(false);
     }
   }
@@ -863,11 +1012,18 @@ export function ContractEditor({
     }
     if (isSaving) return;
 
+    suppressAutoSaveRef.current = true;
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+      autoSaveTimerRef.current = null;
+    }
     setIsSaving(true);
     try {
+      await autoSavePromiseRef.current;
       const payload = buildActivatePayload();
-      const result = currentContractId
-        ? await activateContract(locale, currentContractId, payload)
+      const draftId = currentContractIdRef.current;
+      const result = draftId
+        ? await activateContract(locale, draftId, payload)
         : await createContract(locale, payload);
 
       if (!result.success || !result.data) {
@@ -879,6 +1035,7 @@ export function ContractEditor({
       toast.success(t('contractActivated'));
       router.push(`/contracts/${result.data.id}`);
     } finally {
+      suppressAutoSaveRef.current = false;
       setIsSaving(false);
     }
   }
@@ -926,9 +1083,17 @@ export function ContractEditor({
 
   async function handleDeleteDraft() {
     if (!currentContractId || !canDeleteDraft || isSaving) return;
+    suppressAutoSaveRef.current = true;
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+      autoSaveTimerRef.current = null;
+    }
     setIsSaving(true);
     try {
-      const result = await deleteContractDraft(locale, currentContractId);
+      await autoSavePromiseRef.current;
+      const draftId = currentContractIdRef.current;
+      if (!draftId) return;
+      const result = await deleteContractDraft(locale, draftId);
       if (!result.success) {
         toast.error(result.error ? getActionErrorMessage(result.error) : t('contractDraftDeleteFailed'));
         return;
@@ -936,6 +1101,7 @@ export function ContractEditor({
       toast.success(tc('success'));
       router.push('/contracts');
     } finally {
+      suppressAutoSaveRef.current = false;
       setIsSaving(false);
     }
   }
@@ -954,6 +1120,21 @@ export function ContractEditor({
             <span className="inline-flex items-center rounded-full bg-slate-200 px-2 py-0.5 text-[11px] font-semibold text-slate-700">
               {mode === 'edit-draft' ? t('draft') : mode === 'edit-active' ? t('active') : t('create')}
             </span>
+            {mode !== 'edit-active' && autoSaveStatus !== 'idle' && (
+              <span
+                className={cn(
+                  'text-[11px]',
+                  autoSaveStatus === 'error' ? 'text-destructive' : 'text-muted-foreground',
+                )}
+                aria-live="polite"
+              >
+                {autoSaveStatus === 'saving'
+                  ? t('autoSavingDraft')
+                  : autoSaveStatus === 'saved'
+                    ? t('autoSavedDraft')
+                    : t('autoSaveDraftFailed')}
+              </span>
+            )}
             <div className="flex min-w-0 flex-col gap-0.5">
               <div className="flex min-w-0 items-baseline gap-2">
                 <span className="text-[11px] text-muted-foreground">
@@ -1577,6 +1758,25 @@ export function ContractEditor({
                   </span>
                 </span>
               </label>
+              <label className="flex items-start gap-3 rounded-lg border border-border bg-muted/20 px-3 py-2.5 text-sm">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 size-4 shrink-0"
+                  checked={values.payment_conditions[0]?.first_year_single_installment ?? false}
+                  disabled={scheduleLocked}
+                  onChange={(event) => updateRentIncreaseCondition({
+                    first_year_single_installment: event.target.checked,
+                  })}
+                />
+                <span>
+                  <span className="block font-medium">{t('firstYearSingleInstallment')}</span>
+                  <span className="mt-0.5 block text-xs text-muted-foreground">
+                    {t('firstYearSingleInstallmentHint', {
+                      cycle: tc(`paymentCycle.${values.payment_cycle}`),
+                    })}
+                  </span>
+                </span>
+              </label>
               {(values.payment_conditions[0]?.enabled ?? false) && (
                 <>
                   <div className="grid gap-2 sm:grid-cols-2">
@@ -1622,74 +1822,6 @@ export function ContractEditor({
               )}
             </div>
           </SheetSection>
-
-          {openingBalanceEnabled && (
-            <SheetSection title={t('openingBalanceSection')}>
-              <p className="text-[11px] text-muted-foreground">{t('openingBalanceHint')}</p>
-              <p className="text-[11px] text-muted-foreground">{t('odooTrackingHint')}</p>
-              {preview.ready && preview.odooTrackingStartDate && (
-                <p className="rounded-md border border-border/70 bg-muted/30 px-2.5 py-1.5 text-[11px] text-muted-foreground">
-                  {t('odooTrackingStartPreview', {
-                    start: preview.firstUnpaidPeriodStart ?? preview.odooTrackingStartDate,
-                    end: preview.firstUnpaidPeriodEnd ?? '—',
-                  })}
-                </p>
-              )}
-              <div className="grid items-end gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                <Input
-                  name="paid_through_date"
-                  label={t('paidThroughDate')}
-                  type="date"
-                  icon={<Icon><CalendarDays /></Icon>}
-                  dense
-                  className="shadow-none"
-                  value={values.paid_through_date}
-                  onChange={(e) => setField('paid_through_date', e.target.value)}
-                  onBlur={() => touch('paid_through_date')}
-                  error={fieldError('paid_through_date')}
-                  min="1990-01-01"
-                  max="2100-12-31"
-                />
-                <Input
-                  name="opening_paid_amount"
-                  label={t('openingPaidAmount')}
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  icon={<Icon><Wallet /></Icon>}
-                  dense
-                  className="shadow-none"
-                  value={values.opening_paid_amount}
-                  onChange={(e) => setField('opening_paid_amount', e.target.value)}
-                  onBlur={() => touch('opening_paid_amount')}
-                  error={fieldError('opening_paid_amount')}
-                />
-                <Input
-                  name="last_payment_date"
-                  label={t('lastPaymentDate')}
-                  type="date"
-                  icon={<Icon><CalendarDays /></Icon>}
-                  dense
-                  className="shadow-none"
-                  value={values.last_payment_date}
-                  onChange={(e) => setField('last_payment_date', e.target.value)}
-                  onBlur={() => touch('last_payment_date')}
-                  error={fieldError('last_payment_date')}
-                  min={values.start_date || '1990-01-01'}
-                  max={values.end_date || '2100-12-31'}
-                />
-                <Input
-                  name="opening_notes"
-                  label={t('openingNotes')}
-                  icon={<Icon><FileText /></Icon>}
-                  dense
-                  className="shadow-none"
-                  value={values.opening_notes}
-                  onChange={(e) => setField('opening_notes', e.target.value)}
-                />
-              </div>
-            </SheetSection>
-          )}
 
           <SheetSection title={t('notes')}>
             <Input
@@ -1742,6 +1874,97 @@ export function ContractEditor({
                       total: formatCurrency(preview.totalAmount, loc),
                     })}
                   </p>
+                  <div className="grid gap-2 sm:grid-cols-3">
+                    <div className="rounded-lg border border-border bg-muted/20 p-2.5">
+                      <p className="text-[11px] text-muted-foreground">{t('historicalPaidTotal')}</p>
+                      <p className="mt-0.5 text-sm font-semibold tabular-nums">
+                        {formatCurrency(previewPaidTotal, loc)}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-border bg-muted/20 p-2.5">
+                      <p className="text-[11px] text-muted-foreground">{t('outstandingBalance')}</p>
+                      <p className="mt-0.5 text-sm font-semibold tabular-nums">
+                        {formatCurrency(previewOutstandingTotal, loc)}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-border bg-muted/20 p-2.5">
+                      <p className="text-[11px] text-muted-foreground">{t('firstOdooInvoice')}</p>
+                      <p className="mt-0.5 text-sm font-semibold">
+                        {firstOdooPreviewPeriod
+                          ? formatDate(firstOdooPreviewPeriod.periodStart, loc)
+                          : t('allInstallmentsPaid')}
+                      </p>
+                    </div>
+                  </div>
+
+                  {firstOdooPreviewPeriod && (
+                    <div className="overflow-hidden rounded-lg border border-border">
+                      <div className="border-b border-border bg-muted/30 px-3 py-2">
+                        <p className="text-xs font-semibold">{t('odooInvoicePreview')}</p>
+                        <p className="mt-0.5 text-[11px] text-muted-foreground">
+                          {formatDate(firstOdooPreviewPeriod.periodStart, loc)} –{' '}
+                          {formatDate(firstOdooPreviewPeriod.periodEnd, loc)}
+                        </p>
+                      </div>
+                      <table className="w-full text-xs">
+                        <thead className="bg-muted/20 text-muted-foreground">
+                          <tr>
+                            <th className="px-2 py-1.5 text-start font-medium">{t('lineDescription')}</th>
+                            <th className="px-2 py-1.5 text-end font-medium">{t('amountBeforeTax')}</th>
+                            <th className="px-2 py-1.5 text-end font-medium">{t('taxAmount')}</th>
+                            <th className="px-2 py-1.5 text-end font-medium">{t('totalAmount')}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {firstOdooPreviewPeriod.lineItems.map((line, index) => (
+                            <tr key={`${line.lineType}-${line.unitId ?? 'service'}-${index}`} className="border-t border-border">
+                              <td className="px-2 py-1.5">
+                                {line.description || (line.lineType === 'rental' ? t('rentalLine') : t('serviceLine'))}
+                              </td>
+                              <td className="px-2 py-1.5 text-end tabular-nums">
+                                {formatCurrency(line.amountUntaxed, loc)}
+                              </td>
+                              <td className="px-2 py-1.5 text-end tabular-nums">
+                                {formatCurrency(line.amountTax, loc)}
+                              </td>
+                              <td className="px-2 py-1.5 text-end font-medium tabular-nums">
+                                {formatCurrency(line.amountTotal, loc)}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                        <tfoot className="border-t border-border bg-muted/20 font-semibold">
+                          <tr>
+                            <td className="px-2 py-1.5">{t('totalAmount')}</td>
+                            <td className="px-2 py-1.5 text-end tabular-nums">
+                              {formatCurrency(firstOdooPreviewPeriod.amountUntaxed, loc)}
+                            </td>
+                            <td className="px-2 py-1.5 text-end tabular-nums">
+                              {formatCurrency(firstOdooPreviewPeriod.amountTax, loc)}
+                            </td>
+                            <td className="px-2 py-1.5 text-end tabular-nums">
+                              {formatCurrency(firstOdooPreviewPeriod.amountTotal, loc)}
+                            </td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  )}
+
+                  {openingBalanceEnabled && mode !== 'edit-active' && (
+                    <div className="space-y-2">
+                      <p className="text-xs text-muted-foreground">{t('selectLastPaidHint')}</p>
+                      <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-muted/20 px-3 py-2 text-xs">
+                        <input
+                          type="radio"
+                          name="last_fully_paid_installment"
+                          checked={!values.paid_through_date}
+                          onChange={() => selectLastFullyPaidPeriod(null)}
+                        />
+                        <span>{t('noPaidInstallments')}</span>
+                      </label>
+                    </div>
+                  )}
                   <div className="max-h-52 overflow-auto rounded-lg border border-border">
                     <table className="w-full text-sm">
                       <thead className="sticky top-0 bg-muted/60 text-muted-foreground">
@@ -1750,6 +1973,9 @@ export function ContractEditor({
                           <th className="px-2 py-1.5 text-start font-medium">{t('period')}</th>
                           <th className="px-2 py-1.5 text-end font-medium">{t('amount')}</th>
                           <th className="px-2 py-1.5 text-end font-medium">{t('status')}</th>
+                          {openingBalanceEnabled && mode !== 'edit-active' && (
+                            <th className="px-2 py-1.5 text-center font-medium">{t('lastFullyPaid')}</th>
+                          )}
                         </tr>
                       </thead>
                       <tbody>
@@ -1767,6 +1993,17 @@ export function ContractEditor({
                                   ? t('previewPartial')
                                   : t('previewDue')}
                             </td>
+                            {openingBalanceEnabled && mode !== 'edit-active' && (
+                              <td className="px-2 py-1.5 text-center">
+                                <input
+                                  type="radio"
+                                  name="last_fully_paid_installment"
+                                  aria-label={t('selectAsLastFullyPaid', { number: index + 1 })}
+                                  checked={values.paid_through_date === period.periodEnd}
+                                  onChange={() => selectLastFullyPaidPeriod(period.periodEnd)}
+                                />
+                              </td>
+                            )}
                           </tr>
                         ))}
                       </tbody>

@@ -16,6 +16,7 @@ import { locationsRepository } from '@/lib/repositories/locations';
 import { isUniqueViolation, readUniqueViolationConstraint } from '@/lib/db/postgres-errors';
 import type { AuthContext, Contract, Invoice, InvoiceLine, InvoiceStatus, PaymentCycle, Tenant, Unit } from '@/types/database';
 import type { LogContext } from '@/lib/observability';
+import { isPeriodBeforeOdooTracking } from '@/lib/rental/contract-opening-balance';
 
 type TestResult = {
   ok: boolean;
@@ -1682,6 +1683,9 @@ export const odooService = {
     }
     const contract = await contractsRepository.findById(invoice.contract_id, ctx);
     if (!contract || !contract.unit || !contract.tenant) return { success: false, error: 'contractNotReady' };
+    if (isPeriodBeforeOdooTracking(invoice.period_start, contract.odoo_tracking_start_date)) {
+      return { success: false, error: 'invoiceBeforeOdooTracking' };
+    }
     const unit = contract.unit;
     const tenant = contract.tenant;
 

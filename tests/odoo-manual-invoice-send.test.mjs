@@ -41,6 +41,18 @@ test('manual send and status-check actions enforce auth flags and safe errors', 
   assert.match(actions, /SAFE_ODOO_SEND_ERRORS/);
   assert.match(actions, /sanitizeOdooActionError/);
   assert.match(actions, /odooService\.checkInvoiceStatus/);
+  assert.match(actions, /isPeriodBeforeOdooTracking/);
+  assert.match(actions, /invoiceBeforeOdooTracking/);
+});
+
+test('manual and outbox sync both reject invoices before the contract cutover', () => {
+  const actions = readFileSync(new URL('../src/lib/actions/odoo.ts', import.meta.url), 'utf8');
+  const service = readFileSync(new URL('../src/lib/odoo/service.ts', import.meta.url), 'utf8');
+  const table = readFileSync(new URL('../src/components/invoices/invoices-table.tsx', import.meta.url), 'utf8');
+  assert.match(actions, /invoice\.contract\?\.odoo_tracking_start_date/);
+  assert.match(service, /contract\.odoo_tracking_start_date/);
+  assert.match(service, /invoiceBeforeOdooTracking/);
+  assert.match(table, /invoiceBeforeOdooTracking/);
 });
 
 test('status check uses searchRead and syncs local invoice from Odoo', () => {

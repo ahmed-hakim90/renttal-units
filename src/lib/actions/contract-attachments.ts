@@ -6,8 +6,10 @@ import { z } from 'zod';
 import { requirePermission } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import { contractsRepository } from '@/lib/repositories/contracts';
+import { contractAttachmentsRepository } from '@/lib/repositories/contract-attachments';
 import { auditService } from '@/lib/services/audit-service';
 import { getCorrelationId } from '@/lib/observability/correlation-id';
+import { DEFAULT_LIST_PAGE_SIZE, parseListPage, parseListPageSize } from '@/lib/pagination/list-page';
 
 const BUCKET = 'contract-documents';
 const MAX_PDF_BYTES = 10 * 1024 * 1024;
@@ -15,6 +17,28 @@ const idSchema = z.string().uuid();
 
 async function context() {
   return { correlation_id: await getCorrelationId() };
+}
+
+export async function getContractAttachmentsPage(
+  locale: string,
+  filters?: { page?: number; pageSize?: number },
+) {
+  const auth = await requirePermission(locale, 'contracts.view', await context());
+  const page = parseListPage(filters?.page);
+  const pageSize = parseListPageSize(filters?.pageSize, DEFAULT_LIST_PAGE_SIZE);
+  return contractAttachmentsRepository.findPage(
+    { ...(await context()), user_id: auth.userId, role: auth.role },
+    { page, pageSize },
+  );
+}
+
+export async function listContractLinkOptions(locale: string) {
+  const auth = await requirePermission(locale, 'contracts.view', await context());
+  return contractAttachmentsRepository.listContractLinkOptions({
+    ...(await context()),
+    user_id: auth.userId,
+    role: auth.role,
+  });
 }
 
 function validatePdf(file: File, bytes: Uint8Array) {
@@ -78,6 +102,7 @@ export async function uploadContractPdf(locale: string, contractId: string, form
   }, ctx);
   revalidatePath(`/${locale}/contracts`);
   revalidatePath(`/${locale}/contracts/${contractId}`);
+  revalidatePath(`/${locale}/documents`);
   return { success: true, data };
 }
 
@@ -142,5 +167,74 @@ export async function deleteContractPdf(locale: string, contractId: string, atta
   await auditService.log(auth, 'delete', 'contract_attachment', attachmentId, attachment, null, ctx);
   revalidatePath(`/${locale}/contracts`);
   revalidatePath(`/${locale}/contracts/${contractId}`);
+  revalidatePath(`/${locale}/documents`);
   return { success: true };
+}
+
+/** Move an uploaded PDF from one contract to another (storage path + DB link). */
+export async function relinkContractPdf(
+  locale: string,
+  attachmentId: string,
+  newContractId: string,
+) {
+  const auth = await requirePermission(locale, 'contracts.update', await context());
+  if (!idSchema.safeParse(attachmentId).success || !idSchema.safeParse(newContractId).success) {
+    return { success: false, error: 'pdfNotFound' };
+  }
+  const ctx = { ...(await context()), user_id: auth.userId, role: auth.role };
+  const supabase = await createClient();
+
+  const { data: attachment, error } = await supabase
+    .from('contract_attachments')
+    .select('*')
+    .eq('id', attachmentId)
+    .maybeSingle();
+  if (error || !attachment) return { success: false, error: 'pdfNotFound' };
+  if (attachment.contract_id === newContractId) {
+    return { success: true, data: attachment };
+  }
+
+  const targetContract = await contractsRepository.findById(newContractId, ctx);
+  if (!targetContract) return { success: false, error: 'contractNotFound' };
+  if (targetContract.status !== 'active' && targetContract.status !== 'draft') {
+    return { success: false, error: 'contractNotEditable' };
+  }
+
+  const oldPath = attachment.storage_path as string;
+  const newPath = `contracts/${newContractId}/${attachmentId}.pdf`;
+  const { error: moveError } = await supabase.storage.from(BUCKET).move(oldPath, newPath);
+  if (moveError) return { success: false, error: 'pdfRelinkFailed' };
+
+  const { data: updated, error: updateError } = await supabase
+    .from('contract_attachments')
+    .update({
+      contract_id: newContractId,
+      storage_path: newPath,
+    })
+    .eq('id', attachmentId)
+    .select('*')
+    .single();
+
+  if (updateError) {
+    await supabase.storage.from(BUCKET).move(newPath, oldPath);
+    return {
+      success: false,
+      error: updateError.code === '23505' ? 'pdfDuplicate' : 'pdfRelinkFailed',
+    };
+  }
+
+  await auditService.log(
+    auth,
+    'update',
+    'contract_attachment',
+    attachmentId,
+    attachment,
+    updated,
+    ctx,
+  );
+  revalidatePath(`/${locale}/contracts`);
+  revalidatePath(`/${locale}/contracts/${attachment.contract_id}`);
+  revalidatePath(`/${locale}/contracts/${newContractId}`);
+  revalidatePath(`/${locale}/documents`);
+  return { success: true, data: updated };
 }

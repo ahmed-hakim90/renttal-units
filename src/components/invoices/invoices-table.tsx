@@ -199,6 +199,7 @@ export function InvoicesTable({
     if (error === 'odooSyncFailed') return t('odooSyncFailed');
     if (error === 'odooInvoiceNeedsReview') return t('odooInvoiceNeedsReview');
     if (error === 'invoiceNotReadyForOdoo') return t('invoiceNotReadyForOdoo');
+    if (error === 'invoiceBeforeOdooTracking') return t('invoiceBeforeOdooTracking');
     if (error === 'odooSendStageMismatch') return t('odooSendStageMismatch');
     if (error === 'odooDisabled') return t('odooDisabled');
     if (error === 'odooInvoiceNotFound') return t('odooInvoiceNotFound');
